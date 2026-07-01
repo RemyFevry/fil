@@ -20,7 +20,10 @@ import { createRequire } from "node:module";
 const engineEntryUrl = (() => {
   try {
     const require = createRequire(import.meta.url);
-    return new URL(require.resolve("@fil/engine"), import.meta.url).href;
+    const pkgPath = require.resolve("@fil/engine/package.json");
+    const { dirname, join } = require("node:path") as typeof import("node:path");
+    const { pathToFileURL } = require("node:url") as typeof import("node:url");
+    return pathToFileURL(join(dirname(pkgPath), "dist", "index.js")).href;
   } catch {
     return null;
   }

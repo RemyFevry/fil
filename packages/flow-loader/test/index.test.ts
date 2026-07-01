@@ -116,22 +116,23 @@ describe("flow-loader", () => {
   it("serialized built-in flows round-trip through the real engine", async () => {
     // The code form (import { createMachine } from "@fil/engine"; export default
     // createMachine({...})) produced by serializeFlowCode must import and load
-    // identically to the in-memory machine. Write to a temp file under the
-    // workspace so @fil/engine resolves via normal Node ESM.
-    const { writeFile, mkdtemp, mkdir, rm } = await import("node:fs/promises");
+    // identically to the in-memory machine. Rewrite the @fil/engine specifier
+    // to an absolute path so the temp file can live anywhere.
+    const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
     const { dirname, join } = await import("node:path");
     const { pathToFileURL } = await import("node:url");
-    const { fileURLToPath } = await import("node:url");
-    const workspaceRoot = join(
-      dirname(dirname(dirname(fileURLToPath(import.meta.url)))),
-      "..",
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+    const pkgPath = require.resolve("@fil/engine/package.json");
+    const engineUrl = pathToFileURL(join(dirname(pkgPath), "dist", "index.js")).href;
+    const code = serializeFlowCode(defaultFlow.rawConfig).replace(
+      /from\s+["']@fil\/engine["']/g,
+      `from "${engineUrl}"`,
     );
-    const tmpBase = join(workspaceRoot, ".tmp");
-    await mkdir(tmpBase, { recursive: true });
-    const code = serializeFlowCode(defaultFlow.rawConfig);
     expect(code).toContain("export default");
     expect(code).toContain("createMachine");
-    const dir = await mkdtemp(join(tmpBase, "fil-fl-"));
+    const dir = await mkdtemp(join(tmpdir(), "fil-fl-"));
     const file = join(dir, "flow.mjs");
     try {
       await writeFile(file, code, "utf8");
