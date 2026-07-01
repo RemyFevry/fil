@@ -1,0 +1,32 @@
+{
+  "name": "@fil/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The `fil` CLI: a thin wiring over the Fil modules.",
+  "type": "module",
+  "bin": {
+    "fil": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fil/contract": "workspace:*",
+    "@fil/engine": "workspace:*",
+    "@fil/evolution": "workspace:*",
+    "@fil/flow-loader": "workspace:*",
+    "@fil/gate-runner": "workspace:*",
+    "@fil/inspect-view": "workspace:*",
+    "@fil/orchestrator": "workspace:*",
+    "@fil/store": "workspace:*"
+  }
+}
