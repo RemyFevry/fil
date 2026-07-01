@@ -14,8 +14,7 @@
     "./flows": {
       "types": "./dist/flows/index.d.ts",
       "import": "./dist/flows/index.js"
-    },
-    "./package.json": "./package.json"
+    }
   },
   "scripts": {
     "build": "tsc -b",
