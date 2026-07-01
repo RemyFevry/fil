@@ -3,7 +3,17 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/*.tsbuildinfo"],
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/*.tsbuildinfo",
+      // Tooling / runtime config (not part of the library build):
+      ".opencode/**",
+      ".pi/**",
+      ".config/**",
+      ".claude/**",
+      "coverage/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
