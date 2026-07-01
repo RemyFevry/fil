@@ -1,10 +1,8 @@
-import type { FlowDefinition } from "../seam.js";
-
 /**
- * The hotfix Flow: a fast incident path.
- * Authored as engine-native code (ADR-0002); data-only machine definition.
+ * The hotfix Flow config — the raw object literal the shipped hotfix Flow
+ * passes to `createMachine(...)`. Mirror this in `hotfix.js` if you change it.
  */
-const hotfixFlow: FlowDefinition = {
+export default {
   id: "hotfix",
   initial: "triage",
   context: {},
@@ -66,5 +64,3 @@ const hotfixFlow: FlowDefinition = {
     },
   },
 };
-
-export default hotfixFlow;

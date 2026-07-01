@@ -12,7 +12,7 @@ import { proposeCommand } from "../src/commands/propose.js";
 import { approveCommand } from "../src/commands/approve.js";
 import { inspectCommand } from "../src/commands/inspect.js";
 import { parseArgs } from "../src/args.js";
-import { serializeFlowCode, type FlowDefinition } from "@fil/engine";
+import { serializeFlowCode, createMachine, type FlowDefinition } from "@fil/engine";
 
 let workdir: string;
 
@@ -20,11 +20,13 @@ beforeAll(async () => {
   workdir = await mkdtemp(join(tmpdir(), "fil-cli-"));
 });
 afterAll(async () => {
-  await rm(workdir, { recursive: true, force: true });
+  if (workdir) {
+    await rm(workdir, { recursive: true, force: true });
+  }
 });
 
 /** A demo flow: a (shell true) -> b (human) -> done (final). */
-function demoFlow(): FlowDefinition {
+function demoFlow() {
   const phase = (
     instructions: string,
     gate: Record<string, unknown>,
@@ -51,6 +53,11 @@ function demoFlow(): FlowDefinition {
       done: { ...phase("Done", { type: "shell", script: "true" }), type: "final" },
     },
   };
+}
+
+/** Wrap a demoFlow raw config in createMachine, used by commands that need the machine. */
+function _demoFlowMachine(): FlowDefinition {
+  return createMachine(demoFlow() as Parameters<typeof createMachine>[0]);
 }
 
 function ctxFor(overrides: Partial<CliContext> = {}): { ctx: CliContext; lines: string[]; errors: string[] } {
@@ -87,9 +94,9 @@ describe("fil CLI — end to end", () => {
   });
 
   it("starts a Run on a chosen --flow and reports the first Phase", async () => {
-    const { ctx, lines } = ctxFor();
+    const { ctx, lines, errors: _errors } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     const code = await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("phase:  a");
@@ -100,7 +107,7 @@ describe("fil CLI — end to end", () => {
     let confirmed = false;
     const { ctx } = ctxFor({ prompter: async () => confirmed });
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
 
     expect(await nextCommand(ctx)).toBe(0); // a (shell) -> b
@@ -118,7 +125,7 @@ describe("fil CLI — end to end", () => {
   it("status prints the Phase, Gate, and tools", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     statusCommand(ctx);
     const out = lines.join("\n");
@@ -137,7 +144,7 @@ describe("fil CLI — end to end", () => {
   it("back retreats one Phase and is a no-op at the initial Phase", async () => {
     const { ctx } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     await nextCommand(ctx); // a -> b
     expect(backCommand(ctx)).toBe(0);
@@ -148,7 +155,7 @@ describe("fil CLI — end to end", () => {
   it("cancel ends the Run and blocks further advance", async () => {
     const { ctx } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     expect(cancelCommand(ctx)).toBe(0);
     expect(ctx.store.readProjection()?.status).toBe("cancelled");
@@ -158,7 +165,7 @@ describe("fil CLI — end to end", () => {
   it("inspect renders the active Run's Flow with the active Phase highlighted", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     inspectCommand(ctx);
     const out = lines.join("\n");
@@ -176,11 +183,11 @@ describe("fil CLI — end to end", () => {
   it("propose + approve applies a valid Flow edit", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
 
     // Author a proposed flow (only instructions change — safe).
-    const proposed = demoFlow() as Record<string, unknown>;
+    const proposed = structuredClone(demoFlow()) as Record<string, unknown>;
     const states = proposed.states as Record<string, { meta: { phase: { instructions: string } } }>;
     const aState = states.a;
     if (aState) aState.meta.phase.instructions = "Phase A (revised)";
@@ -201,7 +208,7 @@ describe("fil CLI — end to end", () => {
   it("approve refuses a broken proposal (load error)", async () => {
     const { ctx, errors } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     // Write a proposal whose patch corrupts the Flow code.
     ctx.store.writeProposal("bad", "--- a\n+++ b\n@@ -1,1 +1,1 @@\n-BROKEN\n");
     const code = await approveCommand(ctx, parseArgs(["bad", "--flow", "demo"]));
@@ -215,11 +222,11 @@ describe("fil CLI — end to end", () => {
   it("approve refuses when an active Run would be stranded", async () => {
     const { ctx, errors } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"])); // at phase a
 
     // Proposed flow RENAMES phase a -> a2, stranding the active Run.
-    const proposed = demoFlow() as Record<string, unknown>;
+    const proposed = structuredClone(demoFlow()) as Record<string, unknown>;
     const states = structuredClone(proposed.states) as Record<string, unknown>;
     states.a2 = states.a;
     delete states.a;

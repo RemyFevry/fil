@@ -1,14 +1,14 @@
-import type { FlowDefinition } from "../seam.js";
-
 /**
- * The default Flow: a full lifecycle.
+ * The default Flow config — the raw object literal the shipped default Flow
+ * passes to `createMachine(...)`. Kept separate from `default.js` so the
+ * shipped Flow file matches the canonical XState example at
+ * https://stately.ai/docs/xstate (call `createMachine(...)`, default-export
+ * the machine), while this raw form is what `serializeFlowCode` writes back
+ * out when `fil init` scaffolds a user Flow file.
  *
- * Authored as engine-native code (ADR-0002): a data-only machine definition
- * with per-Phase configuration on each state node's `meta.phase`. No inline
- * functions — Fil supplies every implementation. For the XState engine this is
- * XState machine config; `fil init` writes it to user projects.
+ * If you change this file, mirror the change in `default.js`.
  */
-const defaultFlow: FlowDefinition = {
+export default {
   id: "default",
   initial: "requirements",
   context: {},
@@ -118,5 +118,3 @@ const defaultFlow: FlowDefinition = {
     },
   },
 };
-
-export default defaultFlow;

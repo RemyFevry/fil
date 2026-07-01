@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { defaultFlowEngine } from "@fil/engine";
+import { createMachine, defaultFlowEngine } from "@fil/engine";
 import { MemoryStore } from "@fil/store";
 import {
   advance,
@@ -24,7 +24,7 @@ function failingShellGate(): { type: "shell"; script: string } {
 }
 
 /** A linear test Flow: a (shell pass) -> b (human) -> c (final). */
-function testFlow(): Record<string, unknown> {
+function testFlow() {
   const phase = (
     instructions: string,
     gate: Record<string, unknown>,
@@ -42,7 +42,7 @@ function testFlow(): Record<string, unknown> {
       },
     },
   });
-  return {
+  return createMachine({
     id: "test",
     initial: "a",
     states: {
@@ -50,7 +50,7 @@ function testFlow(): Record<string, unknown> {
       b: { ...phase("Phase B", { type: "human", prompt: "Proceed?" }), on: { NEXT: "c" } },
       c: { ...phase("Phase C", passingShellGate()), type: "final" },
     },
-  };
+  });
 }
 
 let cwd: string;
@@ -213,7 +213,7 @@ describe("orchestrator.project", () => {
 });
 
 /** Build a parallel Flow: left.l1 (shell pass) and right.r1 (shell gate) -> finals. */
-function parallelFlow(rightScript: string): Record<string, unknown> {
+function parallelFlow(rightScript: string) {
   const leaf = (instructions: string, gate: Record<string, unknown>, final = false) => {
     const node: Record<string, unknown> = {
       meta: {
@@ -230,7 +230,7 @@ function parallelFlow(rightScript: string): Record<string, unknown> {
     if (final) node.type = "final";
     return node;
   };
-  return {
+  return createMachine({
     id: "par",
     type: "parallel",
     states: {
@@ -249,7 +249,7 @@ function parallelFlow(rightScript: string): Record<string, unknown> {
         },
       },
     },
-  };
+  });
 }
 
 describe("orchestrator — parallel Phases (#19)", () => {

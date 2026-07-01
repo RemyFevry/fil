@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import type { FlowDefinition } from "@fil/engine";
+import { engineEntryUrl } from "@fil/engine";
 import { resolveFlow, type FlowLoaderDeps, type ResolvedFlow } from "@fil/flow-loader";
 import type { OrchestratorDeps } from "@fil/orchestrator";
 import type { RunState } from "@fil/store";
@@ -40,10 +41,27 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
             .map((n) => n.slice(0, -3))
         : [],
     importFlowFile: async (path) => {
-      const mod = (await import(pathToFileURL(path).href)) as {
-        default?: FlowDefinition;
-      };
-      return mod.default;
+      // Flow files import createMachine from "@fil/engine". Rewrite that bare
+      // specifier to an absolute URL resolved from this module so the Flow
+      // file can be imported from any location (including temp dirs in tests).
+      const source = readFileSync(path, "utf8");
+      const rewritten = engineEntryUrl
+        ? source.replace(
+            /from\s+["']@fil\/engine["']/g,
+            `from "${engineEntryUrl}"`,
+          )
+        : source;
+      const rewrittenPath = `${path}.${process.pid}.${Date.now()}.resolved.mjs`;
+      const { writeFileSync, rmSync } = await import("node:fs");
+      writeFileSync(rewrittenPath, rewritten, { encoding: "utf8", flag: "wx" });
+      try {
+        const mod = (await import(pathToFileURL(rewrittenPath).href)) as {
+          default?: FlowDefinition;
+        };
+        return mod.default;
+      } finally {
+        rmSync(rewrittenPath, { force: true });
+      }
     },
     engine: ctx.engine,
   };
