@@ -13,7 +13,7 @@ const deps = { engine: defaultFlowEngine, flowName: "default", loadCode: loadFlo
 /** Render a definition as engine-native code (the durable flow-file form). */
 function code(obj: unknown): string {
   const config = (obj as { config?: unknown }).config ?? obj;
-  return serializeFlowCode(config);
+  return serializeFlowCode(config as Parameters<typeof serializeFlowCode>[0]);
 }
 
 const baseCode = code(flow.rawConfig);

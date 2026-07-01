@@ -51,7 +51,7 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
             `from "${engineEntryUrl}"`,
           )
         : source;
-      const rewrittenPath = path + ".resolved.mjs";
+      const rewrittenPath = `${path}.${process.pid}.${Date.now()}.resolved.mjs`;
       const { writeFileSync, rmSync } = await import("node:fs");
       writeFileSync(rewrittenPath, rewritten, "utf8");
       try {
