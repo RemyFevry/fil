@@ -6,6 +6,7 @@ import type {
   RunProjection,
 } from "@fil/contract";
 import type { EngineInstance, FlowEngine, FlowDefinition } from "@fil/engine";
+import { createMachine } from "@fil/engine";
 import { runGate as defaultRunGate, type GateContext } from "@fil/gate-runner";
 import type { RunState, Store } from "@fil/store";
 
@@ -89,7 +90,10 @@ export async function startRun(
     receipts: [],
   };
 
-  deps.store.writeFlowSnapshot(run.runId, opts.definition);
+  deps.store.writeFlowSnapshot(
+    run.runId,
+    (opts.definition as { config: unknown }).config as Record<string, unknown>,
+  );
   deps.store.writeRunState(run);
   const projection = project(run, instance);
   deps.store.writeProjection(projection);
@@ -260,9 +264,15 @@ interface Reconstructed {
 }
 
 function reconstruct(deps: OrchestratorDeps, run: RunState): Reconstructed | null {
-  const definition = deps.store.readFlowSnapshot(run.runId);
-  if (!definition) return null;
-  const loaded = deps.engine.load(run.flowName, definition);
+  const config = deps.store.readFlowSnapshot(run.runId);
+  if (!config) return null;
+  // The FlowDefinition stored by the orchestrator is a machine (post-createMachine).
+  // The store, however, holds the JSON-serialisable raw config; rebuild the machine
+  // here so the engine sees the shape it expects.
+  const machine = createMachine(
+    config as Parameters<typeof createMachine>[0],
+  );
+  const loaded = deps.engine.load(run.flowName, machine);
   if (!loaded.ok) return null;
   const current = run.positions.at(-1);
   if (!current) return null;

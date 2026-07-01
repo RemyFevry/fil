@@ -6,6 +6,7 @@ export {
   builtInFlowNames,
   serializeFlowCode,
 } from "./flows/index.js";
+export { createMachine } from "./flows/create-machine.js";
 export type { BuiltInFlow } from "./flows/index.js";
 
 import type { FlowEngine } from "./seam.js";

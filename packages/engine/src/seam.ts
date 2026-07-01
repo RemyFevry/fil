@@ -8,17 +8,23 @@ import type { PhaseConfig } from "@fil/contract";
  * in another language — can implement it without re-architecting the core.
  *
  * Rule (ADR-0003): **no engine-library imports outside the engine adapter
- * module.** This file must not import XState or any other engine.
+ * module.** Flow code never imports `xstate`; it imports `createMachine` from
+ * `@fil/engine` (which wraps xstate's `createMachine` internally). For another
+ * engine the Flow would be that engine's native machine code (e.g. `.py`).
  *
- * Flows are engine-native CODE (ADR-0002): for the XState engine a Flow is a
- * `.js`/`.ts` module that exports a data-only machine definition (the
- * `FlowDefinition`). There is no neutral Flow format, and the engine owns the
- * state-machine library — Flow code never imports xstate. For another engine
- * the Flow would be that engine's native code (e.g. `.py`).
+ * Flows are engine-native machine JS code (ADR-0002): for the XState engine a
+ * Flow is a `.js`/`.ts` module that calls `createMachine(...)` from
+ * `@fil/engine` and exports the resulting machine — the same shape as the
+ * canonical XState examples at https://stately.ai/docs/xstate. There is no
+ * neutral Flow format, and the engine owns the state-machine library.
  */
 
-/** A loaded Flow definition (engine-specific code, imported as a module). */
-export type FlowDefinition = Record<string, unknown>;
+/**
+ * A loaded Flow — the result of `createMachine(...)` from `@fil/engine`.
+ * Engine-library-opaque: the seam deliberately avoids importing the engine's
+ * state-machine types here so fil-core stays portable across engines.
+ */
+export type FlowDefinition = unknown;
 
 /**
  * A durable, JSON-serializable snapshot of a Run's position in the Flow.

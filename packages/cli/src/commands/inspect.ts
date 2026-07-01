@@ -1,6 +1,6 @@
 import { renderGraph } from "@fil/inspect-view";
 import { currentPhases } from "@fil/orchestrator";
-import type { FlowDefinition } from "@fil/engine";
+import { createMachine } from "@fil/engine";
 import type { CliContext } from "../context.js";
 import { activeRun, resolveFlowDefinition } from "./common.js";
 
@@ -14,7 +14,12 @@ export async function inspectCommand(ctx: CliContext): Promise<number> {
       ctx.out.error("Could not read the active Run's Flow snapshot.");
       return 1;
     }
-    const loaded = ctx.engine.load(current.run.flowName, snapshot as FlowDefinition);
+    // The store holds the JSON-serialisable raw config; rebuild the machine so
+    // the engine sees the shape it expects.
+    const machine = createMachine(
+      snapshot as Parameters<typeof createMachine>[0],
+    );
+    const loaded = ctx.engine.load(current.run.flowName, machine);
     if (!loaded.ok) {
       ctx.out.error(loaded.error);
       return 1;
