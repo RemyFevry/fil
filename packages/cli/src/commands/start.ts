@@ -6,7 +6,7 @@ import { activeRun, orchestratorDeps, resolveFlowDefinition } from "./common.js"
 /** `fil start <change> [--flow name]` — spawn a Run bound to a Change. */
 export async function startCommand(ctx: CliContext, args: ParsedArgs): Promise<number> {
   const existing = activeRun(ctx);
-  if (existing && existing.run.status === "active") {
+  if (existing?.run.status === "active") {
     ctx.out.error(
       `Run ${existing.run.runId} is still active on Phase "${existing.projection.phase}". ` +
         `Finish or cancel it before starting another Run.`,
