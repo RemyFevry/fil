@@ -5,7 +5,7 @@ import {
   validate,
   RunProjectionSchema,
   type RunProjection,
-} from "./index.js";
+} from "../src/index.js";
 
 const valid: RunProjection = {
   runId: "run-1",

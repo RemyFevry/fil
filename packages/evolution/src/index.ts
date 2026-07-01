@@ -1,4 +1,4 @@
-import type { FlowEngine } from "@fil/engine";
+import type { FlowDefinition, FlowEngine } from "@fil/engine";
 
 /**
  * Safe Flow evolution (the differentiator).
@@ -7,17 +7,24 @@ import type { FlowEngine } from "@fil/engine";
  * *approves*. This module NEVER applies anything to disk — it decides whether
  * a patch is safe to apply. Two failure modes:
  *
- *  - `load`         — the patched code does not parse / load as a valid machine.
+ *  - `load`         — the patched code does not import / load as a valid machine.
  *  - `reachability` — the patched machine is structurally broken: a Phase is
  *                     unreachable from the initial state, or a non-final Phase
  *                     can no longer reach a terminal (a deadlock).
  *
- * Pure: no I/O, no side effects.
+ * Deterministic: no disk I/O. Code execution (importing the patched module) is
+ * delegated to an injected `loadCode`, so the logic is unit-testable.
  */
+
+export type FlowCodeResult =
+  | { ok: true; definition: FlowDefinition }
+  | { ok: false; error: string };
 
 export interface ApplyProposalDeps {
   engine: FlowEngine;
   flowName: string;
+  /** Execute Flow source code, returning its exported definition. */
+  loadCode: (code: string) => Promise<FlowCodeResult>;
 }
 
 export type ApplyProposalResult =
@@ -25,11 +32,11 @@ export type ApplyProposalResult =
   | { ok: false; error: "load" | "reachability"; message: string };
 
 /** Validate a proposed patch without applying it. */
-export function applyProposal(
+export async function applyProposal(
   flowCode: string,
   patch: string,
   deps: ApplyProposalDeps,
-): ApplyProposalResult {
+): Promise<ApplyProposalResult> {
   let newCode: string;
   try {
     newCode = applyUnifiedDiff(flowCode, patch);
@@ -41,23 +48,21 @@ export function applyProposal(
     };
   }
 
-  let definition: unknown;
-  try {
-    definition = JSON.parse(newCode);
-  } catch {
+  const loaded = await deps.loadCode(newCode);
+  if (!loaded.ok) {
     return {
       ok: false,
       error: "load",
-      message: "Patched code is not valid JSON.",
+      message: `Patched code failed to load: ${loaded.error}`,
     };
   }
 
-  const loaded = deps.engine.load(deps.flowName, definition as never);
-  if (!loaded.ok) {
-    return { ok: false, error: "load", message: loaded.error };
+  const machine = deps.engine.load(deps.flowName, loaded.definition);
+  if (!machine.ok) {
+    return { ok: false, error: "load", message: machine.error };
   }
 
-  const reach = checkReachability(loaded.instance.serialize());
+  const reach = checkReachability(machine.instance.serialize());
   if (!reach.ok) {
     return {
       ok: false,
@@ -68,6 +73,24 @@ export function applyProposal(
 
   return { ok: true, newCode };
 }
+
+/**
+ * Default `loadCode`: import the Flow source as a data-URL ESM module and read
+ * its default export. No xstate is needed in the Flow code itself.
+ */
+export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
+  try {
+    const url = "data:text/javascript;base64," + Buffer.from(code).toString("base64");
+    const mod = (await import(url)) as { default?: FlowDefinition };
+    if (!mod.default) {
+      return { ok: false, error: "Flow module has no default export." };
+    }
+    return { ok: true, definition: mod.default };
+  } catch (err) {
+    return { ok: false, error: message(err) };
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // Structural reachability (no active-Run knowledge — that is the runtime guard)

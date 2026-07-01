@@ -9,7 +9,7 @@ import {
 /** An in-memory `Store` for tests — no disk required. */
 export class MemoryStore implements Store {
   private config: FilConfig | null = null;
-  private readonly flows = new Map<string, Record<string, unknown>>();
+  private readonly flows = new Map<string, string>();
   private projection: RunProjection | null = null;
   private readonly runs = new Map<string, RunState>();
   private readonly snapshots = new Map<string, Record<string, unknown>>();
@@ -31,12 +31,12 @@ export class MemoryStore implements Store {
     return [...this.flows.keys()];
   }
 
-  readFlow(name: string): Record<string, unknown> | undefined {
+  readFlowText(name: string): string | undefined {
     return this.flows.get(name);
   }
 
-  writeFlow(name: string, definition: Record<string, unknown>): void {
-    this.flows.set(name, structuredClone(definition));
+  writeFlowText(name: string, code: string): void {
+    this.flows.set(name, code);
   }
 
   flowExists(name: string): boolean {

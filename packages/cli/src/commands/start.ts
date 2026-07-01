@@ -12,7 +12,7 @@ export async function startCommand(ctx: CliContext, args: ParsedArgs): Promise<n
   }
 
   const flowName = flag(args, "flow");
-  const resolved = resolveFlowDefinition(ctx, flowName);
+  const resolved = await resolveFlowDefinition(ctx, flowName);
   if (!resolved.ok) {
     ctx.out.error(resolved.error);
     return 1;

@@ -24,7 +24,7 @@ export function proposeCommand(ctx: CliContext, args: ParsedArgs): number {
   }
   const proposed = readFileSync(proposedPath, "utf8");
 
-  const rel = `.fil/flows/${flowName}.json`;
+  const rel = `.fil/flows/${flowName}.js`;
   const patch = createUnifiedPatch(current, proposed, rel, rel);
 
   const id = proposalId();

@@ -2,17 +2,17 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { defaultContext, type CliContext } from "./context.js";
-import { initCommand } from "./commands/init.js";
-import { startCommand } from "./commands/start.js";
-import { nextCommand } from "./commands/next.js";
-import { statusCommand } from "./commands/status.js";
-import { backCommand, cancelCommand } from "./commands/back-cancel.js";
-import { proposeCommand } from "./commands/propose.js";
-import { approveCommand } from "./commands/approve.js";
-import { inspectCommand } from "./commands/inspect.js";
-import { parseArgs } from "./args.js";
-import type { FlowDefinition } from "@fil/engine";
+import { defaultContext, type CliContext } from "../src/context.js";
+import { initCommand } from "../src/commands/init.js";
+import { startCommand } from "../src/commands/start.js";
+import { nextCommand } from "../src/commands/next.js";
+import { statusCommand } from "../src/commands/status.js";
+import { backCommand, cancelCommand } from "../src/commands/back-cancel.js";
+import { proposeCommand } from "../src/commands/propose.js";
+import { approveCommand } from "../src/commands/approve.js";
+import { inspectCommand } from "../src/commands/inspect.js";
+import { parseArgs } from "../src/args.js";
+import { serializeFlowCode, type FlowDefinition } from "@fil/engine";
 
 let workdir: string;
 
@@ -81,15 +81,15 @@ describe("fil CLI — end to end", () => {
   it("init is idempotent (does not clobber existing flows)", () => {
     const { ctx } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("default", { id: "default", initial: "x", states: {} });
+    ctx.store.writeFlowText("default", "export default { id: 'default', initial: 'x' };\n");
     initCommand(ctx); // again
-    expect(ctx.store.readFlow("default")?.["initial"]).toBe("x");
+    expect(ctx.store.readFlowText("default")).toContain("initial: 'x'");
   });
 
   it("starts a Run on a chosen --flow and reports the first Phase", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     const code = await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("phase:  a");
@@ -100,7 +100,7 @@ describe("fil CLI — end to end", () => {
     let confirmed = false;
     const { ctx } = ctxFor({ prompter: async () => confirmed });
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
 
     expect(await nextCommand(ctx)).toBe(0); // a (shell) -> b
@@ -118,7 +118,7 @@ describe("fil CLI — end to end", () => {
   it("status prints the Phase, Gate, and tools", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     statusCommand(ctx);
     const out = lines.join("\n");
@@ -137,7 +137,7 @@ describe("fil CLI — end to end", () => {
   it("back retreats one Phase and is a no-op at the initial Phase", async () => {
     const { ctx } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     await nextCommand(ctx); // a -> b
     expect(backCommand(ctx)).toBe(0);
@@ -148,7 +148,7 @@ describe("fil CLI — end to end", () => {
   it("cancel ends the Run and blocks further advance", async () => {
     const { ctx } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     expect(cancelCommand(ctx)).toBe(0);
     expect(ctx.store.readProjection()?.status).toBe("cancelled");
@@ -158,7 +158,7 @@ describe("fil CLI — end to end", () => {
   it("inspect renders the active Run's Flow with the active Phase highlighted", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
     inspectCommand(ctx);
     const out = lines.join("\n");
@@ -176,7 +176,7 @@ describe("fil CLI — end to end", () => {
   it("propose + approve applies a valid Flow edit", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
 
     // Author a proposed flow (only instructions change — safe).
@@ -184,39 +184,38 @@ describe("fil CLI — end to end", () => {
     const states = proposed.states as Record<string, { meta: { phase: { instructions: string } } }>;
     const aState = states.a;
     if (aState) aState.meta.phase.instructions = "Phase A (revised)";
-    const proposedPath = join(workdir, "proposed.json");
-    await writeFile(proposedPath, JSON.stringify(proposed, null, 2));
+    const proposedPath = join(workdir, "proposed.js");
+    await writeFile(proposedPath, serializeFlowCode(proposed));
 
     expect(proposeCommand(ctx, parseArgs(["demo", proposedPath]))).toBe(0);
     const id = ctx.store.listProposals()[0];
     expect(id).toBeTruthy();
 
-    expect(approveCommand(ctx, parseArgs([id ?? ""]))).toBe(0);
-    const applied = ctx.store.readFlow("demo") as Record<string, unknown>;
-    const aFinal = (applied.states as Record<string, { meta: { phase: { instructions: string } } }>).a;
-    expect(aFinal?.meta.phase.instructions).toBe("Phase A (revised)");
+    expect(await approveCommand(ctx, parseArgs([id ?? ""]))).toBe(0);
+    const applied = ctx.store.readFlowText("demo") ?? "";
+    expect(applied).toContain("Phase A (revised)");
     expect(ctx.store.listProposals()).not.toContain(id);
     expect(lines.join("\n")).toContain("Applied proposal");
   });
 
-  it("approve refuses a broken proposal (load error)", () => {
+  it("approve refuses a broken proposal (load error)", async () => {
     const { ctx, errors } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
-    // Write a proposal whose patch corrupts the JSON.
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
+    // Write a proposal whose patch corrupts the Flow code.
     ctx.store.writeProposal("bad", "--- a\n+++ b\n@@ -1,1 +1,1 @@\n-BROKEN\n");
-    const code = approveCommand(ctx, parseArgs(["bad", "--flow", "demo"]));
+    const code = await approveCommand(ctx, parseArgs(["bad", "--flow", "demo"]));
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("Rejected (load)");
     // Flow unchanged, proposal kept.
-    expect(ctx.store.readFlow("demo")).toBeDefined();
+    expect(ctx.store.readFlowText("demo")).toBeDefined();
     expect(ctx.store.listProposals()).toContain("bad");
   });
 
   it("approve refuses when an active Run would be stranded", async () => {
     const { ctx, errors } = ctxFor();
     initCommand(ctx);
-    ctx.store.writeFlow("demo", demoFlow());
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"])); // at phase a
 
     // Proposed flow RENAMES phase a -> a2, stranding the active Run.
@@ -227,12 +226,12 @@ describe("fil CLI — end to end", () => {
     proposed.states = states;
     proposed.initial = "a2";
     (states.a2 as { on?: Record<string, string> }).on = { NEXT: "b" };
-    const proposedPath = join(workdir, "rename.json");
-    await writeFile(proposedPath, JSON.stringify(proposed, null, 2));
+    const proposedPath = join(workdir, "rename.js");
+    await writeFile(proposedPath, serializeFlowCode(proposed));
 
     proposeCommand(ctx, parseArgs(["demo", proposedPath]));
     const id = ctx.store.listProposals()[0];
-    const code = approveCommand(ctx, parseArgs([id ?? ""]));
+    const code = await approveCommand(ctx, parseArgs([id ?? ""]));
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("Refused");
     expect(errors.join("\n")).toContain("stranded");

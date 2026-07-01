@@ -5,7 +5,7 @@ import type { CliContext } from "../context.js";
 import { activeRun, resolveFlowDefinition } from "./common.js";
 
 /** `fil inspect` — view-only visualizer over FlowEngine.serialize(). */
-export function inspectCommand(ctx: CliContext): number {
+export async function inspectCommand(ctx: CliContext): Promise<number> {
   const current = activeRun(ctx);
 
   if (current) {
@@ -26,7 +26,7 @@ export function inspectCommand(ctx: CliContext): number {
   }
 
   // No active Run — show the default Flow.
-  const resolved = resolveFlowDefinition(ctx);
+  const resolved = await resolveFlowDefinition(ctx);
   if (!resolved.ok) {
     ctx.out.error(resolved.error);
     return 1;

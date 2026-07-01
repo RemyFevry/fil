@@ -10,12 +10,14 @@ import type { PhaseConfig } from "@fil/contract";
  * Rule (ADR-0003): **no engine-library imports outside the engine adapter
  * module.** This file must not import XState or any other engine.
  *
- * Flows are serializable engine config (ADR-0002). The `FlowDefinition` is
- * engine-specific — there is no neutral Flow format. For the default XState
- * engine a `FlowDefinition` is XState machine config (data-only JSON).
+ * Flows are engine-native CODE (ADR-0002): for the XState engine a Flow is a
+ * `.js`/`.ts` module that exports a data-only machine definition (the
+ * `FlowDefinition`). There is no neutral Flow format, and the engine owns the
+ * state-machine library — Flow code never imports xstate. For another engine
+ * the Flow would be that engine's native code (e.g. `.py`).
  */
 
-/** Engine-specific Flow configuration (XState config JSON for the default engine). */
+/** A loaded Flow definition (engine-specific code, imported as a module). */
 export type FlowDefinition = Record<string, unknown>;
 
 /**

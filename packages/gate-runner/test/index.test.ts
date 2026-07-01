@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runGate } from "./index.js";
+import { runGate } from "../src/index.js";
 
 let workdir: string;
 let passScript: string;

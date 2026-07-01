@@ -4,6 +4,7 @@ export {
   BUILT_IN_FLOWS,
   builtInFlow,
   builtInFlowNames,
+  serializeFlowCode,
 } from "./flows/index.js";
 export type { BuiltInFlow } from "./flows/index.js";
 

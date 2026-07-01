@@ -2,8 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { FilStore } from "./fil-store.js";
-import type { RunState } from "./types.js";
+import { FilStore } from "../src/fil-store.js";
+import type { RunState } from "../src/types.js";
 
 let workdir: string;
 let store: FilStore;
@@ -36,10 +36,10 @@ describe("FilStore (real fs, tmpdir)", () => {
     expect(store.readConfig()?.defaultFlow).toBe("default");
   });
 
-  it("round-trips a Flow definition", () => {
-    store.writeFlow("default", { id: "default", initial: "a", states: {} });
+  it("round-trips a Flow definition as code", () => {
+    store.writeFlowText("default", "export default { id: \"default\" };\n");
     expect(store.flowExists("default")).toBe(true);
-    expect(store.readFlow("default")?.["initial"]).toBe("a");
+    expect(store.readFlowText("default")).toContain("export default");
     expect(store.listFlows()).toContain("default");
   });
 
