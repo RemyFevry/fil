@@ -53,7 +53,7 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
         : source;
       const rewrittenPath = `${path}.${process.pid}.${Date.now()}.resolved.mjs`;
       const { writeFileSync, rmSync } = await import("node:fs");
-      writeFileSync(rewrittenPath, rewritten, "utf8");
+      writeFileSync(rewrittenPath, rewritten, { encoding: "utf8", flag: "wx" });
       try {
         const mod = (await import(pathToFileURL(rewrittenPath).href)) as {
           default?: FlowDefinition;
