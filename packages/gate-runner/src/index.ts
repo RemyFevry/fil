@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import type {
@@ -112,8 +112,10 @@ export function artifactExists(
   cwd: string,
 ): boolean {
   if (!artifactPath) return true;
-  if (existsSync(artifactPath)) return true;
-  return existsSync(join(cwd, artifactPath));
+  // Resolve against `cwd` for relative paths so we don't accidentally fall
+  // back to process.cwd() via existsSync's bare-relative behaviour.
+  const resolved = isAbsolute(artifactPath) ? artifactPath : join(cwd, artifactPath);
+  return existsSync(resolved);
 }
 
 function trim(value: string | undefined): string | undefined {
