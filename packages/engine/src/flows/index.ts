@@ -2,6 +2,11 @@ import { createMachine } from "./create-machine.js";
 import defaultFlowConfig from "./default.config.js";
 import hotfixFlowConfig from "./hotfix.config.js";
 
+/** The raw config object a Flow author writes inside `createMachine(...)`. */
+export type FlowConfig = Parameters<typeof createMachine>[0];
+/** The machine instance returned by `createMachine(...)`. */
+export type FlowMachine = ReturnType<typeof createMachine>;
+
 /**
  * A pre-built shipped Flow: the raw config the author wrote (the object
  * passed to `createMachine(...)`) plus the machine it produces. We keep both
@@ -11,9 +16,9 @@ import hotfixFlowConfig from "./hotfix.config.js";
 export interface BuiltInFlow {
   name: string;
   /** The raw Flow config — what the Flow author writes inside `createMachine(...)`. */
-  rawConfig: unknown;
-  /** A pre-built machine — the result of `createMachine(rawConfig)`. Engine-library-opaque. */
-  machine: unknown;
+  rawConfig: FlowConfig;
+  /** A pre-built machine — the result of `createMachine(rawConfig)`. */
+  machine: FlowMachine;
   description: string;
 }
 
@@ -21,15 +26,15 @@ export interface BuiltInFlow {
 export const BUILT_IN_FLOWS: BuiltInFlow[] = [
   {
     name: "default",
-    rawConfig: defaultFlowConfig,
-    machine: createMachine(defaultFlowConfig as Parameters<typeof createMachine>[0]),
+    rawConfig: defaultFlowConfig as FlowConfig,
+    machine: createMachine(defaultFlowConfig as FlowConfig),
     description:
       "The full lifecycle: Requirements -> Design -> Code -> Review -> Done.",
   },
   {
     name: "hotfix",
-    rawConfig: hotfixFlowConfig,
-    machine: createMachine(hotfixFlowConfig as Parameters<typeof createMachine>[0]),
+    rawConfig: hotfixFlowConfig as FlowConfig,
+    machine: createMachine(hotfixFlowConfig as FlowConfig),
     description:
       "A fast incident path: Triage -> Patch -> Done, gated by the test suite.",
   },
@@ -50,7 +55,7 @@ export function builtInFlowNames(): string[] {
  * passed to `createMachine(...)` — i.e. the input to the wrapper, not the
  * machine itself.
  */
-export function serializeFlowCode(rawConfig: unknown): string {
+export function serializeFlowCode(rawConfig: FlowConfig): string {
   return (
     `import { createMachine } from "@fil/engine";\n` +
     `\n` +
