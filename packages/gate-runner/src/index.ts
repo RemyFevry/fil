@@ -1,9 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import type {
   GateSpec,
+  GateType,
   Receipt,
   ReceiptEvidence,
   ReceiptOutcome,
@@ -51,6 +53,8 @@ function runShell(
     shell: true,
     cwd: ctx.cwd,
     encoding: "utf8",
+    timeout: 10 * 60 * 1000,
+    maxBuffer: 64 * 1024 * 1024,
   });
   const outcome: ReceiptOutcome = result.status === 0 ? "pass" : "fail";
   const evidence: ReceiptEvidence = {
@@ -58,7 +62,7 @@ function runShell(
     stdout: trim(result.stdout),
     stderr: trim(result.stderr ?? result.error?.message),
   };
-  if (artifactPath) {
+  if (artifactPath && outcome === "pass") {
     evidence.artifactPath = artifactPath;
   }
   return buildReceipt(ctx, "shell", outcome, evidence);
@@ -89,7 +93,7 @@ async function defaultPrompter(message: string): Promise<boolean> {
 
 function buildReceipt(
   ctx: GateContext,
-  gateType: string,
+  gateType: GateType,
   outcome: ReceiptOutcome,
   evidence: ReceiptEvidence,
 ): Receipt {
@@ -108,7 +112,8 @@ export function artifactExists(
   cwd: string,
 ): boolean {
   if (!artifactPath) return true;
-  return existsSync(artifactPath) || existsSync(`${cwd}/${artifactPath}`);
+  if (existsSync(artifactPath)) return true;
+  return existsSync(join(cwd, artifactPath));
 }
 
 function trim(value: string | undefined): string | undefined {

@@ -12,23 +12,26 @@ export interface InspectInput {
   graph: FlowGraph;
   /** Currently-active Phase ids (highlighted). */
   activePhases?: string[];
+  /** Override color detection (e.g. for tests). Default: stdout TTY + NO_COLOR env. */
+  color?: boolean;
 }
 
 /** Render a Flow graph + active Phase as a read-only text diagram. */
 export function renderGraph(input: InspectInput): string {
   const { graph } = input;
   const active = new Set(input.activePhases ?? []);
+  const color = input.color ?? detectColor();
   const order = orderNodes(graph);
 
   const lines: string[] = [
-    `${bold(graph.flowName)}  (initial: ${graph.initial.join(", ") || "—"})`,
+    `${paint(color, "bold", graph.flowName)}  (initial: ${graph.initial.join(", ") || "—"})`,
     "",
   ];
 
   const transitionsFrom = buildTransitionsFrom(graph);
 
   for (const node of order) {
-    lines.push(formatNodeLine(node, active));
+    lines.push(formatNodeLine(node, active, color));
     for (const target of transitionsFrom.get(node.id) ?? []) {
       lines.push(`        └─ NEXT ─▶ ${target.id}`);
     }
@@ -39,6 +42,18 @@ export function renderGraph(input: InspectInput): string {
   }
 
   return lines.join("\n");
+}
+
+/** True iff ANSI color escapes should be emitted. */
+function detectColor(): boolean {
+  if (process.env["NO_COLOR"] !== undefined) return false;
+  if (process.env["FIL_NO_COLOR"] !== undefined) return false;
+  return Boolean(process.stdout.isTTY);
+}
+
+function paint(enabled: boolean, kind: "bold" | "cyan", text: string): string {
+  if (!enabled) return text;
+  return kind === "bold" ? bold(text) : cyan(text);
 }
 
 function buildTransitionsFrom(graph: FlowGraph): Map<string, FlowGraphNode[]> {
@@ -55,9 +70,9 @@ function buildTransitionsFrom(graph: FlowGraph): Map<string, FlowGraphNode[]> {
   return transitionsFrom;
 }
 
-function formatNodeLine(node: FlowGraphNode, active: Set<string>): string {
+function formatNodeLine(node: FlowGraphNode, active: Set<string>, color: boolean): string {
   const phase = node.phase;
-  const marker = active.has(node.id) ? `${cyan("▶")}` : " ";
+  const marker = active.has(node.id) ? paint(color, "cyan", "▶") : " ";
   const tags: string[] = [];
   if (node.parallel) tags.push("parallel");
   if (phase) tags.push(`[${phase.actorMode}]`);
@@ -67,10 +82,11 @@ function formatNodeLine(node: FlowGraphNode, active: Set<string>): string {
 }
 
 function formatActiveLine(active: Set<string>): string {
-  const ids = [...active];
-  return active.size > 1
-    ? `active Phases: ${ids.join(", ")} (parallel)`
-    : `active Phase: ${ids.join("")}`;
+  if (active.size === 1) {
+    const only = active.values().next().value;
+    return `active Phase: ${only ?? ""}`;
+  }
+  return `active Phases: ${[...active].join(", ")} (parallel)`;
 }
 
 /** Order nodes by traversal from the initial Phases, then any leftovers. */

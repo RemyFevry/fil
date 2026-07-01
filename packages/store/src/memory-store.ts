@@ -20,7 +20,7 @@ export class MemoryStore implements Store {
   }
 
   readConfig(): FilConfig | null {
-    return this.config ?? null;
+    return this.config ? structuredClone(this.config) : null;
   }
 
   writeConfig(config: FilConfig): void {
@@ -44,7 +44,7 @@ export class MemoryStore implements Store {
   }
 
   readProjection(): RunProjection | null {
-    return this.projection;
+    return this.projection ? structuredClone(this.projection) : null;
   }
 
   writeProjection(projection: RunProjection): void {
@@ -60,7 +60,8 @@ export class MemoryStore implements Store {
   }
 
   readRunState(runId: string): RunState | null {
-    return this.runs.get(runId) ?? null;
+    const state = this.runs.get(runId);
+    return state ? structuredClone(state) : null;
   }
 
   writeRunState(state: RunState): void {
@@ -68,7 +69,8 @@ export class MemoryStore implements Store {
   }
 
   readFlowSnapshot(runId: string): Record<string, unknown> | null {
-    return this.snapshots.get(runId) ?? null;
+    const snapshot = this.snapshots.get(runId);
+    return snapshot ? structuredClone(snapshot) : null;
   }
 
   writeFlowSnapshot(runId: string, definition: Record<string, unknown>): void {

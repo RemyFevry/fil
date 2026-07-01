@@ -33,7 +33,7 @@ describe("engine isolation (ADR-0003)", () => {
       const isAdapter = rel === "packages/engine/src/xstate-engine.ts";
       if (isAdapter) continue;
       const text = readFileSync(file, "utf8");
-      if (/(?:from\s+|require\s*\(\s*)["']xstate["']/.test(text)) {
+      if (/(?:from\s+|require\s*\(\s*|import\s*\(\s*)["']xstate["']/.test(text)) {
         offenders.push(rel);
       }
     }

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { defaultContext } from "./context.js";
 import { parseArgs } from "./args.js";
 import { initCommand } from "./commands/init.js";
@@ -29,7 +31,7 @@ type CommandFn = (ctx: ReturnType<typeof defaultContext>, args: ParsedArgsLike) 
 
 interface ParsedArgsLike {
   positional: string[];
-  flags: Record<string, string | boolean>;
+  flags: Record<string, string | boolean | null>;
 }
 
 const commands: Record<string, CommandFn> = {
@@ -73,9 +75,20 @@ export async function run(argv: string[], cwd = process.cwd()): Promise<number> 
 }
 
 // Execute only when invoked directly as the `fil` bin.
+// Compare paths after normalizing both sides (Windows uses `\`, POSIX uses `/`).
 const isMain = (() => {
-  const argv1 = process.argv[1] ?? "";
-  return argv1.endsWith("cli/dist/index.js") || argv1.endsWith("cli/src/index.ts");
+  const argv1 = process.argv[1];
+  if (!argv1) return false;
+  let entry: string;
+  try {
+    entry = fileURLToPath(pathToFileURL(resolve(argv1)).href);
+  } catch {
+    return false;
+  }
+  return (
+    entry.endsWith(`${resolve("packages/cli/dist/index.js")}`) ||
+    entry.endsWith(`${resolve("packages/cli/src/index.ts")}`)
+  );
 })();
 
 if (isMain) {

@@ -51,6 +51,10 @@ export const GateSpecSchema = z.discriminatedUnion("type", [
 ]);
 export type GateSpec = z.infer<typeof GateSpecSchema>;
 
+/** The set of valid gate kinds — reused by Receipt.gateType. */
+export const GateTypeSchema = z.enum(["shell", "human", "testsPass", "none"]);
+export type GateType = z.infer<typeof GateTypeSchema>;
+
 // ---------------------------------------------------------------------------
 // Phase configuration — the harness primitives an Adapter enforces.
 // ---------------------------------------------------------------------------
@@ -89,7 +93,7 @@ export type ReceiptEvidence = z.infer<typeof ReceiptEvidenceSchema>;
 export const ReceiptSchema = z.object({
   /** Phase whose exit Gate produced this receipt. */
   phase: z.string(),
-  gateType: z.string(),
+  gateType: GateTypeSchema,
   outcome: ReceiptOutcomeSchema,
   evidence: ReceiptEvidenceSchema.default({}),
   ranAt: z.string(),

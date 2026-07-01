@@ -30,9 +30,22 @@ describe("inspect-view.renderGraph", () => {
     expect(out).toContain("active Phase: design");
   });
 
-  it("does not consume XState directly (only the FlowGraph shape)", () => {
-    // The renderer only reads the neutral graph fields.
-    const out = renderGraph({ graph, activePhases: ["requirements"] });
+  it("does not consume XState directly (only the FlowGraph shape)", async () => {
+    const { readFileSync, statSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+
+    const here = fileURLToPath(import.meta.url);
+    const srcDir = join(dirname(here), "..", "src");
+    expect(statSync(srcDir).isDirectory()).toBe(true);
+
+    // No source file under inspect-view/src should import xstate in any form.
+    const indexSrc = readFileSync(join(srcDir, "index.ts"), "utf8");
+    expect(/(?:from\s+|require\s*\(\s*|import\s*\(\s*)["']xstate["']/.test(indexSrc)).toBe(false);
+
+    // The renderer should also not surface xstate-shaped output.
+    const out = renderGraph({ graph, activePhases: ["requirements"], color: false });
     expect(out).toContain("requirements");
+    expect(out).not.toMatch(/\bxstate\b/i);
   });
 });
