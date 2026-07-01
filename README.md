@@ -26,7 +26,7 @@ produces a verification Receipt.
 
 - **Flow as XState machine code** — Lifecycles are state machines authored with
   `createMachine(...)` from `@fil/engine` — the same shape as the canonical
-  XState examples at https://stately.ai/docs/xstate. Fil owns the wrapper so Flow
+  XState examples at <https://stately.ai/docs/xstate>. Fil owns the wrapper so Flow
   code never imports `xstate` directly.
 - **Steer, don't run** — Fil runs as a sidecar governor. The human keeps their
   Agent Runtime's native UX; Fil reconfigures it per Phase via per-runtime
@@ -134,7 +134,7 @@ files are committed; Runs (`runs/`, `run.json`) and proposals are gitignored.
 
 A minimal Phase definition, taken from the shipped `default` Flow. Fil supplies
 all implementations — the file is XState machine JS code, matching the
-canonical example at https://stately.ai/docs/xstate.
+canonical example at <https://stately.ai/docs/xstate>.
 
 ```js
 // .fil/flows/default.js

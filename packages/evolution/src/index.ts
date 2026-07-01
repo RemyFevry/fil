@@ -1,4 +1,5 @@
 import type { FlowDefinition, FlowEngine } from "@fil/engine";
+import { createRequire } from "node:module";
 
 /**
  * Safe Flow evolution (the differentiator).
@@ -15,6 +16,15 @@ import type { FlowDefinition, FlowEngine } from "@fil/engine";
  * Deterministic: no disk I/O. Code execution (importing the patched module) is
  * delegated to an injected `loadCode`, so the logic is unit-testable.
  */
+
+const engineEntryUrl = (() => {
+  try {
+    const require = createRequire(import.meta.url);
+    return new URL(require.resolve("@fil/engine"), import.meta.url).href;
+  } catch {
+    return null;
+  }
+})();
 
 export type FlowCodeResult =
   | { ok: true; definition: FlowDefinition }
@@ -75,21 +85,29 @@ export async function applyProposal(
 }
 
 /**
- * Default `loadCode`: write the Flow source to a temporary file under a unique
- * subdirectory inside the workspace, then dynamically import it. Using a real
- * file (instead of a `data:` URL) lets the Flow code resolve `@fil/engine` via
- * normal Node ESM resolution. No xstate is needed in the Flow code itself —
- * `createMachine` is imported from `@fil/engine`.
+ * Default `loadCode`: write the Flow source to a temporary file, then
+ * dynamically import it. The `@fil/engine` import in the Flow code is
+ * rewritten to an absolute path resolved from this module's own location,
+ * so the temp file can live anywhere (including the OS temp directory)
+ * without Node ESM resolution failures.
  */
 export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
   const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { pathToFileURL } = await import("node:url");
+
+  const resolvedCode = engineEntryUrl
+    ? code.replace(
+        /from\s+["']@fil\/engine["']/g,
+        `from "${engineEntryUrl}"`,
+      )
+    : code;
+
   const dir = await mkdtemp(join(tmpdir(), "fil-evo-"));
   const file = join(dir, "flow.mjs");
   try {
-    await writeFile(file, code, "utf8");
+    await writeFile(file, resolvedCode, "utf8");
     const mod = (await import(pathToFileURL(file).href)) as {
       default?: FlowDefinition;
     };
