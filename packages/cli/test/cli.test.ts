@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -23,6 +23,7 @@ const workdirBase = join(workspaceRoot, ".tmp");
 let workdir: string;
 
 beforeAll(async () => {
+  await mkdir(workdirBase, { recursive: true });
   workdir = await mkdtemp(join(workdirBase, "fil-cli-"));
 });
 afterAll(async () => {
