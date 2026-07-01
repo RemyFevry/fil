@@ -30,7 +30,7 @@ import type { PhaseConfig } from "@fil/contract";
  * benefits from the self-documenting type name.
  */
 // NOSONAR — S6564: alias is intentional for semantic clarity across fil-core.
-export type FlowDefinition = unknown; // NOSONAR
+export type FlowDefinition = unknown;
 
 /**
  * A durable, JSON-serializable snapshot of a Run's position in the Flow.
