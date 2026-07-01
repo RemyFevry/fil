@@ -47,8 +47,12 @@ produces a verification Receipt.
 flowchart LR
     subgraph Project["Project  (.fil/ + git)"]
         direction TB
-        Flows["Flows<br/>(.fil/flows/*.js)"]
-        Runs["Runs<br/>(.fil/runs/)"]
+        Flows["Flows<br/>(.fil/flows/*.js)<br/>defines Phases + Transitions + Gates"]
+        subgraph Run["Run  (one Change)"]
+            direction TB
+            Phase["Phase<br/>(active, one at a time)"]
+            Receipts["Receipts<br/>(per Gate)"]
+        end
         Store["@fil/store<br/>run.json projection"]
         Contracts["@fil/contract<br/>schema"]
     end
@@ -76,22 +80,24 @@ flowchart LR
     Flows --> Orchestrator
     Orchestrator --> Engine
     Orchestrator --> GateRunner
-    GateRunner -->|Receipts| Orchestrator
-    Orchestrator --> Store
+    Orchestrator --> Phase
+    GateRunner -->|Receipts| Receipts
     Engine --> InspectView
-    Orchestrator --> Contracts
     Contracts -->|run.json| Adapters
     Adapters --> Runtimes
-    Runtimes -. human + agent .-> Runs
+    Runtimes -. human + agent .-> Phase
 ```
 
-Fil owns the Flow, durable Run state, Gate verification, and per-Phase
-configuration. The Agent Runtime owns the model, the agent loop, context
-management, and the execution environment. Adapters translate a Phase's
-configuration into the runtime's native enforcement points — instruction files,
-permission settings, hooks, MCP servers, skills. Enforcement is tiered
-(advisory config → hooks → sandbox), and the **restrictions strategy is
-user-owned**.
+The lifecycle hierarchy is **Project → Flow → Run → Phase**. A Project holds a
+library of Flows and a history of Runs. A Flow defines its Phases,
+Transitions, and Gates (committed as code). A Run binds to one Flow, snapshots
+it, and carries an active Phase plus per-Gate Receipts. Fil owns the Flow,
+durable Run state, Gate verification, and per-Phase configuration. The Agent
+Runtime owns the model, the agent loop, context management, and the execution
+environment. Adapters translate a Phase's configuration into the runtime's
+native enforcement points — instruction files, permission settings, hooks, MCP
+servers, skills. Enforcement is tiered (advisory config → hooks → sandbox),
+and the **restrictions strategy is user-owned**.
 
 ## Quickstart
 
@@ -195,7 +201,6 @@ this list.
 | `propose <flow> <file>` | Write a proposed Flow edit to `.fil/proposals/` as a unified diff (never auto-applied). | `fil propose default ./flows/default.proposed.js` |
 | `approve <id> [--flow <name>]` | Load- and reachability-validate a proposal, then apply it to the Flow. | `fil approve 01J... --flow default` |
 | `inspect` | View the Flow with the active Phase highlighted (opens `@statelyai/inspect` in the terminal). | `fil inspect` |
-| `help`, `--help`, `-h` | Print usage. | `fil --help` |
 
 A successful Run is one where every Gate passed and the terminal Phase
 (`type: "final"`) was reached. Receipts are stored per Run and form the
