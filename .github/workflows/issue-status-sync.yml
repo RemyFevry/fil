@@ -1,0 +1,101 @@
+name: issue-status-sync
+
+# Keeps the Fil MVP board's Status field in sync with PR + issue events, so
+# execution state can't silently drift when an agent forgets to update it.
+#
+# Requires the PROJECT_TOKEN secret (fine-grained PAT: project read/write on the
+# "Fil MVP" user project, repo read on "fil"). Until that secret exists, the
+# job exits early as a no-op — the manual convention in
+# docs/agents/issue-workflow.md still applies.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, converted_to_draft, closed]
+  issues:
+    types: [closed, reopened]
+
+permissions:
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: issue-status-sync-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      PROJECT_OWNER: RemyFevry
+      PROJECT_NUMBER: "1"
+      PROJECT_ID: PVT_kwHOAb5v1M4BcK-O
+      STATUS_FIELD: PVTSSF_lAHOAb5v1M4BcK-OzhW1tTg
+      # Status option IDs on the Fil MVP board:
+      OPT_TODO: f75ad846
+      OPT_IN_PROGRESS: 47fc9ee4
+      OPT_IN_REVIEW: 819b9dfd
+      OPT_BLOCKED: b50e3062
+      OPT_DONE: 98236657
+      # Event context (passed as env to avoid shell injection via ${{ }}):
+      EV_EVENT: ${{ github.event_name }}
+      EV_ACTION: ${{ github.event.action }}
+      EV_PR_BODY: ${{ github.event.pull_request.body }}
+      EV_PR_MERGED: ${{ github.event.pull_request.merged }}
+      EV_ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - name: Sync board Status
+        run: |
+          set -uo pipefail
+
+          # No-op until the maintainer adds PROJECT_TOKEN.
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "PROJECT_TOKEN not set; skipping (no-op)."
+            exit 0
+          fi
+
+          set_status() {  # set_status <issue_number> <option_id>
+            local issue="$1" opt="$2"
+            local item_id
+            item_id=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" \
+              --limit 100 --format json \
+              -q ".items[] | select(.content.number == ${issue}) | .id" || true)
+            if [ -z "$item_id" ]; then
+              echo "::warning::issue #${issue} is not on project ${PROJECT_NUMBER}; skipping."
+              return 0
+            fi
+            echo "Setting #${issue} -> option ${opt} (item ${item_id})"
+            gh project item-edit \
+              --id "$item_id" \
+              --field-id "$STATUS_FIELD" \
+              --project-id "$PROJECT_ID" \
+              --single-select-option-id "$opt" \
+              || echo "::warning::failed to set Status on #${issue}"
+          }
+
+          linked_issues() {  # prints issue numbers from closing keywords in $1
+            printf '%s' "$1" | grep -oiE '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #[0-9]+' \
+              | grep -oE '[0-9]+' | sort -u || true
+          }
+
+          if [ "$EV_EVENT" = "issues" ]; then
+            case "$EV_ACTION" in
+              closed)   set_status "$EV_ISSUE_NUMBER" "$OPT_DONE" ;;
+              reopened) set_status "$EV_ISSUE_NUMBER" "$OPT_TODO" ;;
+            esac
+            exit 0
+          fi
+
+          # pull_request event
+          if [ "$EV_ACTION" = "closed" ]; then
+            if [ "$EV_PR_MERGED" = "true" ]; then opt="$OPT_DONE"
+            else opt="$OPT_IN_PROGRESS"; fi
+          elif [ "$EV_ACTION" = "ready_for_review" ]; then
+            opt="$OPT_IN_REVIEW"
+          else
+            opt="$OPT_IN_PROGRESS"   # opened or converted_to_draft
+          fi
+
+          for n in $(linked_issues "$EV_PR_BODY"); do
+            set_status "$n" "$opt"
+          done

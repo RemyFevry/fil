@@ -16,6 +16,10 @@ Issues and PRDs for this repo live as GitHub issues on `RemyFevry/fil`, tracked 
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 
+## Keeping issues current
+
+Execution status lives on the **Fil MVP** board's `Status` field, not labels. Any agent or human working an issue keeps its Status and comments current. See `docs/agents/issue-workflow.md` for the lifecycle and exact commands.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a GitHub issue.
