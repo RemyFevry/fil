@@ -4,5 +4,15 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    { "path": "../contract" },
+    { "path": "../engine" },
+    { "path": "../evolution" },
+    { "path": "../flow-loader" },
+    { "path": "../gate-runner" },
+    { "path": "../inspect-view" },
+    { "path": "../orchestrator" },
+    { "path": "../store" }
+  ]
 }

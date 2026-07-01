@@ -40,11 +40,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Typecheck
-        run: pnpm typecheck
-
+      # Build first: `tsc -b` emits the .d.ts declarations that the
+      # cross-package typecheck resolves, and type-checks the whole graph.
       - name: Build
         run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
 
       - name: Test
         run: pnpm test
