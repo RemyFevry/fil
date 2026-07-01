@@ -10,12 +10,13 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "tsc -b",
+    "build:clean": "tsc -b --clean && tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "pnpm -r run typecheck",
     "lint": "eslint .",
-    "ci": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test"
+    "ci": "pnpm run lint && pnpm run build && pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
