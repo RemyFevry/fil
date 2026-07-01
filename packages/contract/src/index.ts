@@ -103,18 +103,34 @@ export type Receipt = z.infer<typeof ReceiptSchema>;
 // ---------------------------------------------------------------------------
 // Run projection — the exact shape of `.fil/run.json`.
 // ---------------------------------------------------------------------------
-export const RunProjectionSchema = z.object({
-  runId: z.string().min(1),
-  change: z.string().min(1),
-  flowName: z.string().min(1),
-  status: RunStatusSchema,
-  /** Primary active Phase name (human label). */
-  phase: z.string(),
-  /** All currently-active Phase names (parallel Phases → more than one). */
-  phases: z.array(z.string()).min(1),
-  actorMode: ActorModeSchema,
-  phaseConfig: PhaseConfigSchema,
-});
+export const RunProjectionSchema = z
+  .object({
+    runId: z.string().min(1),
+    change: z.string().min(1),
+    flowName: z.string().min(1),
+    status: RunStatusSchema,
+    /** Primary active Phase name (human label). */
+    phase: z.string(),
+    /** All currently-active Phase names (parallel Phases → more than one). */
+    phases: z.array(z.string()).min(1),
+    actorMode: ActorModeSchema,
+    phaseConfig: PhaseConfigSchema,
+  })
+  // The orchestrator derives `phase`, `actorMode`, and `phaseConfig` from
+  // `phases[0]` (the primary Phase). A hand-edited `run.json` that picks a
+  // different `phase` would contradict the live Flow, so reject it at the
+  // contract boundary. `actorMode`/`phaseConfig` are checked against the live
+  // engine snapshot at load time (see `OrchestratorDeps.engine.getPhaseConfig`).
+  .superRefine((proj, ctx) => {
+    const primary = proj.phases[0];
+    if (primary !== undefined && proj.phase !== primary) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phase"],
+        message: `phase must equal phases[0] (${JSON.stringify(primary)})`,
+      });
+    }
+  });
 export type RunProjection = z.infer<typeof RunProjectionSchema>;
 
 // ---------------------------------------------------------------------------
