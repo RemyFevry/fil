@@ -42,6 +42,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Lint markdown
+        run: pnpm lint:md
+
       # Build first: `tsc -b` emits the .d.ts declarations that the
       # cross-package typecheck resolves, and type-checks the whole graph.
       - name: Build
