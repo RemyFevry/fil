@@ -1,6 +1,6 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { defaultContext, type CliContext } from "../src/context.js";
 import { initCommand } from "../src/commands/init.js";
@@ -14,10 +14,17 @@ import { inspectCommand } from "../src/commands/inspect.js";
 import { parseArgs } from "../src/args.js";
 import { serializeFlowCode, createMachine, type FlowDefinition } from "@fil/engine";
 
+// Place the test workdir under the workspace so that Flow files written there
+// can resolve @fil/engine via the workspace's node_modules (Node ESM walks up
+// from the file's directory looking for node_modules/<pkg>).
+const workspaceRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const workdirBase = join(workspaceRoot, ".tmp");
+
 let workdir: string;
 
 beforeAll(async () => {
-  workdir = await mkdtemp(join(tmpdir(), "fil-cli-"));
+  await mkdir(workdirBase, { recursive: true });
+  workdir = await mkdtemp(join(workdirBase, "fil-cli-"));
 });
 afterAll(async () => {
   await rm(workdir, { recursive: true, force: true });
