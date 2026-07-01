@@ -23,13 +23,7 @@ import type { PhaseConfig } from "@fil/contract";
  * A loaded Flow — the result of `createMachine(...)` from `@fil/engine`.
  * Engine-library-opaque: the seam deliberately avoids importing the engine's
  * state-machine types here so fil-core stays portable across engines.
- *
- * Kept as a named alias (not inlined to `unknown`) because the name carries
- * semantic weight throughout fil-core — every `load(name, definition)` call,
- * every `ResolvedFlow.definition` field, and every `BuiltInFlow.machine` field
- * benefits from the self-documenting type name.
  */
-// NOSONAR — S6564: alias is intentional for semantic clarity across fil-core.
 export type FlowDefinition = unknown;
 
 /**
