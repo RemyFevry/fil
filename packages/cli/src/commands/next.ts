@@ -20,7 +20,7 @@ export async function nextCommand(ctx: CliContext): Promise<number> {
     if (outcome.done) {
       ctx.out.log(`Run ${current.run.runId} reached its terminal Phase — complete.`);
     } else {
-      const phase = outcome.run.history[outcome.run.history.length - 1]?.phases.join(", ");
+      const phase = outcome.run.history.at(-1)?.phases.join(", ");
       ctx.out.log(`Advanced to: ${phase}`);
     }
     for (const receipt of outcome.receipts) {

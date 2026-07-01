@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { createUnifiedPatch } from "@fil/evolution";
 import { flag, type ParsedArgs } from "../args.js";
 import type { CliContext } from "../context.js";
@@ -40,6 +41,6 @@ function proposalId(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const stamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
-  const rand = Math.random().toString(36).slice(2, 6);
+  const rand = randomBytes(2).toString("hex");
   return `${stamp}-${rand}`;
 }

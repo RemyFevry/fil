@@ -106,17 +106,36 @@ function checkReachability(graph: {
   nodes: { id: string; final: boolean }[];
   transitions: { from: string; to: string }[];
 }): ReachResult {
-  const ids = new Set(graph.nodes.map((n) => n.id));
+  const adjacency = buildAdjacency(graph.transitions);
+  const reachable = computeReachable(graph.initial, adjacency);
+
+  const unreachable = graph.nodes.find((n) => !reachable.has(n.id));
+  if (unreachable) {
+    return {
+      ok: false,
+      message: `Phase "${unreachable.id}" is unreachable from the initial state.`,
+    };
+  }
+
+  return checkDeadlocks(graph, reachable, adjacency);
+}
+
+function buildAdjacency(transitions: { from: string; to: string }[]): Map<string, string[]> {
   const adjacency = new Map<string, string[]>();
-  for (const t of graph.transitions) {
+  for (const t of transitions) {
     const list = adjacency.get(t.from) ?? [];
     list.push(t.to);
     adjacency.set(t.from, list);
   }
+  return adjacency;
+}
 
-  // 1. Every node must be reachable from an initial phase.
+function computeReachable(
+  initial: string[],
+  adjacency: Map<string, string[]>,
+): Set<string> {
   const reachable = new Set<string>();
-  const queue = [...graph.initial];
+  const queue = [...initial];
   while (queue.length > 0) {
     const cur = queue.shift()!;
     if (reachable.has(cur)) continue;
@@ -125,43 +144,48 @@ function checkReachability(graph: {
       if (!reachable.has(next)) queue.push(next);
     }
   }
-  for (const id of ids) {
-    if (!reachable.has(id)) {
-      return {
-        ok: false,
-        message: `Phase "${id}" is unreachable from the initial state.`,
-      };
-    }
-  }
+  return reachable;
+}
 
-  // 2. Every non-final reachable phase must be able to reach a terminal.
+function checkDeadlocks(
+  graph: { nodes: { id: string; final: boolean }[] },
+  reachable: Set<string>,
+  adjacency: Map<string, string[]>,
+): ReachResult {
   const memo = new Map<string, boolean>();
-  const canReachFinal = (id: string, stack: Set<string>): boolean => {
-    if (memo.has(id)) return memo.get(id)!;
-    const node = graph.nodes.find((n) => n.id === id);
-    if (node?.final) {
-      memo.set(id, true);
-      return true;
-    }
-    if (stack.has(id)) return false; // cycle without reaching final on this path
-    stack.add(id);
-    const succ = adjacency.get(id) ?? [];
-    const result = succ.length > 0 && succ.some((s) => canReachFinal(s, stack));
-    stack.delete(id);
-    memo.set(id, result);
-    return result;
-  };
   for (const node of graph.nodes) {
     if (node.final) continue;
-    if (reachable.has(node.id) && !canReachFinal(node.id, new Set())) {
-      return {
-        ok: false,
-        message: `Phase "${node.id}" cannot reach a terminal state (deadlock).`,
-      };
-    }
+    if (!reachable.has(node.id)) continue;
+    if (canReachFinal(node.id, graph, adjacency, memo, new Set())) continue;
+    return {
+      ok: false,
+      message: `Phase "${node.id}" cannot reach a terminal state (deadlock).`,
+    };
   }
-
   return { ok: true };
+}
+
+function canReachFinal(
+  id: string,
+  graph: { nodes: { id: string; final: boolean }[] },
+  adjacency: Map<string, string[]>,
+  memo: Map<string, boolean>,
+  stack: Set<string>,
+): boolean {
+  const cached = memo.get(id);
+  if (cached !== undefined) return cached;
+  const node = graph.nodes.find((n) => n.id === id);
+  if (node?.final) {
+    memo.set(id, true);
+    return true;
+  }
+  if (stack.has(id)) return false; // cycle without reaching final on this path
+  stack.add(id);
+  const succ = adjacency.get(id) ?? [];
+  const result = succ.some((s) => canReachFinal(s, graph, adjacency, memo, stack));
+  stack.delete(id);
+  memo.set(id, result);
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,55 +199,104 @@ export function applyUnifiedDiff(original: string, patch: string): string {
   const origAt = (k: number): string => origLines[k] ?? "";
   const out: string[] = [];
   let origIdx = 0;
-  let i = 0;
-
-  // Skip any header/preamble (e.g. "diff --git", "---", "+++") up to first hunk.
-  while (i < patchLines.length && !patchAt(i).startsWith("@@")) {
-    i++;
-  }
+  let i = skipPreamble(patchLines, 0);
 
   while (i < patchLines.length && patchAt(i).startsWith("@@")) {
     const header = patchAt(i);
-    const match = header.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    if (!match) {
-      throw new Error(`Malformed hunk header: "${header}"`);
-    }
-    const origStart = Number.parseInt(match[1] ?? "", 10);
-    const target = origStart - 1;
-    while (origIdx < target) {
-      if (origIdx >= origLines.length) {
-        throw new Error("Hunk start is beyond the end of the original file.");
-      }
-      out.push(origAt(origIdx));
-      origIdx++;
-    }
+    const origStart = parseHunkHeader(header);
+    origIdx = copyContextBeforeHunk(origIdx, origStart, origLines, out, origAt);
     i++;
-
-    while (i < patchLines.length && !patchAt(i).startsWith("@@")) {
-      const line = patchAt(i);
-      const tag = line.charAt(0);
-      const rest = line.slice(1);
-      if (tag === " ") {
-        assertMatch(origLines, origIdx, rest);
-        out.push(rest);
-        origIdx++;
-      } else if (tag === "-") {
-        assertMatch(origLines, origIdx, rest);
-        origIdx++;
-      } else if (tag === "+") {
-        out.push(rest);
-      } else if (tag === "\\") {
-        // "\ No newline at end of file" marker — ignore.
-      } else {
-        break;
-      }
-      i++;
-    }
+    const body = applyHunkBody(patchLines, i, origLines, origIdx, out);
+    i = body.nextPatchIdx;
+    origIdx = body.nextOrigIdx;
   }
 
-  while (origIdx < origLines.length) {
-    out.push(origAt(origIdx));
-    origIdx++;
+  return appendTrailing(origLines, origIdx, out, origAt);
+}
+
+/** Skip any header/preamble lines (e.g. "diff --git", "---", "+++") before the first hunk. */
+function skipPreamble(patchLines: string[], start: number): number {
+  let i = start;
+  while (i < patchLines.length && !patchLines[i]?.startsWith("@@")) {
+    i++;
+  }
+  return i;
+}
+
+function parseHunkHeader(header: string): number {
+  const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(header);
+  if (!match) {
+    throw new Error(`Malformed hunk header: "${header}"`);
+  }
+  return Number.parseInt(match[1] ?? "", 10);
+}
+
+function copyContextBeforeHunk(
+  origIdx: number,
+  origStart: number,
+  origLines: string[],
+  out: string[],
+  origAt: (k: number) => string,
+): number {
+  const target = origStart - 1;
+  let idx = origIdx;
+  while (idx < target) {
+    if (idx >= origLines.length) {
+      throw new Error("Hunk start is beyond the end of the original file.");
+    }
+    out.push(origAt(idx));
+    idx++;
+  }
+  return idx;
+}
+
+interface HunkBodyResult {
+  nextPatchIdx: number;
+  nextOrigIdx: number;
+}
+
+function applyHunkBody(
+  patchLines: string[],
+  start: number,
+  origLines: string[],
+  origIdx: number,
+  out: string[],
+): HunkBodyResult {
+  let i = start;
+  let idx = origIdx;
+  while (i < patchLines.length && !patchLines[i]?.startsWith("@@")) {
+    const line = patchLines[i] ?? "";
+    const tag = line.charAt(0);
+    const rest = line.slice(1);
+    if (tag === " ") {
+      assertMatch(origLines, idx, rest);
+      out.push(rest);
+      idx++;
+    } else if (tag === "-") {
+      assertMatch(origLines, idx, rest);
+      idx++;
+    } else if (tag === "+") {
+      out.push(rest);
+    } else if (tag === "\\") {
+      // "\ No newline at end of file" marker — ignore.
+    } else {
+      break;
+    }
+    i++;
+  }
+  return { nextPatchIdx: i, nextOrigIdx: idx };
+}
+
+function appendTrailing(
+  origLines: string[],
+  origIdx: number,
+  out: string[],
+  origAt: (k: number) => string,
+): string {
+  let idx = origIdx;
+  while (idx < origLines.length) {
+    out.push(origAt(idx));
+    idx++;
   }
   return out.join("\n");
 }
@@ -252,13 +325,9 @@ export function createUnifiedPatch(
   const ops = diffLines(a, b);
   const hunks = groupHunks(ops, a, b);
   if (hunks.length === 0) return "";
-  const lines: string[] = [
-    `--- ${oldPath}`,
-    `+++ ${newPath}`,
-  ];
+  const lines: string[] = [`--- ${oldPath}`, `+++ ${newPath}`];
   for (const hunk of hunks) {
-    lines.push(hunk.header);
-    lines.push(...hunk.body);
+    lines.push(hunk.header, ...hunk.body);
   }
   return lines.join("\n") + "\n";
 }
@@ -320,63 +389,87 @@ interface Hunk {
 
 function groupHunks(ops: Op[], a: string[], b: string[]): Hunk[] {
   const context = 3;
-  const changes: number[] = [];
-  for (let p = 0; p < ops.length; p++) {
-    const op = ops[p];
-    if (op && op.type !== "context") changes.push(p);
-  }
+  const changes = collectChangeIndices(ops);
   if (changes.length === 0) return [];
 
-  // Group change indices into runs separated by more than 2*context context lines.
+  const ranges = groupChangeRuns(changes, context);
+  return ranges.flatMap(([lo, hi]) => {
+    const hunk = buildHunk(ops, a, b, lo, hi, context);
+    return hunk ? [hunk] : [];
+  });
+}
+
+function collectChangeIndices(ops: Op[]): number[] {
+  const indices: number[] = [];
+  for (let p = 0; p < ops.length; p++) {
+    if (ops[p]?.type !== "context") indices.push(p);
+  }
+  return indices;
+}
+
+/** Group change indices into runs separated by more than 2*context context lines. */
+function groupChangeRuns(changes: number[], context: number): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
   let runStart = changes[0] ?? 0;
   let runEnd = runStart;
   for (let k = 1; k < changes.length; k++) {
     const c = changes[k];
-    if (c !== undefined && c - runEnd <= 2 * context) {
+    if (c === undefined) continue;
+    if (c - runEnd <= 2 * context) {
       runEnd = c;
     } else {
       ranges.push([runStart, runEnd]);
-      runStart = c ?? runEnd;
+      runStart = c;
       runEnd = runStart;
     }
   }
   ranges.push([runStart, runEnd]);
+  return ranges;
+}
 
-  const hunks: Hunk[] = [];
-  for (const [lo, hi] of ranges) {
-    const start = Math.max(0, lo - context);
-    const end = Math.min(ops.length - 1, hi + context);
-    if (start > end) continue;
-    const first = ops[start];
-    if (!first) continue;
-    const aStart = first.a;
-    const bStart = first.b;
+function buildHunk(
+  ops: Op[],
+  a: string[],
+  b: string[],
+  lo: number,
+  hi: number,
+  context: number,
+): Hunk | null {
+  const start = Math.max(0, lo - context);
+  const end = Math.min(ops.length - 1, hi + context);
+  if (start > end) return null;
+  const first = ops[start];
+  if (!first) return null;
+  const aStart = first.a;
+  const bStart = first.b;
 
-    const body: string[] = [];
-    let aCount = 0;
-    let bCount = 0;
-    for (let p = start; p <= end; p++) {
-      const op = ops[p];
-      if (!op) continue;
-      if (op.type === "context") {
-        body.push(` ${a[op.a] ?? ""}`);
-        aCount++;
-        bCount++;
-      } else if (op.type === "add") {
-        body.push(`+${b[op.b] ?? ""}`);
-        bCount++;
-      } else {
-        body.push(`-${a[op.a] ?? ""}`);
-        aCount++;
-      }
-    }
-    hunks.push({
-      header: `@@ -${aStart + 1},${aCount} +${bStart + 1},${bCount} @@`,
-      body,
-    });
+  const body: string[] = [];
+  let aCount = 0;
+  let bCount = 0;
+  for (let p = start; p <= end; p++) {
+    const op = ops[p];
+    if (!op) continue;
+    appendOpLine(op, a, b, body);
+    const counts = countOp(op);
+    aCount += counts.a;
+    bCount += counts.b;
   }
-  return hunks;
+  return {
+    header: `@@ -${aStart + 1},${aCount} +${bStart + 1},${bCount} @@`,
+    body,
+  };
+}
+
+function appendOpLine(op: Op, a: string[], b: string[], body: string[]): void {
+  if (op.type === "context") body.push(` ${a[op.a] ?? ""}`);
+  else if (op.type === "add") body.push(`+${b[op.b] ?? ""}`);
+  else body.push(`-${a[op.a] ?? ""}`);
+}
+
+function countOp(op: Op): { a: number; b: number } {
+  if (op.type === "context") return { a: 1, b: 1 };
+  if (op.type === "add") return { a: 0, b: 1 };
+  return { a: 1, b: 0 };
 }
 
 function message(err: unknown): string {

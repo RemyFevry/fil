@@ -11,7 +11,7 @@ export function backCommand(ctx: CliContext): number {
   }
   const result = back(orchestratorDeps(ctx), current.run);
   if (result.retreated) {
-    const phase = result.run.history[result.run.history.length - 1]?.phases.join(", ");
+    const phase = result.run.history.at(-1)?.phases.join(", ");
     ctx.out.log(`Retreated to: ${phase}`);
     return 0;
   }

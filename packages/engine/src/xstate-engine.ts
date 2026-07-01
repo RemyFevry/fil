@@ -68,8 +68,8 @@ export class XStateFlowEngine implements FlowEngine {
     const graph: FlowGraph = {
       flowName,
       initial: initialLeaves,
-      nodes: nodes.sort(byId),
-      transitions: transitions.sort(byTransition),
+      nodes: [...nodes].sort(byId),
+      transitions: [...transitions].sort(byTransition),
     };
 
     return {
@@ -131,17 +131,24 @@ function message(err: unknown): string {
 }
 
 function byId(a: FlowGraphNode, b: FlowGraphNode): number {
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+  return 0;
 }
 
 function byTransition(a: FlowGraphTransition, b: FlowGraphTransition): number {
-  return a.from === b.from
-    ? a.to < b.to
-      ? -1
-      : 1
-    : a.from < b.from
-      ? -1
-      : 1;
+  if (a.from === b.from) {
+    return compareByTo(a, b);
+  }
+  return compareByFrom(a, b);
+}
+
+function compareByTo(a: FlowGraphTransition, b: FlowGraphTransition): number {
+  return a.to < b.to ? -1 : 1;
+}
+
+function compareByFrom(a: FlowGraphTransition, b: FlowGraphTransition): number {
+  return a.from < b.from ? -1 : 1;
 }
 
 /** Flatten an XState snapshot value into dot-path leaf Phase ids. */
@@ -182,7 +189,6 @@ function resolveTarget(
     const dot = afterHash.indexOf(".");
     const strippedRoot = dot >= 0 ? afterHash.slice(dot + 1) : afterHash;
     if (strippedRoot === rootId) return rootId;
-    void rootId;
     return strippedRoot || null;
   }
   if (target.startsWith(".")) {
@@ -203,34 +209,61 @@ function walkStates(
 ): void {
   if (!states || typeof states !== "object") return;
   for (const [name, node] of Object.entries(states as Record<string, StateNodeDef>)) {
-    const path = parentPath ? `${parentPath}.${name}` : name;
-    const phase = node?.meta?.phase;
-    if (phase) {
-      meta.set(path, phase);
-    }
-    const childPaths: string[] = [];
-    if (node?.states) {
-      for (const childName of Object.keys(node.states)) {
-        childPaths.push(`${path}.${childName}`);
-      }
-      walkStates(node.states, path, rootId, meta, nodes, transitions);
-    }
-    nodes.push({
-      id: path,
-      phase,
-      final: node?.type === "final",
-      parallel: node?.type === "parallel",
-      children: childPaths,
-    });
-    if (node?.on) {
-      for (const [event, target] of Object.entries(node.on)) {
-        const list = Array.isArray(target) ? target : [target];
-        for (const entry of list) {
-          const to = resolveTarget(entry, parentPath, rootId);
-          if (to) {
-            transitions.push({ from: path, to, event });
-          }
-        }
+    walkState(name, node, parentPath, rootId, meta, nodes, transitions);
+  }
+}
+
+function walkState(
+  name: string,
+  node: StateNodeDef,
+  parentPath: string,
+  rootId: string,
+  meta: Map<string, PhaseConfig>,
+  nodes: FlowGraphNode[],
+  transitions: FlowGraphTransition[],
+): void {
+  const path = parentPath ? `${parentPath}.${name}` : name;
+  const phase = node?.meta?.phase;
+  if (phase) {
+    meta.set(path, phase);
+  }
+  const childPaths = collectChildPaths(node, path);
+  if (node?.states) {
+    walkStates(node.states, path, rootId, meta, nodes, transitions);
+  }
+  nodes.push({
+    id: path,
+    phase,
+    final: node?.type === "final",
+    parallel: node?.type === "parallel",
+    children: childPaths,
+  });
+  recordTransitions(node, path, parentPath, rootId, transitions);
+}
+
+function collectChildPaths(node: StateNodeDef, path: string): string[] {
+  const childPaths: string[] = [];
+  if (!node?.states) return childPaths;
+  for (const childName of Object.keys(node.states)) {
+    childPaths.push(`${path}.${childName}`);
+  }
+  return childPaths;
+}
+
+function recordTransitions(
+  node: StateNodeDef,
+  path: string,
+  parentPath: string,
+  rootId: string,
+  transitions: FlowGraphTransition[],
+): void {
+  if (!node?.on) return;
+  for (const [event, target] of Object.entries(node.on)) {
+    const list = Array.isArray(target) ? target : [target];
+    for (const entry of list) {
+      const to = resolveTarget(entry, parentPath, rootId);
+      if (to) {
+        transitions.push({ from: path, to, event });
       }
     }
   }
