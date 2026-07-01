@@ -1,10 +1,8 @@
-import { createMachine } from "./create-machine.js";
-
 /**
- * The hotfix Flow: a fast incident path, authored as XState machine JS code.
- * Matches https://stately.ai/docs/xstate.
+ * The hotfix Flow config — the raw object literal the shipped hotfix Flow
+ * passes to `createMachine(...)`. Mirror this in `hotfix.js` if you change it.
  */
-export default createMachine({
+export default {
   id: "hotfix",
   initial: "triage",
   context: {},
@@ -65,4 +63,4 @@ export default createMachine({
       },
     },
   },
-});
+};

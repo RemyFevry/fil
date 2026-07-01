@@ -1,10 +1,19 @@
-import type { FlowDefinition } from "../seam.js";
-import defaultFlow from "./default.js";
-import hotfixFlow from "./hotfix.js";
+import { createMachine } from "./create-machine.js";
+import defaultFlowConfig from "./default.config.js";
+import hotfixFlowConfig from "./hotfix.config.js";
 
+/**
+ * A pre-built shipped Flow: the raw config the author wrote (the object
+ * passed to `createMachine(...)`) plus the machine it produces. We keep both
+ * so `serializeFlowCode` can write the author-original form back out without
+ * xstate's normalized shape leaking into the scaffolded user Flow files.
+ */
 export interface BuiltInFlow {
   name: string;
-  definition: FlowDefinition;
+  /** The raw Flow config — what the Flow author writes inside `createMachine(...)`. */
+  rawConfig: unknown;
+  /** A pre-built machine — the result of `createMachine(rawConfig)`. Engine-library-opaque. */
+  machine: unknown;
   description: string;
 }
 
@@ -12,13 +21,15 @@ export interface BuiltInFlow {
 export const BUILT_IN_FLOWS: BuiltInFlow[] = [
   {
     name: "default",
-    definition: defaultFlow,
+    rawConfig: defaultFlowConfig,
+    machine: createMachine(defaultFlowConfig as Parameters<typeof createMachine>[0]),
     description:
       "The full lifecycle: Requirements -> Design -> Code -> Review -> Done.",
   },
   {
     name: "hotfix",
-    definition: hotfixFlow,
+    rawConfig: hotfixFlowConfig,
+    machine: createMachine(hotfixFlowConfig as Parameters<typeof createMachine>[0]),
     description:
       "A fast incident path: Triage -> Patch -> Done, gated by the test suite.",
   },
@@ -33,10 +44,16 @@ export function builtInFlowNames(): string[] {
 }
 
 /**
- * Serialise a Flow definition into engine-native code (a module exporting the
- * config). Used by `fil init` to scaffold user Flow files. The result is real
- * code (commentable, JS syntax) — not JSON.
+ * Serialise a Flow's raw config back to source code in the canonical XState
+ * format (matches https://stately.ai/docs/xstate). Used by `fil init` to
+ * scaffold user Flow files. The argument is the object the Flow author
+ * passed to `createMachine(...)` — i.e. the input to the wrapper, not the
+ * machine itself.
  */
-export function serializeFlowCode(definition: FlowDefinition): string {
-  return `export default ${JSON.stringify(definition, null, 2)};\n`;
+export function serializeFlowCode(rawConfig: unknown): string {
+  return (
+    `import { createMachine } from "@fil/engine";\n` +
+    `\n` +
+    `export default createMachine(${JSON.stringify(rawConfig, null, 2)});\n`
+  );
 }

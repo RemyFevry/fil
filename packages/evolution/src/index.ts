@@ -75,19 +75,32 @@ export async function applyProposal(
 }
 
 /**
- * Default `loadCode`: import the Flow source as a data-URL ESM module and read
- * its default export. No xstate is needed in the Flow code itself.
+ * Default `loadCode`: write the Flow source to a temporary file under a unique
+ * subdirectory inside the workspace, then dynamically import it. Using a real
+ * file (instead of a `data:` URL) lets the Flow code resolve `@fil/engine` via
+ * normal Node ESM resolution. No xstate is needed in the Flow code itself —
+ * `createMachine` is imported from `@fil/engine`.
  */
 export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
+  const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { pathToFileURL } = await import("node:url");
+  const dir = await mkdtemp(join(tmpdir(), "fil-evo-"));
+  const file = join(dir, "flow.mjs");
   try {
-    const url = "data:text/javascript;base64," + Buffer.from(code).toString("base64");
-    const mod = (await import(url)) as { default?: FlowDefinition };
+    await writeFile(file, code, "utf8");
+    const mod = (await import(pathToFileURL(file).href)) as {
+      default?: FlowDefinition;
+    };
     if (!mod.default) {
       return { ok: false, error: "Flow module has no default export." };
     }
     return { ok: true, definition: mod.default };
   } catch (err) {
     return { ok: false, error: message(err) };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
