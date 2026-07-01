@@ -6,7 +6,7 @@ An open-source harness for agentic software-development lifecycles. See [`CONTEX
 
 ### Issue tracker
 
-Issues and PRDs live as GitHub issues on `RemyFevry/fil`. Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and PRDs live as GitHub issues on `RemyFevry/fil`, tracked on the **Fil MVP** GitHub Project board (PRD epic: #21). Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

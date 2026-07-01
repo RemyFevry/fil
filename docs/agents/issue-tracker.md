@@ -1,6 +1,9 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this repo live as GitHub issues on `RemyFevry/fil`. Use the `gh` CLI for all operations.
+Issues and PRDs for this repo live as GitHub issues on `RemyFevry/fil`, tracked on the **Fil MVP** GitHub Project board. Use the `gh` CLI for all operations.
+
+- The Fil MVP PRD is published as the parent epic **#21** (its children are #1–#20).
+- All issue tracking happens in GitHub Issues + the GitHub Project board — there is no local `docs/prd/` file.
 
 ## Conventions
 
