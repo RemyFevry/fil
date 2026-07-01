@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createMachine, defaultFlowEngine, builtInFlow } from "../src/index.js";
+import { defaultFlowEngine, builtInFlow } from "../src/index.js";
 import type { FlowEngine, EngineInstance, FlowDefinition } from "../src/seam.js";
 
 const defaultFlow = builtInFlow("default");
 if (!defaultFlow) throw new Error("default flow missing");
 
 const loadDefault = (): EngineInstance => {
-  const result = defaultFlowEngine.load("default", defaultFlow.machine);
+  const result = defaultFlowEngine.load("default", defaultFlow.definition);
   if (!result.ok) throw new Error(result.error);
   return result.instance;
 };
@@ -85,9 +85,7 @@ describe("XStateFlowEngine — built-in default Flow", () => {
   });
 
   it("rejects an invalid Flow with a load error", () => {
-    // createMachine with a missing initial state: xstate builds a machine, but
-    // the engine detects "no resolvable initial Phase" and rejects it.
-    const broken: FlowDefinition = createMachine({ initial: "missing", states: {} });
+    const broken: FlowDefinition = { initial: "missing", states: {} };
     const result = defaultFlowEngine.load("broken", broken);
     expect(result.ok).toBe(false);
   });
@@ -144,7 +142,7 @@ describe("FlowEngine seam — fake in-memory engine (no library coupling)", () =
   };
 
   it("drives a Run through the seam using only the interface", () => {
-    const loaded = makeFakeEngine().load("fake", createMachine({ id: "fake" }));
+    const loaded = makeFakeEngine().load("fake", {});
     if (!loaded.ok) throw new Error(loaded.error);
     const engine = loaded.instance;
     let snap = engine.initial();
@@ -161,7 +159,7 @@ describe("FlowEngine seam — fake in-memory engine (no library coupling)", () =
 });
 
 describe("XStateFlowEngine — parallel Phases", () => {
-  const parallelFlow: FlowDefinition = createMachine({
+  const parallelFlow: FlowDefinition = {
     id: "parallel",
     type: "parallel",
     states: {
@@ -228,7 +226,7 @@ describe("XStateFlowEngine — parallel Phases", () => {
         },
       },
     },
-  });
+  };
 
   const load = () => {
     const result = defaultFlowEngine.load("parallel", parallelFlow);

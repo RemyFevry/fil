@@ -12,15 +12,14 @@ const deps = { engine: defaultFlowEngine, flowName: "default", loadCode: loadFlo
 
 /** Render a definition as engine-native code (the durable flow-file form). */
 function code(obj: unknown): string {
-  const config = (obj as { config?: unknown }).config ?? obj;
-  return serializeFlowCode(config);
+  return serializeFlowCode(obj as Record<string, unknown>);
 }
 
-const baseCode = code(flow.rawConfig);
+const baseCode = code(flow.definition);
 
 describe("evolution.applyProposal", () => {
   it("accepts a valid patch and returns loadable newCode", async () => {
-    const next = structuredClone(flow.rawConfig) as Record<string, unknown>;
+    const next = structuredClone(flow.definition) as Record<string, unknown>;
     const states = next.states as Record<string, { meta: { phase: { instructions: string } } }>;
     const codeState = states.code;
     if (codeState) codeState.meta.phase.instructions = "Implement the change, with tests.";
@@ -54,7 +53,7 @@ describe("evolution.applyProposal", () => {
   });
 
   it("fails with 'reachability' when a new Phase is unreachable", async () => {
-    const next = structuredClone(flow.rawConfig) as Record<string, unknown>;
+    const next = structuredClone(flow.definition) as Record<string, unknown>;
     const states = next.states as Record<string, unknown>;
     states.orphan = {
       meta: { phase: { instructions: "x", gate: { type: "shell", script: "true" } } },
@@ -66,7 +65,7 @@ describe("evolution.applyProposal", () => {
   });
 
   it("fails with 'reachability' when a Phase deadlocks (cannot reach a terminal)", async () => {
-    const next = structuredClone(flow.rawConfig) as Record<string, unknown>;
+    const next = structuredClone(flow.definition) as Record<string, unknown>;
     const states = next.states as Record<
       string,
       { meta: { phase: { instructions: string; gate: { type: string } } }; on?: Record<string, string> }
@@ -80,7 +79,7 @@ describe("evolution.applyProposal", () => {
   });
 
   it("does not touch disk (delegates code execution to the injected loader)", async () => {
-    const next = structuredClone(flow.rawConfig);
+    const next = structuredClone(flow.definition);
     const patch = createUnifiedPatch(baseCode, code(next));
     await expect(applyProposal(baseCode, patch, deps)).resolves.toBeDefined();
   });
@@ -88,7 +87,7 @@ describe("evolution.applyProposal", () => {
 
 describe("evolution diff round-trip", () => {
   it("applyUnifiedDiff(createUnifiedPatch(a, b)) === b", () => {
-    const next = structuredClone(flow.rawConfig) as Record<string, unknown>;
+    const next = structuredClone(flow.definition) as Record<string, unknown>;
     const codeState = (next.states as Record<string, { meta: { phase: { instructions: string } } }>).code;
     if (codeState) codeState.meta.phase.instructions = "Changed.";
     const b = code(next);

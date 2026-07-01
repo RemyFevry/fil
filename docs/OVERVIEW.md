@@ -67,5 +67,5 @@ Most agent harnesses (Claude Code, Cursor, Pi) leave the SDLC to the human's dis
 
 - [`CONTEXT.md`](../CONTEXT.md) — glossary.
 - [ADR-0001](./adr/0001-steer-dont-run.md) — steer existing Agent Runtimes; don't run one.
-- [ADR-0002](./adr/0002-flows-are-xstate-code.md) — Flows are engine-native XState machine JS code; reuse the chosen engine, don't reinvent.
+- [ADR-0002](./adr/0002-flows-are-xstate-code.md) — Flows are engine-native code; reuse the chosen engine, don't reinvent.
 - [ADR-0003](./adr/0003-xstate-isolated-behind-flowengine-seam.md) — XState is the default engine, behind a cross-language `FlowEngine` seam.

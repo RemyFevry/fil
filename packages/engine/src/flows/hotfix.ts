@@ -1,10 +1,10 @@
-import { createMachine } from "./create-machine.js";
+import type { FlowDefinition } from "../seam.js";
 
 /**
- * The hotfix Flow: a fast incident path, authored as XState machine JS code.
- * Matches https://stately.ai/docs/xstate.
+ * The hotfix Flow: a fast incident path.
+ * Authored as engine-native code (ADR-0002); data-only machine definition.
  */
-export default createMachine({
+const hotfixFlow: FlowDefinition = {
   id: "hotfix",
   initial: "triage",
   context: {},
@@ -65,4 +65,6 @@ export default createMachine({
       },
     },
   },
-});
+};
+
+export default hotfixFlow;

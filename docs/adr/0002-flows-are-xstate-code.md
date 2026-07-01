@@ -1,12 +1,12 @@
-# Flows are engine-native XState machine JS code; reuse the chosen engine, don't reinvent
+# Flows are engine-native code; reuse the chosen engine, don't reinvent
 
 ## Context
 
-Fil needs a format for Flows. Two options: a custom declarative schema (e.g. JSONC) that Fil compiles *to* an XState machine at runtime, or author Flows *directly as* XState machine JS code — the canonical pattern shown at https://stately.ai/docs/xstate: `import { createMachine } from 'xstate'; export default createMachine({...})`.
+Fil needs a format for Flows. Two options: a custom declarative schema (e.g. JSONC) that Fil compiles *to* an XState machine at runtime, or author Flows *directly as* XState JS code.
 
 ## Decision
 
-**Flows are XState machine JS code, authored with `createMachine(...)` from `@fil/engine`** (which wraps xstate's `createMachine` internally). Fil is a thin **host** over the chosen engine: it supplies Gate execution and Receipt capture, per-Phase harness configuration, and durability (snapshot persistence) — so Flows carry no inline functions. For the XState engine a Flow is a `.js`/`.ts` module matching the canonical XState example at https://stately.ai/docs/xstate; for a future engine (e.g. `python-statemachine`) the Flow would be `.py` code in that engine's native style. Fil layers SDLC semantics (Phase, Gate, Receipt, actor mode), durable Run records, Adapters, the gate-runner, Flow evolution, and the CLI on top.
+**Flows are engine-native code files; their format, syntax, and file extension belong to the engine.** For XState (the v1 default) a Flow is a `.js`/`.ts` module exporting a data-only machine config — `xstate`'s `createMachine(...)` is called by the engine adapter, never by the Flow itself. For a future engine (e.g. `python-statemachine`) the Flow would be `.py` code in that engine's native style. **Fil is a thin host over the chosen engine**: it supplies the implementations the engine needs — Gate execution and Receipt capture (in the orchestrator, not in the machine), per-Phase harness configuration (on each state node's `meta.phase`), and durability (snapshot persistence) — so Flows carry no inline functions. Fil adds SDLC semantics, durable Run state, Adapters, the gate-runner, Flow evolution, and the CLI on top.
 
 Fil does **not** reimplement: state machines, states, transitions, guards, actors, inspection/visualization, or versioning. Flow versioning is **git** (Flows are committed code).
 

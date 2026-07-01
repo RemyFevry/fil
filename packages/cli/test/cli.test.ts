@@ -1,6 +1,6 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { defaultContext, type CliContext } from "../src/context.js";
 import { initCommand } from "../src/commands/init.js";
@@ -12,25 +12,19 @@ import { proposeCommand } from "../src/commands/propose.js";
 import { approveCommand } from "../src/commands/approve.js";
 import { inspectCommand } from "../src/commands/inspect.js";
 import { parseArgs } from "../src/args.js";
-import { serializeFlowCode, createMachine, type FlowDefinition } from "@fil/engine";
-
-// Place the test workdir under the workspace so that Flow files written there
-// can resolve @fil/engine via the workspace's node_modules (Node ESM walks up
-// from the file's directory looking for node_modules/<pkg>).
-const workspaceRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const workdirBase = join(workspaceRoot, ".tmp");
+import { serializeFlowCode, type FlowDefinition } from "@fil/engine";
 
 let workdir: string;
 
 beforeAll(async () => {
-  workdir = await mkdtemp(join(workdirBase, "fil-cli-"));
+  workdir = await mkdtemp(join(tmpdir(), "fil-cli-"));
 });
 afterAll(async () => {
   await rm(workdir, { recursive: true, force: true });
 });
 
 /** A demo flow: a (shell true) -> b (human) -> done (final). */
-function demoFlow() {
+function demoFlow(): FlowDefinition {
   const phase = (
     instructions: string,
     gate: Record<string, unknown>,
@@ -57,11 +51,6 @@ function demoFlow() {
       done: { ...phase("Done", { type: "shell", script: "true" }), type: "final" },
     },
   };
-}
-
-/** Wrap a demoFlow raw config in createMachine, used by commands that need the machine. */
-function _demoFlowMachine(): FlowDefinition {
-  return createMachine(demoFlow() as Parameters<typeof createMachine>[0]);
 }
 
 function ctxFor(overrides: Partial<CliContext> = {}): { ctx: CliContext; lines: string[]; errors: string[] } {
@@ -98,7 +87,7 @@ describe("fil CLI — end to end", () => {
   });
 
   it("starts a Run on a chosen --flow and reports the first Phase", async () => {
-    const { ctx, lines, errors: _errors } = ctxFor();
+    const { ctx, lines } = ctxFor();
     initCommand(ctx);
     ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow()));
     const code = await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
@@ -191,7 +180,7 @@ describe("fil CLI — end to end", () => {
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
 
     // Author a proposed flow (only instructions change — safe).
-    const proposed = structuredClone(demoFlow()) as Record<string, unknown>;
+    const proposed = demoFlow() as Record<string, unknown>;
     const states = proposed.states as Record<string, { meta: { phase: { instructions: string } } }>;
     const aState = states.a;
     if (aState) aState.meta.phase.instructions = "Phase A (revised)";
@@ -230,7 +219,7 @@ describe("fil CLI — end to end", () => {
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"])); // at phase a
 
     // Proposed flow RENAMES phase a -> a2, stranding the active Run.
-    const proposed = structuredClone(demoFlow()) as Record<string, unknown>;
+    const proposed = demoFlow() as Record<string, unknown>;
     const states = structuredClone(proposed.states) as Record<string, unknown>;
     states.a2 = states.a;
     delete states.a;
