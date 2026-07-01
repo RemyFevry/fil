@@ -1,102 +1,94 @@
 import { describe, expect, it } from "vitest";
-import { builtInFlow, defaultFlowEngine } from "@fil/engine";
+import { builtInFlow, defaultFlowEngine, serializeFlowCode } from "@fil/engine";
 import {
   applyProposal,
   applyUnifiedDiff,
   createUnifiedPatch,
-} from "./index.js";
+  loadFlowCode,
+} from "../src/index.js";
 
 const flow = builtInFlow("default")!;
-const deps = { engine: defaultFlowEngine, flowName: "default" };
+const deps = { engine: defaultFlowEngine, flowName: "default", loadCode: loadFlowCode };
 
-/** Pretty-print a flow definition as the durable flow-file text. */
+/** Render a definition as engine-native code (the durable flow-file form). */
 function code(obj: unknown): string {
-  return JSON.stringify(obj, null, 2) + "\n";
+  return serializeFlowCode(obj as Record<string, unknown>);
 }
 
 const baseCode = code(flow.definition);
 
 describe("evolution.applyProposal", () => {
-  it("accepts a valid patch and returns loadable newCode", () => {
+  it("accepts a valid patch and returns loadable newCode", async () => {
     const next = structuredClone(flow.definition) as Record<string, unknown>;
-    const states = next.states as Record<
-      string,
-      { meta: { phase: { instructions: string } } }
-    >;
+    const states = next.states as Record<string, { meta: { phase: { instructions: string } } }>;
     const codeState = states.code;
     if (codeState) codeState.meta.phase.instructions = "Implement the change, with tests.";
 
     const patch = createUnifiedPatch(baseCode, code(next));
-    const result = applyProposal(baseCode, patch, deps);
+    const result = await applyProposal(baseCode, patch, deps);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      const reloaded = defaultFlowEngine.load("default", JSON.parse(result.newCode));
-      expect(reloaded.ok).toBe(true);
+      const loaded = await loadFlowCode(result.newCode);
+      expect(loaded.ok).toBe(true);
+      if (loaded.ok) {
+        expect(defaultFlowEngine.load("default", loaded.definition).ok).toBe(true);
+      }
     }
   });
 
-  it("fails with 'load' on a syntactically broken patch", () => {
-    const broken = baseCode.replace(
-      '"instructions": "Gather',
-      '"instructions": GATHER BROKEN',
-    );
+  it("fails with 'load' on syntactically broken code", async () => {
+    const broken = "export default { broken";
     const patch = createUnifiedPatch(baseCode, broken);
-    const result = applyProposal(baseCode, patch, deps);
+    const result = await applyProposal(baseCode, patch, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("load");
   });
 
-  it("fails with 'load' when the patch produces a non-machine config", () => {
-    // Strip the states map entirely.
+  it("fails with 'load' when the patch produces a non-machine config", async () => {
     const stripped = code({ id: "default", initial: "requirements", states: {} });
     const patch = createUnifiedPatch(baseCode, stripped);
-    const result = applyProposal(baseCode, patch, deps);
+    const result = await applyProposal(baseCode, patch, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("load");
   });
 
-  it("fails with 'reachability' when a new Phase is unreachable", () => {
+  it("fails with 'reachability' when a new Phase is unreachable", async () => {
     const next = structuredClone(flow.definition) as Record<string, unknown>;
     const states = next.states as Record<string, unknown>;
     states.orphan = {
       meta: { phase: { instructions: "x", gate: { type: "shell", script: "true" } } },
     };
     const patch = createUnifiedPatch(baseCode, code(next));
-    const result = applyProposal(baseCode, patch, deps);
+    const result = await applyProposal(baseCode, patch, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("reachability");
   });
 
-  it("fails with 'reachability' when a Phase deadlocks (cannot reach a terminal)", () => {
+  it("fails with 'reachability' when a Phase deadlocks (cannot reach a terminal)", async () => {
     const next = structuredClone(flow.definition) as Record<string, unknown>;
     const states = next.states as Record<
       string,
       { meta: { phase: { instructions: string; gate: { type: string } } }; on?: Record<string, string> }
     >;
-    // Remove the review -> done transition, stranding review.
     const review = states.review;
     if (review) delete review.on;
     const patch = createUnifiedPatch(baseCode, code(next));
-    const result = applyProposal(baseCode, patch, deps);
+    const result = await applyProposal(baseCode, patch, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("reachability");
   });
 
-  it("is pure — no I/O", () => {
+  it("does not touch disk (delegates code execution to the injected loader)", async () => {
     const next = structuredClone(flow.definition);
     const patch = createUnifiedPatch(baseCode, code(next));
-    expect(() => applyProposal(baseCode, patch, deps)).not.toThrow();
+    await expect(applyProposal(baseCode, patch, deps)).resolves.toBeDefined();
   });
 });
 
 describe("evolution diff round-trip", () => {
   it("applyUnifiedDiff(createUnifiedPatch(a, b)) === b", () => {
     const next = structuredClone(flow.definition) as Record<string, unknown>;
-    const states = next.states as Record<
-      string,
-      { meta: { phase: { instructions: string } } }
-    >;
-    const codeState = states.code;
+    const codeState = (next.states as Record<string, { meta: { phase: { instructions: string } } }>).code;
     if (codeState) codeState.meta.phase.instructions = "Changed.";
     const b = code(next);
     const patch = createUnifiedPatch(baseCode, b);

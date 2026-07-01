@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BUILT_IN_FLOWS } from "@fil/engine";
+import { BUILT_IN_FLOWS, serializeFlowCode } from "@fil/engine";
 import type { CliContext } from "../context.js";
 
 /** `fil init` — scaffold the durable `.fil/` layout (idempotent). */
@@ -24,7 +24,7 @@ export function initCommand(ctx: CliContext): number {
   const scaffolded: string[] = [];
   for (const flow of BUILT_IN_FLOWS) {
     if (!store.flowExists(flow.name)) {
-      store.writeFlow(flow.name, flow.definition);
+      store.writeFlowText(flow.name, serializeFlowCode(flow.definition));
       scaffolded.push(flow.name);
     }
   }

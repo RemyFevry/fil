@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultFlowEngine, builtInFlow } from "./index.js";
-import type { FlowEngine, EngineInstance, FlowDefinition } from "./seam.js";
+import { defaultFlowEngine, builtInFlow } from "../src/index.js";
+import type { FlowEngine, EngineInstance, FlowDefinition } from "../src/seam.js";
 
 const defaultFlow = builtInFlow("default");
 if (!defaultFlow) throw new Error("default flow missing");

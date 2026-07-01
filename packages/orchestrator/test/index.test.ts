@@ -11,7 +11,7 @@ import {
   project,
   startRun,
   type OrchestratorDeps,
-} from "./index.js";
+} from "../src/index.js";
 
 /** A linear test Flow: a (shell true) -> b (human) -> c (final). */
 function testFlow(): Record<string, unknown> {
@@ -81,7 +81,7 @@ describe("orchestrator.startRun", () => {
     });
     if (!result.ok) return;
     // Mutate the (irrelevant) live flow on disk; the Run keeps its snapshot.
-    deps.store.writeFlow("test", { id: "test", initial: "z", states: {} });
+    deps.store.writeFlowText("test", "export default { id: 'test', initial: 'z' };");
     const advanced = await advance(deps, result.run);
     expect(advanced.advanced).toBe(true);
     expect(advanced.run.history[advanced.run.history.length - 1]?.phases).toEqual(["b"]);

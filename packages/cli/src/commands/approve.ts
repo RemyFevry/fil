@@ -1,10 +1,10 @@
-import { applyProposal } from "@fil/evolution";
+import { applyProposal, loadFlowCode } from "@fil/evolution";
 import { flag, type ParsedArgs } from "../args.js";
 import type { CliContext } from "../context.js";
 import { readFlowText } from "./common.js";
 
 /** `fil approve <id> [--flow name]` — validate a proposal and apply it. */
-export function approveCommand(ctx: CliContext, args: ParsedArgs): number {
+export async function approveCommand(ctx: CliContext, args: ParsedArgs): Promise<number> {
   const id = args.positional[0];
   if (!id) {
     ctx.out.error("Usage: fil approve <proposal-id> [--flow <name>]");
@@ -29,7 +29,11 @@ export function approveCommand(ctx: CliContext, args: ParsedArgs): number {
     return 1;
   }
 
-  const result = applyProposal(current, patch, { engine: ctx.engine, flowName });
+  const result = await applyProposal(current, patch, {
+    engine: ctx.engine,
+    flowName,
+    loadCode: loadFlowCode,
+  });
   if (!result.ok) {
     ctx.out.error(`Rejected (${result.error}): ${result.message}`);
     ctx.out.error("The Flow was NOT modified. The proposal is kept for revision.");
@@ -37,15 +41,15 @@ export function approveCommand(ctx: CliContext, args: ParsedArgs): number {
   }
 
   // Stranded-Run guard: refuse if an active Run sits on a removed/renamed Phase.
-  const stranded = strandedRunCheck(ctx, flowName, result.newCode);
+  const stranded = await strandedRunCheck(ctx, flowName, result.newCode);
   if (stranded) {
     ctx.out.error(`Refused: ${stranded}`);
     ctx.out.error("Cancel the affected Run first (fil cancel), then approve again.");
     return 1;
   }
 
-  // Apply: write the validated new Flow content (flows are git-versioned).
-  ctx.store.writeFlow(flowName, JSON.parse(result.newCode));
+  // Apply: write the validated new Flow code (flows are git-versioned code).
+  ctx.store.writeFlowText(flowName, result.newCode);
   ctx.store.removeProposal(id);
   ctx.out.log(`Applied proposal ${id} to flow "${flowName}".`);
   ctx.out.log("  Future Runs use the new Flow. Active Runs keep their frozen snapshot.");
@@ -54,14 +58,16 @@ export function approveCommand(ctx: CliContext, args: ParsedArgs): number {
 }
 
 /** Check that no active Run on this flow is stranded by the new definition. */
-function strandedRunCheck(
+async function strandedRunCheck(
   ctx: CliContext,
   flowName: string,
   newCode: string,
-): string | null {
-  const loaded = ctx.engine.load(flowName, JSON.parse(newCode));
+): Promise<string | null> {
+  const loaded = await loadFlowCode(newCode);
   if (!loaded.ok) return null; // already validated; nothing to do
-  const newNodeIds = new Set(loaded.instance.serialize().nodes.map((n) => n.id));
+  const machine = ctx.engine.load(flowName, loaded.definition);
+  if (!machine.ok) return null;
+  const newNodeIds = new Set(machine.instance.serialize().nodes.map((n) => n.id));
 
   for (const runId of ctx.store.listRuns()) {
     const run = ctx.store.readRunState(runId);
@@ -77,6 +83,6 @@ function strandedRunCheck(
 }
 
 function inferFlowFromPatch(patch: string): string | undefined {
-  const match = patch.match(/^\+\+\+ [^\s]*\/([^/]+)\.json$/m);
+  const match = patch.match(/^\+\+\+ [^\s]*\/([^/]+)\.js$/m);
   return match?.[1];
 }

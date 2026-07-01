@@ -35,7 +35,7 @@ export class FilStore implements Store {
     return join(this.filDir, "flows");
   }
   private flowPath(name: string): string {
-    return join(this.flowsDir(), `${name}.json`);
+    return join(this.flowsDir(), `${name}.js`);
   }
   private projectionPath(): string {
     return join(this.filDir, "run.json");
@@ -80,19 +80,20 @@ export class FilStore implements Store {
   }
 
   // -------------------------------------------------------------------------
-  // flows
+  // flows (engine-native code files: .js)
   // -------------------------------------------------------------------------
   listFlows(): string[] {
-    return this.listJsonNames(this.flowsDir());
+    return this.listFlowNames(this.flowsDir());
   }
 
-  readFlow(name: string): Record<string, unknown> | undefined {
-    return this.readJson<Record<string, unknown>>(this.flowPath(name)) ?? undefined;
+  readFlowText(name: string): string | undefined {
+    const path = this.flowPath(name);
+    return existsSync(path) ? readFileSync(path, "utf8") : undefined;
   }
 
-  writeFlow(name: string, definition: Record<string, unknown>): void {
+  writeFlowText(name: string, code: string): void {
     mkdirSync(this.flowsDir(), { recursive: true });
-    this.writeJson(this.flowPath(name), definition);
+    writeFileSync(this.flowPath(name), code, "utf8");
   }
 
   flowExists(name: string): boolean {
@@ -185,10 +186,10 @@ export class FilStore implements Store {
     writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   }
 
-  private listJsonNames(dir: string): string[] {
+  private listFlowNames(dir: string): string[] {
     if (!existsSync(dir)) return [];
     return readdirSync(dir)
-      .filter((name) => name.endsWith(".json"))
-      .map((name) => name.slice(0, -5));
+      .filter((name) => name.endsWith(".js"))
+      .map((name) => name.slice(0, -3));
   }
 }

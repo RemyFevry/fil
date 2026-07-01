@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderGraph } from "./index.js";
+import { renderGraph } from "../src/index.js";
 import type { FlowGraph } from "@fil/engine";
 
 const graph: FlowGraph = {

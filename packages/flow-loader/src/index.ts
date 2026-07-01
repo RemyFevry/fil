@@ -8,10 +8,11 @@ import type {
  * Resolves which Flow file wins and load-validates it.
  *
  * Project-level Flows (`.fil/flows/`) override user-level (`~/.fil/flows/`).
- * The chosen file is load-validated against the active `FlowEngine`
- * (ADR-0002): an invalid Flow fails loudly at load.
+ * Flows are engine-native CODE (ADR-0002): `.js`/`.ts` modules exporting a
+ * config. The chosen file is imported and load-validated against the active
+ * `FlowEngine` — an invalid Flow fails loudly at load.
  *
- * A fake filesystem is injectable so the tests need no real disk.
+ * A fake filesystem / importer is injectable so the tests need no real disk.
  */
 
 export type FlowSource = "project" | "user";
@@ -29,43 +30,39 @@ export interface FlowLoadError {
   error: string;
 }
 
-/** Minimal filesystem the loader needs — faked in tests, real in production. */
+/** Minimal dependencies the loader needs — faked in tests, real in production. */
 export interface FlowLoaderDeps {
-  /** Read a file's text, or `undefined` if it does not exist. */
-  readFile(path: string): string | undefined;
+  /** Whether a path exists (used for precedence resolution). */
+  fileExists(path: string): boolean;
   /** List flow names (without extension) present in a directory. */
   listFlowNames(dir: string): string[];
+  /** Import a Flow module, returning its exported definition. */
+  importFlowFile(path: string): Promise<FlowDefinition | undefined>;
   /** The FlowEngine used to load-validate the chosen definition. */
   engine: FlowEngine;
 }
 
 export interface ResolveOptions {
-  /** Directory of project-level flows (e.g. `<cwd>/.fil/flows`). */
   projectFlowsDir: string;
-  /** Directory of user-level flows (e.g. `~/.fil/flows`). */
   userFlowsDir: string;
-  /** Flow to resolve. Falls back to `defaultName`, then to `"default"`. */
   flowName?: string;
-  /** The project's configured default flow name. */
   defaultName?: string;
 }
 
-export function resolveFlow(
+export async function resolveFlow(
   deps: FlowLoaderDeps,
   opts: ResolveOptions,
-): ResolvedFlow | FlowLoadError {
+): Promise<ResolvedFlow | FlowLoadError> {
   const name = opts.flowName ?? opts.defaultName ?? "default";
 
-  const projectPath = `${opts.projectFlowsDir}/${name}.json`;
-  const projectContent = deps.readFile(projectPath);
-  if (projectContent !== undefined) {
-    return loadAndValidate(deps, name, projectContent, "project");
+  const projectPath = `${opts.projectFlowsDir}/${name}.js`;
+  if (deps.fileExists(projectPath)) {
+    return loadAndValidate(deps, name, projectPath, "project");
   }
 
-  const userPath = `${opts.userFlowsDir}/${name}.json`;
-  const userContent = deps.readFile(userPath);
-  if (userContent !== undefined) {
-    return loadAndValidate(deps, name, userContent, "user");
+  const userPath = `${opts.userFlowsDir}/${name}.js`;
+  if (deps.fileExists(userPath)) {
+    return loadAndValidate(deps, name, userPath, "user");
   }
 
   const available = unique([
@@ -81,30 +78,36 @@ export function resolveFlow(
   };
 }
 
-function loadAndValidate(
+async function loadAndValidate(
   deps: FlowLoaderDeps,
   name: string,
-  raw: string,
+  path: string,
   source: FlowSource,
-): ResolvedFlow | FlowLoadError {
-  let definition: FlowDefinition;
+): Promise<ResolvedFlow | FlowLoadError> {
+  let definition: FlowDefinition | undefined;
   try {
-    definition = JSON.parse(raw);
-  } catch {
+    definition = await deps.importFlowFile(path);
+  } catch (err) {
     return {
       ok: false,
-      error: `Flow "${name}" (${source}) is not valid JSON.`,
+      error: `Flow "${name}" (${source}) failed to import: ${message(err)}`,
     };
+  }
+  if (!definition) {
+    return { ok: false, error: `Flow "${name}" (${source}) has no default export.` };
   }
 
   const loaded = deps.engine.load(name, definition);
   if (!loaded.ok) {
     return loaded;
   }
-
   return { ok: true, name, definition, source, instance: loaded.instance };
 }
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function message(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

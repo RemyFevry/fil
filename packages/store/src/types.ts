@@ -56,10 +56,12 @@ export interface Store {
   readConfig(): FilConfig | null;
   writeConfig(config: FilConfig): void;
 
-  // --- flows ---
+  // --- flows (authored as engine-native code: .js/.ts modules) ---
   listFlows(): string[];
-  readFlow(name: string): Record<string, unknown> | undefined;
-  writeFlow(name: string, definition: Record<string, unknown>): void;
+  /** Read a Flow file's source code, or undefined if it does not exist. */
+  readFlowText(name: string): string | undefined;
+  /** Write a Flow file's source code. */
+  writeFlowText(name: string, code: string): void;
   flowExists(name: string): boolean;
 
   // --- active projection ---

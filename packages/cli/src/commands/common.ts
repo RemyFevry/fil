@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import type { FlowDefinition } from "@fil/engine";
 import { resolveFlow, type FlowLoaderDeps, type ResolvedFlow } from "@fil/flow-loader";
@@ -21,7 +22,7 @@ export function projectFlowsDir(ctx: CliContext): string {
 }
 
 export function flowFilePath(ctx: CliContext, name: string): string {
-  return join(projectFlowsDir(ctx), `${name}.json`);
+  return join(projectFlowsDir(ctx), `${name}.js`);
 }
 
 export function readFlowText(ctx: CliContext, name: string): string | null {
@@ -31,13 +32,19 @@ export function readFlowText(ctx: CliContext, name: string): string | null {
 
 function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
   return {
-    readFile: (path) => (existsSync(path) ? readFileSync(path, "utf8") : undefined),
+    fileExists: (path) => existsSync(path),
     listFlowNames: (dir) =>
       existsSync(dir)
         ? readdirSync(dir)
-            .filter((n) => n.endsWith(".json"))
-            .map((n) => n.slice(0, -5))
+            .filter((n) => n.endsWith(".js"))
+            .map((n) => n.slice(0, -3))
         : [],
+    importFlowFile: async (path) => {
+      const mod = (await import(pathToFileURL(path).href)) as {
+        default?: FlowDefinition;
+      };
+      return mod.default;
+    },
     engine: ctx.engine,
   };
 }
@@ -46,7 +53,7 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
 export function resolveFlowDefinition(
   ctx: CliContext,
   flowName?: string,
-): ResolvedFlow | { ok: false; error: string } {
+): Promise<ResolvedFlow | { ok: false; error: string }> {
   const config = ctx.store.readConfig();
   return resolveFlow(realFlowLoaderDeps(ctx), {
     projectFlowsDir: projectFlowsDir(ctx),
@@ -67,17 +74,13 @@ export function activeRun(ctx: CliContext): {
   if (!run) return null;
   return { run, projection };
 }
-
-/** Load a Flow definition from disk (no precedence resolution). */
-export function loadDefinitionFromPath(
-  ctx: CliContext,
-  name: string,
-): FlowDefinition | null {
-  const text = readFlowText(ctx, name);
-  if (text === null) return null;
-  try {
-    return JSON.parse(text) as FlowDefinition;
-  } catch {
-    return null;
-  }
+/** Import a Flow file directly by path (used by inspect for ad-hoc flows). */
+export async function loadDefinitionFromPath(
+  path: string,
+): Promise<FlowDefinition | null> {
+  if (!existsSync(path)) return null;
+  const mod = (await import(pathToFileURL(path).href)) as {
+    default?: FlowDefinition;
+  };
+  return mod.default ?? null;
 }
