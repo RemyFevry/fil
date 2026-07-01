@@ -20,46 +20,57 @@ export function renderGraph(input: InspectInput): string {
   const active = new Set(input.activePhases ?? []);
   const order = orderNodes(graph);
 
-  const lines: string[] = [];
-  lines.push(`${bold(graph.flowName)}  (initial: ${graph.initial.join(", ") || "—"})`);
-  lines.push("");
+  const lines: string[] = [
+    `${bold(graph.flowName)}  (initial: ${graph.initial.join(", ") || "—"})`,
+    "",
+  ];
 
-  const transitionsFrom = new Map<string, FlowGraphNode[]>();
-  for (const node of graph.nodes) {
-    const targets: FlowGraphNode[] = [];
-    for (const t of graph.transitions) {
-      if (t.from === node.id) {
-        const target = graph.nodes.find((n) => n.id === t.to);
-        if (target) targets.push(target);
-      }
-    }
-    transitionsFrom.set(node.id, targets);
-  }
+  const transitionsFrom = buildTransitionsFrom(graph);
 
   for (const node of order) {
-    const phase = node.phase;
-    const marker = active.has(node.id) ? `${cyan("▶")}` : " ";
-    const tags: string[] = [];
-    if (node.parallel) tags.push("parallel");
-    if (phase) tags.push(`[${phase.actorMode}]`);
-    if (phase) tags.push(`gate: ${gateLabel(phase.gate.type)}`);
-    if (node.final) tags.push("(final)");
-    lines.push(`  ${marker} ${node.id.padEnd(26)} ${tags.join("  ")}`);
+    lines.push(formatNodeLine(node, active));
     for (const target of transitionsFrom.get(node.id) ?? []) {
       lines.push(`        └─ NEXT ─▶ ${target.id}`);
     }
   }
 
   if (active.size > 0) {
-    lines.push("");
-    lines.push(
-      active.size > 1
-        ? `active Phases: ${[...active].join(", ")} (parallel)`
-        : `active Phase: ${[...active].join("")}`,
-    );
+    lines.push("", formatActiveLine(active));
   }
 
   return lines.join("\n");
+}
+
+function buildTransitionsFrom(graph: FlowGraph): Map<string, FlowGraphNode[]> {
+  const transitionsFrom = new Map<string, FlowGraphNode[]>();
+  for (const node of graph.nodes) {
+    const targets: FlowGraphNode[] = [];
+    for (const t of graph.transitions) {
+      if (t.from !== node.id) continue;
+      const target = graph.nodes.find((n) => n.id === t.to);
+      if (target) targets.push(target);
+    }
+    transitionsFrom.set(node.id, targets);
+  }
+  return transitionsFrom;
+}
+
+function formatNodeLine(node: FlowGraphNode, active: Set<string>): string {
+  const phase = node.phase;
+  const marker = active.has(node.id) ? `${cyan("▶")}` : " ";
+  const tags: string[] = [];
+  if (node.parallel) tags.push("parallel");
+  if (phase) tags.push(`[${phase.actorMode}]`);
+  if (phase) tags.push(`gate: ${gateLabel(phase.gate.type)}`);
+  if (node.final) tags.push("(final)");
+  return `  ${marker} ${node.id.padEnd(26)} ${tags.join("  ")}`;
+}
+
+function formatActiveLine(active: Set<string>): string {
+  const ids = [...active];
+  return active.size > 1
+    ? `active Phases: ${ids.join(", ")} (parallel)`
+    : `active Phase: ${ids.join("")}`;
 }
 
 /** Order nodes by traversal from the initial Phases, then any leftovers. */

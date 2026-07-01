@@ -266,7 +266,7 @@ describe("orchestrator — parallel Phases (#19)", () => {
     const out = await advance(deps, start.run);
     expect(out.advanced).toBe(true);
     expect(out.done).toBe(true);
-    expect(out.receipts.length).toBe(2); // both sub-Gates ran
+    expect(out.receipts).toHaveLength(2); // both sub-Gates ran
   });
 
   it("does not advance when any sub-Gate fails", async () => {

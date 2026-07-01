@@ -195,7 +195,7 @@ export function back(deps: OrchestratorDeps, run: RunState): {
     return { run, retreated: false, error: "Already at the initial Phase." };
   }
   const popped = run.positions.slice(0, -1);
-  const current = popped[popped.length - 1];
+  const current = popped.at(-1);
   if (!current) {
     return { run, retreated: false, error: "No previous Phase to retreat to." };
   }
@@ -215,7 +215,7 @@ export function back(deps: OrchestratorDeps, run: RunState): {
 export function cancel(deps: OrchestratorDeps, run: RunState): RunState {
   if (run.status === "cancelled") return run;
   const now = new Date().toISOString();
-  const current = run.positions[run.positions.length - 1];
+  const current = run.positions.at(-1);
   const updated: RunState = {
     ...run,
     status: "cancelled",
@@ -236,7 +236,7 @@ export function cancel(deps: OrchestratorDeps, run: RunState): RunState {
 
 /** The Run's current Phase ids. */
 export function currentPhases(run: RunState): string[] {
-  return run.positions[run.positions.length - 1]?.phases ?? [];
+  return run.positions.at(-1)?.phases ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -253,7 +253,7 @@ function reconstruct(deps: OrchestratorDeps, run: RunState): Reconstructed | nul
   if (!definition) return null;
   const loaded = deps.engine.load(run.flowName, definition);
   if (!loaded.ok) return null;
-  const current = run.positions[run.positions.length - 1];
+  const current = run.positions.at(-1);
   if (!current) return null;
   return { instance: loaded.instance, snapshot: current.snapshot };
 }
@@ -274,17 +274,21 @@ function missingConfigReceipt(phaseId: string): Receipt {
 
 /** Derive the `.fil/run.json` projection from a Run's current position. */
 export function project(run: RunState, instance: EngineInstance): RunProjection {
-  const current = run.positions[run.positions.length - 1];
+  const current = run.positions.at(-1);
   const snapshot = current?.snapshot ?? instance.initial();
   const status = instance.getStatus(snapshot);
   const phases = status.activePhases;
   const primary = phases[0] ?? "";
   const phaseConfig = instance.getPhaseConfig(primary) ?? FALLBACK_PHASE_CONFIG;
+  let projectedStatus: RunProjection["status"];
+  if (run.status === "cancelled") projectedStatus = "cancelled";
+  else if (status.done) projectedStatus = "done";
+  else projectedStatus = "active";
   return {
     runId: run.runId,
     change: run.change,
     flowName: run.flowName,
-    status: run.status === "cancelled" ? "cancelled" : status.done ? "done" : "active",
+    status: projectedStatus,
     phase: primary,
     phases,
     actorMode: phaseConfig.actorMode,

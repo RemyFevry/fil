@@ -73,7 +73,7 @@ export async function resolveFlow(
     ok: false,
     error:
       available.length > 0
-        ? `Flow "${name}" not found. Available: ${available.sort().join(", ")}.`
+        ? `Flow "${name}" not found. Available: ${[...available].sort((a, b) => a.localeCompare(b)).join(", ")}.`
         : `Flow "${name}" not found in ${opts.projectFlowsDir} or ${opts.userFlowsDir}.`,
   };
 }

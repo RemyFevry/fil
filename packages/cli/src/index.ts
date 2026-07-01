@@ -80,5 +80,6 @@ const isMain = (() => {
 
 if (isMain) {
   const filtered = process.argv.slice(2).filter((a) => a !== "--");
-  run(filtered).then((code) => process.exit(code));
+  const code = await run(filtered);
+  process.exit(code);
 }

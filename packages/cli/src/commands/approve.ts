@@ -71,8 +71,8 @@ async function strandedRunCheck(
 
   for (const runId of ctx.store.listRuns()) {
     const run = ctx.store.readRunState(runId);
-    if (!run || run.status !== "active" || run.flowName !== flowName) continue;
-    const current = run.history[run.history.length - 1];
+    if (run?.status !== "active" || run?.flowName !== flowName) continue;
+    const current = run.history.at(-1);
     const phases = current?.phases ?? [];
     const strandedPhase = phases.find((p) => !newNodeIds.has(p));
     if (strandedPhase) {
@@ -83,6 +83,6 @@ async function strandedRunCheck(
 }
 
 function inferFlowFromPatch(patch: string): string | undefined {
-  const match = patch.match(/^\+\+\+ [^\s]*\/([^/]+)\.js$/m);
+  const match = /^\+\+\+ [^\s]*\/([^/]+)\.js$/m.exec(patch);
   return match?.[1];
 }
