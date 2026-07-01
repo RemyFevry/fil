@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Test coverage
+coverage/
+
 # Fil local work-in-progress (durable state — never committed)
 .fil/runs/
 .fil/run.json
