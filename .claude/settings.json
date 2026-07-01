@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/require-worktree.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/require-worktree.sh"
           }
         ]
       }

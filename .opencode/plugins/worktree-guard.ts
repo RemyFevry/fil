@@ -16,9 +16,12 @@ export const WorktreeGuard = async ({ $ }) => {
     "tool.execute.before": async (input) => {
       const tool = input?.tool;
       if (tool !== "edit" && tool !== "write" && tool !== "bash") return;
-      try {
-        await $`bash ${script}`.quiet();
-      } catch {
+      // Don't throw on non-zero — inspect the exit code so we only report the
+      // known "primary worktree" block (exit 2) and surface anything else
+      // (script missing, git error, …) instead of masking it or failing open.
+      const result = await $`bash ${script}`.nothrow().quiet();
+      if (result.exitCode === 0) return; // linked worktree (or hatch) → allowed
+      if (result.exitCode === 2) {
         throw new Error(
           "fil: blocked — mutating tools are not allowed in the primary worktree. " +
             "Work inside a Worktrunk worktree: `wt switch -c <branch>` and launch opencode there " +
@@ -26,6 +29,10 @@ export const WorktreeGuard = async ({ $ }) => {
             "Trunk maintenance? set FIL_ALLOW_MAIN_WORKTREE=1.",
         );
       }
+      const detail = result.stderr?.toString?.()?.trim() ?? `exit ${result.exitCode}`;
+      throw new Error(
+        `fil worktree guard: unexpected failure (exit ${result.exitCode}): ${detail}`,
+      );
     },
   };
 };

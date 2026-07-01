@@ -6,17 +6,19 @@
 // regenerating the Fil adapter never overwrites this guard.
 //
 // The veto mirrors the Fil adapter's tool_call block (see
-// packages/pi-adapter/src/extension-source.ts). The detection mirrors
-// scripts/require-worktree.sh (`.git` file = linked worktree, `.git` dir =
-// primary). Escape hatch: FIL_ALLOW_MAIN_WORKTREE=1.
+// packages/pi-adapter/src/extension-source.ts). The decision is delegated to
+// the canonical scripts/require-worktree.sh — single source of truth — which
+// also owns the FIL_ALLOW_MAIN_WORKTREE escape hatch and the "not a repo →
+// allow" fallback, so this file never reimplements the gate.
 import { execFileSync } from "node:child_process";
-import { statSync } from "node:fs";
+import { join } from "node:path";
 
 const MUTATING = new Set(["edit", "write", "bash"]);
 
-/** True when cwd is the primary worktree (not a linked worktree). */
-function inPrimaryWorktree(): boolean {
-  if (process.env.FIL_ALLOW_MAIN_WORKTREE === "1") return false;
+/** Run the canonical gate; returns its exit code (0 = allow, 2 = block). */
+function gateExitCode(): number {
+  // Resolve the repo root from the cwd so the shared script is found no matter
+  // how Pi located this extension file.
   let top: string;
   try {
     top = execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -24,13 +26,17 @@ function inPrimaryWorktree(): boolean {
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch {
-    return false; // not a git repo → allow
+    return 0; // not a git repo → allow (mirrors the script's own behavior)
   }
   try {
-    // Linked worktree: `.git` is a file. Primary: `.git` is a directory.
-    return statSync(`${top}/.git`).isDirectory();
-  } catch {
-    return false;
+    execFileSync("bash", [join(top, "scripts", "require-worktree.sh")], {
+      stdio: "ignore",
+    });
+    return 0;
+  } catch (e) {
+    // execFileSync throws on non-zero exit; the code is on error.status.
+    const err = e as { status?: number };
+    return typeof err.status === "number" ? err.status : 1;
   }
 }
 
@@ -38,14 +44,22 @@ export default function worktreeGuard(pi) {
   pi.on("tool_call", async (event) => {
     const name = event?.toolName;
     if (!MUTATING.has(name)) return undefined;
-    if (!inPrimaryWorktree()) return undefined;
+    const code = gateExitCode();
+    if (code === 0) return undefined; // allowed
+    if (code === 2) {
+      return {
+        block: true,
+        reason:
+          "fil: blocked — mutating tools are not allowed in the primary worktree. " +
+          "Work inside a Worktrunk worktree: `wt switch -c <branch>` and launch Pi there " +
+          "(e.g. `wt switch -x pi -c <branch>`). " +
+          "Trunk maintenance? set FIL_ALLOW_MAIN_WORKTREE=1.",
+      };
+    }
+    // Unexpected gate failure — fail closed, but report the real code.
     return {
       block: true,
-      reason:
-        "fil: blocked — mutating tools are not allowed in the primary worktree. " +
-        "Work inside a Worktrunk worktree: `wt switch -c <branch>` and launch Pi there " +
-        "(e.g. `wt switch -x pi -c <branch>`). " +
-        "Trunk maintenance? set FIL_ALLOW_MAIN_WORKTREE=1.",
+      reason: `fil worktree guard: unexpected gate failure (exit ${code})`,
     };
   });
 }
