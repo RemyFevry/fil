@@ -28,8 +28,12 @@ const defaultFlow: FlowDefinition = {
           actorMode: "collaborative",
           gate: {
             type: "shell",
+            // Cross-platform: invoke `node` (always on PATH in any Fil setup) and
+            // check the exact artifact path that the receipt will record. No
+            // POSIX-only `find`/`test`, and no `requirements*.md` wildcard that
+            // would let a sibling file satisfy the gate.
             script:
-              "test -n \"$(find . -maxdepth 2 -name 'requirements*.md' -not -path './node_modules/*')\"",
+              "node -e \"require('node:fs').existsSync('requirements.md') ? process.exit(0) : process.exit(1)\"",
             artifactPath: "requirements.md",
           },
         },
