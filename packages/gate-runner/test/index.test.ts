@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runGate } from "../src/index.js";
+import { artifactExists, runGate } from "../src/index.js";
 
 let workdir: string;
 let passScript: string;
@@ -90,5 +90,28 @@ describe("gate-runner", () => {
       { cwd: workdir },
     );
     expect(() => JSON.stringify(receipt)).not.toThrow();
+  });
+
+  it("artifactExists resolves relative paths against cwd, not process.cwd()", async () => {
+    // Place a file only inside `workdir`; the system cwd (whatever vitest uses)
+    // must not be allowed to satisfy the lookup for the bare-relative name.
+    const relativeName = "artifact-only-in-workdir.md";
+    const workdirPath = join(workdir, relativeName);
+    await writeFile(workdirPath, "x\n");
+
+    const previousCwd = process.cwd();
+    process.chdir(tmpdir());
+    try {
+      // Absolute path resolves directly.
+      expect(artifactExists(workdirPath, workdir)).toBe(true);
+      // Relative path is joined to cwd, NOT to process.cwd().
+      expect(artifactExists(relativeName, workdir)).toBe(true);
+      // And looking from a different cwd returns false (no fallback to process.cwd()).
+      expect(artifactExists(relativeName, tmpdir())).toBe(false);
+      // undefined path is a no-op (the gate does not declare an artifact).
+      expect(artifactExists(undefined, workdir)).toBe(true);
+    } finally {
+      process.chdir(previousCwd);
+    }
   });
 });
