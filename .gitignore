@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Fil local work-in-progress (durable state — never committed)
+.fil/runs/
+.fil/run.json
+.fil/proposals/
+
+# Environment / OS
+.DS_Store
+.env
+.env.local
+*.log
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

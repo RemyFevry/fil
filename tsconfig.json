@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/contract" },
+    { "path": "packages/engine" },
+    { "path": "packages/gate-runner" },
+    { "path": "packages/flow-loader" },
+    { "path": "packages/evolution" },
+    { "path": "packages/store" },
+    { "path": "packages/orchestrator" },
+    { "path": "packages/inspect-view" },
+    { "path": "packages/cli" }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@fil/engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The FlowEngine seam (ADR-0003) and the default XState implementation (ADR-0002).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./flows": {
+      "types": "./dist/flows/index.d.ts",
+      "import": "./dist/flows/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fil/contract": "workspace:*",
+    "xstate": "^5.18.0"
+  }
+}

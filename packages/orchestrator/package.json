@@ -1,0 +1,25 @@
+{
+  "name": "@fil/orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "startRun / advance / back / cancel — drives the Flow via the engine and gate-runner, persists through the store.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fil/contract": "workspace:*",
+    "@fil/engine": "workspace:*",
+    "@fil/gate-runner": "workspace:*",
+    "@fil/store": "workspace:*"
+  }
+}
