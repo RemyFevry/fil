@@ -2,7 +2,7 @@
 
 ## Context
 
-ADR-0002 chose engine-native Flow files, with XState as the v1 default engine. Fil must not hard-lock to that choice — a license change, deprecation, or a better library could warrant swapping, including to a different runtime (e.g. `python-statemachine`, which is Python).
+ADR-0002 chose engine-native machine code with XState as the v1 default engine. Fil must not hard-lock to that choice — a license change, deprecation, or a better library could warrant swapping, including to a different runtime (e.g. `python-statemachine`, which is Python).
 
 ## Decision
 

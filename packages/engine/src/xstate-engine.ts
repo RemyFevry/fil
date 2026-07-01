@@ -1,4 +1,5 @@
-import { createActor, createMachine } from "xstate";
+import { createActor } from "xstate";
+import type { AnyStateMachine } from "xstate";
 import type { PhaseConfig } from "@fil/contract";
 import type {
   EngineSnapshot,
@@ -14,10 +15,13 @@ import type {
 /**
  * The default `FlowEngine` implementation over XState v5 (ADR-0002, ADR-0003).
  *
- * A Flow is data-only XState config: Fil supplies no inline functions to the
- * machine. Per-Phase configuration lives on each state node's `meta.phase`.
- * Gate *execution* (with Receipt capture) is the orchestrator's job — the
- * machine only carries the Phase config and the unconditional transition graph.
+ * A Flow is XState machine JS code, authored with `createMachine(...)` from
+ * `@fil/engine` (which wraps xstate's `createMachine` internally) — matching
+ * the canonical XState examples at https://stately.ai/docs/xstate. Fil supplies
+ * no inline implementations to the machine; per-Phase configuration lives on
+ * each state node's `meta.phase`. Gate execution (with Receipt capture) is the
+ * orchestrator's job — the machine only carries the Phase config and the
+ * unconditional transition graph.
  *
  * Durability uses XState's persisted-snapshot API: snapshots returned here are
  * JSON-serializable and are restored via `createActor(machine, { snapshot })`.
@@ -25,24 +29,25 @@ import type {
 export class XStateFlowEngine implements FlowEngine {
   load(
     flowName: string,
-    definition: FlowDefinition,
+    machine: FlowDefinition,
   ): LoadResult {
-    let machine;
-    try {
-      machine = createMachine(definition as Parameters<typeof createMachine>[0]);
-    } catch (err) {
-      return { ok: false, error: `Flow "${flowName}" failed to create: ${message(err)}` };
+    if (!machine || typeof machine !== "object") {
+      return { ok: false, error: `Flow "${flowName}" is not a machine.` };
+    }
+    const config = (machine as AnyStateMachine).config;
+    if (!config || typeof config !== "object") {
+      return { ok: false, error: `Flow "${flowName}" has no readable config.` };
     }
 
     const rootId =
-      typeof definition["id"] === "string" ? (definition["id"] as string) : flowName;
+      typeof config.id === "string" ? (config.id as string) : flowName;
 
     const meta = new Map<string, PhaseConfig>();
     const nodes: FlowGraphNode[] = [];
     const transitions: FlowGraphTransition[] = [];
 
     walkStates(
-      definition["states"],
+      config.states,
       "",
       rootId,
       meta,
@@ -53,7 +58,7 @@ export class XStateFlowEngine implements FlowEngine {
     // Validate the machine actually runs by materialising its initial snapshot.
     let initialSnapshot: EngineSnapshot;
     try {
-      initialSnapshot = persist(createActor(machine));
+      initialSnapshot = persist(createActor(machine as AnyStateMachine));
     } catch (err) {
       return { ok: false, error: `Flow "${flowName}" failed to start: ${message(err)}` };
     }
@@ -79,7 +84,7 @@ export class XStateFlowEngine implements FlowEngine {
         initial: () => initialSnapshot,
         send: (snapshot, event) => {
           if (snapshot.status === "done") return snapshot;
-          const actor = createActor(machine, { snapshot: snapshot as never });
+          const actor = createActor(machine as AnyStateMachine, { snapshot: snapshot as never });
           actor.start();
           actor.send({ type: event });
           return persist(actor);
@@ -87,7 +92,7 @@ export class XStateFlowEngine implements FlowEngine {
         canTransition: (snapshot, event) => {
           if (snapshot.status === "done") return false;
           const before = snapshot.value;
-          const actor = createActor(machine, { snapshot: snapshot as never });
+          const actor = createActor(machine as AnyStateMachine, { snapshot: snapshot as never });
           actor.start();
           actor.send({ type: event });
           const after = actor.getSnapshot().value;

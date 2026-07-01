@@ -1,15 +1,14 @@
-import { createMachine } from "./create-machine.js";
-
 /**
- * The default Flow: a full lifecycle, authored as XState machine JS code.
+ * The default Flow config — the raw object literal the shipped default Flow
+ * passes to `createMachine(...)`. Kept separate from `default.js` so the
+ * shipped Flow file matches the canonical XState example at
+ * https://stately.ai/docs/xstate (call `createMachine(...)`, default-export
+ * the machine), while this raw form is what `serializeFlowCode` writes back
+ * out when `fil init` scaffolds a user Flow file.
  *
- * This file matches the canonical XState example at
- * https://stately.ai/docs/xstate — `createMachine(...)` from `@fil/engine`
- * (which wraps xstate's `createMachine`) plus a default export of the
- * resulting machine. Per-Phase configuration lives on each state node's
- * `meta.phase`; Fil supplies all engine implementations.
+ * If you change this file, mirror the change in `default.js`.
  */
-export default createMachine({
+export default {
   id: "default",
   initial: "requirements",
   context: {},
@@ -118,4 +117,4 @@ export default createMachine({
       },
     },
   },
-});
+};

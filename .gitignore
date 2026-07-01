@@ -8,6 +8,9 @@ dist/
 # Test coverage
 coverage/
 
+# Test scratch directories (CLI tests put their .fil/ trees under here)
+.tmp/
+
 # Fil local work-in-progress (durable state — never committed)
 .fil/runs/
 .fil/run.json
