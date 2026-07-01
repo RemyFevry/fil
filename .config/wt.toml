@@ -1,0 +1,32 @@
+# Worktrunk project config for the Fil monorepo.
+# Shared across the team — this file is meant to be committed.
+# Docs: https://worktrunk.dev/config/
+
+# Fresh worktree setup: install deps once on `wt switch --create`.
+# pnpm hardlinks from the global store, so this is fast even for a big tree.
+[pre-start]
+deps = "pnpm install --frozen-lockfile"
+
+# Share gitignored caches (node_modules, build output) from the primary
+# worktree so new worktrees don't cold-start. Runs in the background.
+[post-start]
+copy = "wt step copy-ignored"
+
+# Gate every merge on the full CI surface, in order: types -> lint -> tests.
+# A failing step aborts the rest (and the merge).
+[[pre-merge]]
+types = "pnpm typecheck"
+
+[[pre-merge]]
+lint = "pnpm lint"
+
+[[pre-merge]]
+test = "pnpm test"
+
+# Conventional Commits + agent sign-off guidance appended to LLM-generated
+# commit/squash messages (the `<project-guidance>` block).
+[commit.generation]
+template-append = """
+- Use Conventional Commits (feat:, fix:, docs:, refactor:, test:, chore:, ...)
+- End the body with a trailer: Generated-by: <runtime> (@remyf-agent)
+"""
