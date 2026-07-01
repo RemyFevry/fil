@@ -17,7 +17,7 @@ The per-Agent-Runtime bridge that translates a Phase's configuration into that t
 _Avoid_: plugin, integration (too loose).
 
 **Flow**:
-An XState machine, authored as **XState code** (`createMachine`/`setup`), that defines how a Change is delivered — its Phases, Transitions, Gates, and per-Phase harness configuration. Fil is a thin host over XState (see ADR-0002): it supplies the implementations via `setup()` (guards that run Gate scripts, actions that sync state + write receipts, invoked actors that drive Adapters) and adds SDLC semantics, durability, Adapters, the gate-runner, the CLI, and Flow evolution — it does **not** reimplement the state machine. A Project holds a library of Flows (one default, others per change-type); Flow files live at project level (`.fil/flows/`) or user level (`~/.fil/flows/`), evolve over time, and are versioned via git.
+An engine-native code file (default engine: **XState**) that defines how a Change is delivered — its Phases, Transitions, Gates, and per-Phase harness configuration. For XState the Flow is a `.js`/`.ts` module exporting a data-only machine config; for a different engine it would be that engine's native code (e.g. `.py`). Fil is a thin host over the chosen engine (see ADR-0002, ADR-0003): it supplies Gate execution and Receipt capture, per-Phase harness configuration, durability, and the FlowEngine seam — and adds SDLC semantics, Adapters, the gate-runner, the CLI, and Flow evolution on top. A Project holds a library of Flows (one default, others per change-type); Flow files live at project level (`.fil/flows/`) or user level (`~/.fil/flows/`), evolve over time, and are versioned via git.
 _Avoid_: workflow, pipeline, process, SDLC-template.
 
 **Run**:

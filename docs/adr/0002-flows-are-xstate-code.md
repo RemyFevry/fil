@@ -1,12 +1,12 @@
-# Flows are XState code; reuse XState, don't reinvent
+# Flows are engine-native code; reuse the chosen engine, don't reinvent
 
 ## Context
 
-Fil needs a format for Flows. Two options: a custom declarative schema (e.g. JSONC) that Fil compiles *to* an XState machine at runtime, or author Flows *directly as* XState machine code.
+Fil needs a format for Flows. Two options: a custom declarative schema (e.g. JSONC) that Fil compiles *to* an XState machine at runtime, or author Flows *directly as* XState JS code.
 
 ## Decision
 
-**Flows are XState machine code** (`createMachine` / `setup`). Fil is a thin **host** over XState: it provides the implementations XState needs via `setup()` — **guards** that run the user's Gate scripts, **actions** that sync `.fil/run.json` and write receipts, **invoked actors** that drive the active Adapter — and layers SDLC semantics, durable Run records, the Adapter system, the gate-runner, and the CLI on top.
+**Flows are engine-native code files; their format, syntax, and file extension belong to the engine.** For XState (the v1 default) a Flow is a `.js`/`.ts` module exporting a data-only machine config — `xstate`'s `createMachine(...)` is called by the engine adapter, never by the Flow itself. For a future engine (e.g. `python-statemachine`) the Flow would be `.py` code in that engine's native style. **Fil is a thin host over the chosen engine**: it supplies the implementations the engine needs — Gate execution and Receipt capture (in the orchestrator, not in the machine), per-Phase harness configuration (on each state node's `meta.phase`), and durability (snapshot persistence) — so Flows carry no inline functions. Fil adds SDLC semantics, durable Run state, Adapters, the gate-runner, Flow evolution, and the CLI on top.
 
 Fil does **not** reimplement: state machines, states, transitions, guards, actors, inspection/visualization, or versioning. Flow versioning is **git** (Flows are committed code).
 
