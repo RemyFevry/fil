@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.check.json",
     "lint": "eslint .",
-    "ci": "pnpm run lint && pnpm run build && pnpm run typecheck && pnpm run test"
+    "lint:md": "markdownlint-cli2",
+    "ci": "pnpm run lint && pnpm run lint:md && pnpm run build && pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -26,11 +27,14 @@
     "@typescript-eslint/parser": "^8.0.0",
     "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9.0.0",
+    "markdownlint-cli2": "^0.23.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.62.1",
     "vitest": "^2.1.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
