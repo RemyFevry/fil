@@ -23,13 +23,13 @@ export interface CliContext {
   prompter?: (message: string) => Promise<boolean>;
 }
 
-export function defaultContext(cwd: string, overrides: Partial<CliContext> = {}): CliContext {
-  return {
+export function defaultContext(cwd: string, overrides: Partial<Omit<CliContext, "cwd">> = {}): CliContext {
+  const base: CliContext = {
     cwd,
     store: new FilStore(join(cwd, ".fil")),
     engine: defaultFlowEngine,
     userFlowsDir: join(homedir(), ".fil", "flows"),
     out: { log: console.log, error: console.error },
-    ...overrides,
   };
+  return { ...base, ...overrides };
 }

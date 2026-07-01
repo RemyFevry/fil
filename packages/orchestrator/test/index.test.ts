@@ -13,7 +13,17 @@ import {
   type OrchestratorDeps,
 } from "../src/index.js";
 
-/** A linear test Flow: a (shell true) -> b (human) -> c (final). */
+/** Cross-platform shell-pass gate: runs `node -e "process.exit(0)"`. */
+function passingShellGate(): { type: "shell"; script: string } {
+  return { type: "shell", script: "node -e \"process.exit(0)\"" };
+}
+
+/** Cross-platform shell-fail gate: runs `node -e "process.exit(1)"`. */
+function failingShellGate(): { type: "shell"; script: string } {
+  return { type: "shell", script: "node -e \"process.exit(1)\"" };
+}
+
+/** A linear test Flow: a (shell pass) -> b (human) -> c (final). */
 function testFlow(): Record<string, unknown> {
   const phase = (
     instructions: string,
@@ -36,9 +46,9 @@ function testFlow(): Record<string, unknown> {
     id: "test",
     initial: "a",
     states: {
-      a: { ...phase("Phase A", { type: "shell", script: "true" }), on: { NEXT: "b" } },
+      a: { ...phase("Phase A", passingShellGate()), on: { NEXT: "b" } },
       b: { ...phase("Phase B", { type: "human", prompt: "Proceed?" }), on: { NEXT: "c" } },
-      c: { ...phase("Phase C", { type: "shell", script: "true" }), type: "final" },
+      c: { ...phase("Phase C", passingShellGate()), type: "final" },
     },
   };
 }
@@ -107,7 +117,7 @@ describe("orchestrator.advance", () => {
       { meta: { phase: { gate: { script: string; type: string } } } }
     >;
     const phaseA = states.a;
-    if (phaseA) phaseA.meta.phase.gate = { type: "shell", script: "exit 1" };
+    if (phaseA) phaseA.meta.phase.gate = failingShellGate();
     const deps = makeDeps();
     const start = await startRun(deps, { change: "x", flowName: "test", definition: flow });
     if (!start.ok) return;
@@ -202,7 +212,7 @@ describe("orchestrator.project", () => {
   });
 });
 
-/** Build a parallel Flow: left.l1 (shell gate) and right.r1 (shell gate) -> finals. */
+/** Build a parallel Flow: left.l1 (shell pass) and right.r1 (shell gate) -> finals. */
 function parallelFlow(rightScript: string): Record<string, unknown> {
   const leaf = (instructions: string, gate: Record<string, unknown>, final = false) => {
     const node: Record<string, unknown> = {
@@ -227,15 +237,15 @@ function parallelFlow(rightScript: string): Record<string, unknown> {
       left: {
         initial: "l1",
         states: {
-          l1: { ...leaf("L1", { type: "shell", script: "true" }), on: { NEXT: "l2" } },
-          l2: leaf("L2", { type: "shell", script: "true" }, true),
+          l1: { ...leaf("L1", passingShellGate()), on: { NEXT: "l2" } },
+          l2: leaf("L2", passingShellGate(), true),
         },
       },
       right: {
         initial: "r1",
         states: {
           r1: { ...leaf("R1", { type: "shell", script: rightScript }), on: { NEXT: "r2" } },
-          r2: leaf("R2", { type: "shell", script: "true" }, true),
+          r2: leaf("R2", passingShellGate(), true),
         },
       },
     },
@@ -248,7 +258,7 @@ describe("orchestrator — parallel Phases (#19)", () => {
     const result = await startRun(deps, {
       change: "x",
       flowName: "par",
-      definition: parallelFlow("true"),
+      definition: parallelFlow("node -e \"process.exit(0)\""),
     });
     if (!result.ok) return;
     expect(result.projection.phases.sort()).toEqual(["left.l1", "right.r1"]);
@@ -260,7 +270,7 @@ describe("orchestrator — parallel Phases (#19)", () => {
     const start = await startRun(deps, {
       change: "x",
       flowName: "par",
-      definition: parallelFlow("true"),
+      definition: parallelFlow("node -e \"process.exit(0)\""),
     });
     if (!start.ok) return;
     const out = await advance(deps, start.run);
@@ -274,7 +284,7 @@ describe("orchestrator — parallel Phases (#19)", () => {
     const start = await startRun(deps, {
       change: "x",
       flowName: "par",
-      definition: parallelFlow("exit 1"), // right gate fails
+      definition: parallelFlow("node -e \"process.exit(1)\""), // right gate fails
     });
     if (!start.ok) return;
     const out = await advance(deps, start.run);

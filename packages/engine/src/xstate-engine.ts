@@ -138,17 +138,27 @@ function byId(a: FlowGraphNode, b: FlowGraphNode): number {
 
 function byTransition(a: FlowGraphTransition, b: FlowGraphTransition): number {
   if (a.from === b.from) {
-    return compareByTo(a, b);
+    const byTo = compareByTo(a, b);
+    if (byTo !== 0) return byTo;
+    return compareString(a.event, b.event);
   }
-  return compareByFrom(a, b);
+  const byFrom = compareByFrom(a, b);
+  if (byFrom !== 0) return byFrom;
+  return compareString(a.event, b.event);
 }
 
 function compareByTo(a: FlowGraphTransition, b: FlowGraphTransition): number {
-  return a.to < b.to ? -1 : 1;
+  return compareString(a.to, b.to);
 }
 
 function compareByFrom(a: FlowGraphTransition, b: FlowGraphTransition): number {
-  return a.from < b.from ? -1 : 1;
+  return compareString(a.from, b.from);
+}
+
+function compareString(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
 }
 
 /** Flatten an XState snapshot value into dot-path leaf Phase ids. */
@@ -171,10 +181,17 @@ function sameValue(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** Resolve an XState transition target to a dot-path leaf/branch id. */
+/** Resolve an XState transition target to a dot-path leaf/branch id.
+ *
+ * XState semantics:
+ *   - `".child"` (dot prefix) → relative to the *source* state path
+ *   - `"sibling"` (no prefix) → sibling of the source (resolved via parent path)
+ *   - `"#id"`              → absolute id reference
+ */
 function resolveTarget(
   rawTarget: unknown,
-  parentPath: string,
+  sourcePath: string,
+  sourceParent: string,
   rootId: string,
 ): string | null {
   const target =
@@ -192,11 +209,11 @@ function resolveTarget(
     return strippedRoot || null;
   }
   if (target.startsWith(".")) {
-    // Relative target — best effort: append to parent.
-    return parentPath ? `${parentPath}${target}` : target.slice(1);
+    // Relative target — append to the source's path.
+    return sourcePath ? `${sourcePath}${target}` : target.slice(1);
   }
-  // Sibling name.
-  return parentPath ? `${parentPath}.${target}` : target;
+  // Sibling name — append to the source's parent path.
+  return sourceParent ? `${sourceParent}.${target}` : target;
 }
 
 function walkStates(
@@ -261,7 +278,7 @@ function recordTransitions(
   for (const [event, target] of Object.entries(node.on)) {
     const list = Array.isArray(target) ? target : [target];
     for (const entry of list) {
-      const to = resolveTarget(entry, parentPath, rootId);
+      const to = resolveTarget(entry, path, parentPath, rootId);
       if (to) {
         transitions.push({ from: path, to, event });
       }

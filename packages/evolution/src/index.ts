@@ -199,9 +199,16 @@ export function applyUnifiedDiff(original: string, patch: string): string {
   const origAt = (k: number): string => origLines[k] ?? "";
   const out: string[] = [];
   let origIdx = 0;
-  let i = skipPreamble(patchLines, 0);
+  const startIdx = skipPreamble(patchLines, 0);
 
+  if (patch.trim() !== "" && startIdx >= patchLines.length) {
+    throw new Error("Patch contains no hunks.");
+  }
+
+  let i = startIdx;
+  let sawHunk = false;
   while (i < patchLines.length && patchAt(i).startsWith("@@")) {
+    sawHunk = true;
     const header = patchAt(i);
     const origStart = parseHunkHeader(header);
     origIdx = copyContextBeforeHunk(origIdx, origStart, origLines, out, origAt);
@@ -209,9 +216,23 @@ export function applyUnifiedDiff(original: string, patch: string): string {
     const body = applyHunkBody(patchLines, i, origLines, origIdx, out);
     i = body.nextPatchIdx;
     origIdx = body.nextOrigIdx;
+    assertNoUnexpectedContent(patchLines, i);
+  }
+
+  if (!sawHunk && patch.trim() !== "") {
+    throw new Error("Patch contains no hunks.");
   }
 
   return appendTrailing(origLines, origIdx, out, origAt);
+}
+
+function assertNoUnexpectedContent(patchLines: string[], i: number): void {
+  if (i >= patchLines.length) return;
+  const next = patchLines[i] ?? "";
+  if (next.startsWith("@@")) return;
+  // Allow trailing whitespace-only lines after the final hunk.
+  if (next.trim() === "") return;
+  throw new Error(`Unexpected patch content after hunks: ${JSON.stringify(next)}`);
 }
 
 /** Skip any header/preamble lines (e.g. "diff --git", "---", "+++") before the first hunk. */

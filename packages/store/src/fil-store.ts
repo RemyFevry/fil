@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import type { RunProjection } from "@fil/contract";
+import { parseRunProjection, serializeRunProjection } from "@fil/contract";
 import {
   DEFAULT_CONFIG,
   type FilConfig,
@@ -35,7 +36,7 @@ export class FilStore implements Store {
     return join(this.filDir, "flows");
   }
   private flowPath(name: string): string {
-    return join(this.flowsDir(), `${name}.js`);
+    return join(this.flowsDir(), `${assertSafeSegment(name, "flow name")}.js`);
   }
   private projectionPath(): string {
     return join(this.filDir, "run.json");
@@ -44,7 +45,7 @@ export class FilStore implements Store {
     return join(this.filDir, "runs");
   }
   private runDir(runId: string): string {
-    return join(this.runsDir(), runId);
+    return join(this.runsDir(), assertSafeSegment(runId, "run id"));
   }
   private runStatePath(runId: string): string {
     return join(this.runDir(runId), "state.json");
@@ -56,7 +57,7 @@ export class FilStore implements Store {
     return join(this.filDir, "proposals");
   }
   private proposalPath(id: string): string {
-    return join(this.proposalsDir(), `${id}.patch`);
+    return join(this.proposalsDir(), `${assertSafeSegment(id, "proposal id")}.patch`);
   }
 
   // -------------------------------------------------------------------------
@@ -104,11 +105,21 @@ export class FilStore implements Store {
   // projection
   // -------------------------------------------------------------------------
   readProjection(): RunProjection | null {
-    return this.readJson<RunProjection>(this.projectionPath());
+    const raw = this.readRawText(this.projectionPath());
+    if (raw === null) return null;
+    const parsed = parseRunProjection(raw);
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    return parsed.value;
   }
 
   writeProjection(projection: RunProjection): void {
-    this.writeJson(this.projectionPath(), projection);
+    const serialized = serializeRunProjection(projection);
+    if (!serialized.ok) {
+      throw new Error(serialized.error);
+    }
+    this.writeRawText(this.projectionPath(), serialized.value);
   }
 
   clearProjection(): void {
@@ -186,10 +197,34 @@ export class FilStore implements Store {
     writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   }
 
+  private readRawText(path: string): string | null {
+    if (!existsSync(path)) return null;
+    return readFileSync(path, "utf8");
+  }
+
+  private writeRawText(path: string, text: string): void {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, text, "utf8");
+  }
+
   private listFlowNames(dir: string): string[] {
     if (!existsSync(dir)) return [];
     return readdirSync(dir)
       .filter((name) => name.endsWith(".js"))
       .map((name) => name.slice(0, -3));
   }
+}
+
+/** Reject names containing path separators, absolute paths, or NULs. */
+function assertSafeSegment(value: string, label: string): string {
+  if (value.length === 0) {
+    throw new Error(`${label} must not be empty.`);
+  }
+  if (!/^[A-Za-z0-9._-]+$/.test(value)) {
+    throw new Error(
+      `Invalid ${label}: ${JSON.stringify(value)}. ` +
+        `Only letters, digits, '.', '_' and '-' are allowed.`,
+    );
+  }
+  return value;
 }

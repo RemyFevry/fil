@@ -79,7 +79,7 @@ export async function startRun(
 
   const now = new Date().toISOString();
   const run: RunState = {
-    runId: `run-${randomUUID().slice(0, 8)}`,
+    runId: `run-${randomUUID()}`,
     change: opts.change,
     flowName: opts.flowName,
     status: "active",
@@ -146,7 +146,18 @@ export async function advance(
       continue;
     }
     const ctx: GateContext = { cwd: deps.cwd, phase: phaseId, prompter: deps.prompter };
-    const receipt = await runGate(config.gate, ctx);
+    let receipt: Receipt;
+    try {
+      receipt = await runGate(config.gate, ctx);
+    } catch (err) {
+      receipt = {
+        phase: phaseId,
+        gateType: config.gate.type,
+        outcome: "fail",
+        evidence: { stderr: `Gate runner error: ${errMsg(err)}` },
+        ranAt: new Date().toISOString(),
+      };
+    }
     receipts.push(receipt);
     if (receipt.outcome !== "pass") allPassed = false;
   }
@@ -206,9 +217,9 @@ export function back(deps: OrchestratorDeps, run: RunState): {
     history: [...run.history, { at: now, action: "back", phases: current.phases }],
     positions: popped,
   };
-  deps.store.writeRunState(updated);
   const reconstructed = reconstruct(deps, updated);
   if (reconstructed) deps.store.writeProjection(project(updated, reconstructed.instance));
+  deps.store.writeRunState(updated);
   return { run: updated, retreated: true };
 }
 
@@ -228,9 +239,9 @@ export function cancel(deps: OrchestratorDeps, run: RunState): RunState {
       },
     ],
   };
-  deps.store.writeRunState(updated);
   const reconstructed = reconstruct(deps, updated);
   if (reconstructed) deps.store.writeProjection(project(updated, reconstructed.instance));
+  deps.store.writeRunState(updated);
   return updated;
 }
 
@@ -270,6 +281,10 @@ function missingConfigReceipt(phaseId: string): Receipt {
     evidence: { stderr: `Phase "${phaseId}" has no PhaseConfig.` },
     ranAt: new Date().toISOString(),
   };
+}
+
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 /** Derive the `.fil/run.json` projection from a Run's current position. */
