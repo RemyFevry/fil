@@ -61,7 +61,7 @@ The board is the **Fil MVP** user project. Bake these IDs into your commands:
 - `Status` field ID: `PVTSSF_lAHOAb5v1M4BcK-OzhW1tTg`
 - Status option IDs: `Todo=f75ad846` · `In Progress=47fc9ee4` · `In Review=819b9dfd` · `Blocked=b50e3062` · `Done=98236657`
 
-> Tip: `gh project item-edit` also accepts the **option name** (e.g. `In Progress`) as `--single-select-option-id`, so you rarely need the hex IDs.
+> `gh project item-edit` requires the option's **hex ID** as `--single-select-option-id` — the human-readable name (e.g. `In Progress`) is rejected. Use the IDs above.
 
 **Resolve an issue's board item ID** (the project item, not the issue number):
 
@@ -70,14 +70,14 @@ ITEM_ID=$(gh project item-list 1 --owner RemyFevry --format json \
   -q '.items[] | select(.content.number==<n>) | .id')
 ```
 
-**Set Status** (example: In Progress):
+**Set Status** (example: In Progress → `47fc9ee4`):
 
 ```bash
 gh project item-edit \
   --id "$ITEM_ID" \
   --field-id PVTSSF_lAHOAb5v1M4BcK-OzhW1tTg \
   --project-id PVT_kwHOAb5v1M4BcK-O \
-  --single-select-option-id "In Progress"
+  --single-select-option-id 47fc9ee4
 ```
 
 **Assign + comment on start:**
