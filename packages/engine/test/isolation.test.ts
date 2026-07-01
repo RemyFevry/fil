@@ -22,23 +22,16 @@ function listTsFiles(dir: string, acc: string[] = []): string[] {
 }
 
 /**
- * ADR-0003: no engine-library imports outside the engine adapter modules.
- * `xstate-engine.ts` and `create-machine.ts` may depend on the xstate
- * package — they ARE the engine's adapter surface. `create-machine.ts`
- * is the Fil Flow author-facing wrapper around `createMachine`; without
- * it Flow files would have to import xstate directly, breaking ADR-0003
- * at a higher level.
+ * ADR-0003: no engine-library imports outside the XStateFlowEngine module.
+ * Only `packages/engine/src/xstate-engine.ts` may depend on the xstate package.
  */
 describe("engine isolation (ADR-0003)", () => {
-  it("imports the xstate package only from the engine adapter modules", () => {
+  it("imports the xstate package only from xstate-engine.ts", () => {
     const offenders: string[] = [];
-    const allowed = new Set([
-      "packages/engine/src/xstate-engine.ts",
-      "packages/engine/src/flows/create-machine.ts",
-    ]);
     for (const file of listTsFiles(packagesDir)) {
       const rel = relative(repoRoot, file).replace(/\\/g, "/");
-      if (allowed.has(rel)) continue;
+      const isAdapter = rel === "packages/engine/src/xstate-engine.ts";
+      if (isAdapter) continue;
       const text = readFileSync(file, "utf8");
       if (/(?:from\s+|require\s*\(\s*|import\s*\(\s*)["']xstate["']/.test(text)) {
         offenders.push(rel);

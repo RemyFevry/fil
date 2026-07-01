@@ -24,7 +24,7 @@ export function initCommand(ctx: CliContext): number {
   const scaffolded: string[] = [];
   for (const flow of BUILT_IN_FLOWS) {
     if (!store.flowExists(flow.name)) {
-      store.writeFlowText(flow.name, serializeFlowCode(flow.machine));
+      store.writeFlowText(flow.name, serializeFlowCode(flow.definition));
       scaffolded.push(flow.name);
     }
   }

@@ -24,10 +24,8 @@ produces a verification Receipt.
 
 ## Highlights
 
-- **Flow as XState machine code** — Lifecycles are state machines authored with
-  `createMachine(...)` from `@fil/engine` — the same shape as the canonical
-  XState examples at https://stately.ai/docs/xstate. Fil owns the wrapper so Flow
-  code never imports `xstate` directly.
+- **Flow as code** — Lifecycles are state machines authored as engine-native
+  code, versioned in git, and edited like any other source file.
 - **Steer, don't run** — Fil runs as a sidecar governor. The human keeps their
   Agent Runtime's native UX; Fil reconfigures it per Phase via per-runtime
   Adapters.
@@ -49,7 +47,7 @@ produces a verification Receipt.
 flowchart LR
     subgraph Project["Project  (.fil/ + git)"]
         direction TB
-        Flows["Flows<br/>(.fil/flows/*.js)<br/>XState machine code"]
+        Flows["Flows<br/>(.fil/flows/*.js)<br/>defines Phases + Transitions + Gates"]
         subgraph Run["Run  (one Change)"]
             direction TB
             Phase["Phase<br/>(active, one at a time)"]
@@ -91,15 +89,15 @@ flowchart LR
 ```
 
 The lifecycle hierarchy is **Project → Flow → Run → Phase**. A Project holds a
-library of Flows and a history of Runs. A Flow defines its Phases, Transitions,
-and Gates (committed as XState machine code). A Run binds to one Flow, snapshots
+library of Flows and a history of Runs. A Flow defines its Phases,
+Transitions, and Gates (committed as code). A Run binds to one Flow, snapshots
 it, and carries an active Phase plus per-Gate Receipts. Fil owns the Flow,
 durable Run state, Gate verification, and per-Phase configuration. The Agent
 Runtime owns the model, the agent loop, context management, and the execution
 environment. Adapters translate a Phase's configuration into the runtime's
 native enforcement points — instruction files, permission settings, hooks, MCP
-servers, skills. Enforcement is tiered (advisory config → hooks → sandbox), and
-the **restrictions strategy is user-owned**.
+servers, skills. Enforcement is tiered (advisory config → hooks → sandbox),
+and the **restrictions strategy is user-owned**.
 
 ## Quickstart
 
@@ -133,14 +131,11 @@ files are committed; Runs (`runs/`, `run.json`) and proposals are gitignored.
 ## Usage example
 
 A minimal Phase definition, taken from the shipped `default` Flow. Fil supplies
-all implementations — the file is XState machine JS code, matching the
-canonical example at https://stately.ai/docs/xstate.
+all implementations — the file is pure data.
 
 ```js
 // .fil/flows/default.js
-import { createMachine } from "@fil/engine";
-
-export default createMachine({
+export default {
   id: "default",
   initial: "design",
   context: {},
@@ -152,9 +147,9 @@ export default createMachine({
           allowedTools: ["read", "write", "edit"],
           skills: [],
           context: { files: ["docs/adr/", "docs/OVERVIEW.md"], priorResults: [] },
-          actorMode: "collaborative",
+          actorMode: "collaborative",     // human + agent converge
           gate: {
-            type: "human",
+            type: "human",                // Gate type: shell | testsPass | human | …
             prompt: "Approve the design and proceed to implementation?",
           },
         },
@@ -168,14 +163,15 @@ export default createMachine({
           allowedTools: ["read", "write", "edit", "bash"],
           skills: ["tdd"],
           context: { files: ["src/"], priorResults: ["design"] },
-          actorMode: "agent",
+          actorMode: "agent",             // agent loop runs; human optional
           gate: { type: "testsPass", command: "npm test" },
         },
       },
       on: { NEXT: "review" },
     },
+    // ...
   },
-});
+};
 ```
 
 A Run prints progress as Gates fire:
@@ -217,7 +213,7 @@ audit trail — primitive #10 (verification & observability) made literal.
 | [`CONTEXT.md`](./CONTEXT.md) | Glossary. Use these terms — not synonyms. |
 | [`docs/OVERVIEW.md`](./docs/OVERVIEW.md) | Design synthesis, including the "what Fil owns vs delegates" table. |
 | [`docs/adr/0001-steer-dont-run.md`](./docs/adr/0001-steer-dont-run.md) | Steer existing Agent Runtimes; don't run one. |
-| [`docs/adr/0002-flows-are-xstate-code.md`](./docs/adr/0002-flows-are-xstate-code.md) | Flows are engine-native code; reuse the chosen engine, don't reinvent. |
+| [`docs/adr/0002-flows-are-xstate-code.md`](./docs/adr/0002-flows-are-xstate-code.md) | Flows are XState config; reuse XState, don't reinvent. |
 | [`docs/adr/0003-xstate-isolated-behind-flowengine-seam.md`](./docs/adr/0003-xstate-isolated-behind-flowengine-seam.md) | XState is the default engine, behind a cross-language `FlowEngine` seam. |
 
 ## Packages
@@ -228,7 +224,7 @@ layer; everything else is a focused module.
 | Package | Responsibility |
 |---|---|
 | `@fil/contract` | The `.fil/run.json` schema + serializers/validators — the single source of truth every Adapter reads. |
-| `@fil/engine` | The `FlowEngine` seam (ADR-0003) plus the default XState implementation (ADR-0002). Ships `createMachine` (the Flow author-facing wrapper) and the built-in Flows (`default`, `hotfix`). |
+| `@fil/engine` | The `FlowEngine` seam (ADR-0003) plus the default XState implementation (ADR-0002). Ships the built-in Flows (`default`, `hotfix`). |
 | `@fil/flow-loader` | Resolves Flow files across project/user precedence and load-validates the chosen config. |
 | `@fil/store` | Repository over `.fil/`: Runs, the `run.json` projection, Flow snapshots, and proposals. |
 | `@fil/orchestrator` | `startRun / advance / back / cancel` — drives the Flow via the engine and gate-runner, persists through the store. |
@@ -254,7 +250,7 @@ Workflow:
 2. Pick an issue from the [Fil MVP project board](https://github.com/users/RemyFevry/projects/1).
    Triage labels follow the canonical vocabulary in
    [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md).
-3. Open a PR; CI runs `pnpm lint && pnpm lint:md && pnpm build && pnpm typecheck && pnpm test`
+3. Open a PR; CI runs `pnpm lint && pnpm build && pnpm typecheck && pnpm test`
    on Ubuntu and macOS, Node 20 and 22.
 
 The repository is Apache-2.0 / MIT-licensed at your option (see
