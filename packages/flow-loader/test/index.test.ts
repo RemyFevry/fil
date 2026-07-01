@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createMachine,
   defaultFlowEngine,
-  engineEntryUrl,
   builtInFlow,
   serializeFlowCode,
 } from "@fil/engine";
@@ -118,14 +117,18 @@ describe("flow-loader", () => {
     // The code form (import { createMachine } from "@fil/engine"; export default
     // createMachine({...})) produced by serializeFlowCode must import and load
     // identically to the in-memory machine. Rewrite the @fil/engine specifier
-    // to the engine's absolute URL so the temp file can live anywhere.
+    // to an absolute path so the temp file can live anywhere.
     const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
-    const { join } = await import("node:path");
+    const { dirname, join } = await import("node:path");
     const { pathToFileURL } = await import("node:url");
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+    const pkgPath = require.resolve("@fil/engine/package.json");
+    const engineUrl = pathToFileURL(join(dirname(pkgPath), "dist", "index.js")).href;
     const code = serializeFlowCode(defaultFlow.rawConfig).replace(
       /from\s+["']@fil\/engine["']/g,
-      `from "${engineEntryUrl}"`,
+      `from "${engineUrl}"`,
     );
     expect(code).toContain("export default");
     expect(code).toContain("createMachine");

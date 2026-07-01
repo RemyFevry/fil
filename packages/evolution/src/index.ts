@@ -1,5 +1,5 @@
 import type { FlowDefinition, FlowEngine } from "@fil/engine";
-import { engineEntryUrl } from "@fil/engine";
+import { createRequire } from "node:module";
 
 /**
  * Safe Flow evolution (the differentiator).
@@ -16,6 +16,18 @@ import { engineEntryUrl } from "@fil/engine";
  * Deterministic: no disk I/O. Code execution (importing the patched module) is
  * delegated to an injected `loadCode`, so the logic is unit-testable.
  */
+
+const engineEntryUrl = (() => {
+  try {
+    const require = createRequire(import.meta.url);
+    const pkgPath = require.resolve("@fil/engine/package.json");
+    const { dirname, join } = require("node:path") as typeof import("node:path");
+    const { pathToFileURL } = require("node:url") as typeof import("node:url");
+    return pathToFileURL(join(dirname(pkgPath), "dist", "index.js")).href;
+  } catch {
+    return null;
+  }
+})();
 
 export type FlowCodeResult =
   | { ok: true; definition: FlowDefinition }

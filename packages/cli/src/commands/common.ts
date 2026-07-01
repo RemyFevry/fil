@@ -1,13 +1,25 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { createRequire } from "node:module";
 import type { FlowDefinition } from "@fil/engine";
-import { engineEntryUrl } from "@fil/engine";
 import { resolveFlow, type FlowLoaderDeps, type ResolvedFlow } from "@fil/flow-loader";
 import type { OrchestratorDeps } from "@fil/orchestrator";
 import type { RunState } from "@fil/store";
 import type { RunProjection } from "@fil/contract";
 import type { CliContext } from "../context.js";
+
+const engineEntryUrl = (() => {
+  try {
+    const require = createRequire(import.meta.url);
+    const pkgPath = require.resolve("@fil/engine/package.json");
+    const { dirname, join } = require("node:path") as typeof import("node:path");
+    const { pathToFileURL } = require("node:url") as typeof import("node:url");
+    return pathToFileURL(join(dirname(pkgPath), "dist", "index.js")).href;
+  } catch {
+    return null;
+  }
+})();
 
 export function orchestratorDeps(ctx: CliContext): OrchestratorDeps {
   return {
