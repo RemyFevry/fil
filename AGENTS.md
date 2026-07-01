@@ -19,3 +19,25 @@ Execution status lives on the **Fil MVP** board's `Status` field (`Todo → In P
 ### Domain docs
 
 Single-context: read `CONTEXT.md` at the repo root and `docs/adr/` before working in an area. See `docs/agents/domain.md`.
+
+## Worktree workflow
+
+Agent work happens in **Worktrunk** worktrees, never in the primary checkout. A
+guard blocks mutating tools (edit/write/bash) in the primary worktree across
+Claude Code, Pi, and OpenCode, so parallel agents can't step on the trunk.
+
+```sh
+wt switch -c <branch>                   # create + enter a linked worktree
+wt switch -x claude   -c <branch>       # launch Claude Code in it
+wt switch -x opencode -c <branch>       # launch OpenCode in it
+wt switch -x pi       -c <branch>       # launch Pi in it
+```
+
+When done: `wt merge main` (squash + rebase + run the `pre-merge` gates) or open
+a PR and `wt remove` after it merges.
+
+- One-time per machine: `brew install worktrunk && wt config shell install`.
+- Trunk maintenance / bootstrapping: `FIL_ALLOW_MAIN_WORKTREE=1`.
+- Enforcement source of truth: `scripts/require-worktree.sh`, wired into
+  `.claude/settings.json`, `.opencode/plugins/worktree-guard.ts`, and
+  `.pi/extensions/worktree-guard.ts`.
