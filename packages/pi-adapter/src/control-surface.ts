@@ -103,26 +103,38 @@ export interface VerbResult {
 
 export type VerbRunner = (argv: string[], opts: { cwd: string }) => VerbResult;
 
+/**
+ * Resolve a single param's value (or undefined when absent). Throws for a
+ * missing required param. Extracted from `toArgv` to keep that function's
+ * cognitive complexity under the Sonar threshold — both kinds share the
+ * "resolve value → check missing/required → throw or skip" logic here.
+ */
+function resolveArgValue(
+  p: FilVerbParam,
+  args: Record<string, unknown>,
+  tool: FilVerbTool,
+): string | undefined {
+  const v = args[p.name];
+  const missing = p.kind === "flag" ? v === undefined || v === null || v === false : v === undefined || v === null;
+  if (missing) {
+    if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
+    return undefined;
+  }
+  return String(v);
+}
+
 /** Map a tool invocation's args to the `fil` CLI argv (positionals in order, then flags). Pure. */
 export function toArgv(tool: FilVerbTool, args: Record<string, unknown>): string[] {
   const argv: string[] = [];
   for (const p of tool.params) {
     if (p.kind !== "positional") continue;
-    const v = args[p.name];
-    if (v === undefined || v === null) {
-      if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
-      continue;
-    }
-    argv.push(String(v));
+    const v = resolveArgValue(p, args, tool);
+    if (v !== undefined) argv.push(v);
   }
   for (const p of tool.params) {
     if (p.kind !== "flag") continue;
-    const v = args[p.name];
-    if (v === undefined || v === null || v === false) {
-      if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
-      continue;
-    }
-    argv.push(`--${p.name}`, String(v));
+    const v = resolveArgValue(p, args, tool);
+    if (v !== undefined) argv.push(`--${p.name}`, v);
   }
   return argv;
 }
