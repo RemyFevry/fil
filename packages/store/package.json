@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil-store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Repository over .fil/: Runs, the run.json projection, Flow snapshots, and proposals.",
   "license": "MIT",
   "type": "module",
