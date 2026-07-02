@@ -469,6 +469,17 @@ describe("fil init — adapter installs (Claude + Pi, stubbed)", () => {
     expect(out).not.toContain("pi adapter");
   });
 
+  it("rejects an unknown --scope even when both adapter callbacks are absent", () => {
+    const { ctx, errors } = ctxFor({
+      installPiAdapter: undefined,
+      installClaudeAdapter: undefined,
+    });
+    const code = initCommand(ctx, parseArgs(["--scope", "nope"]));
+    expect(code).toBe(2);
+    expect(errors.join("\n")).toContain("Invalid --scope");
+    expect(errors.join("\n")).toContain("nope");
+  });
+
   it("logs 'not detected' for Claude when it is absent on the host", () => {
     const { ctx, lines } = ctxFor({
       installPiAdapter: () => ({ installed: false, paths: { project: "p", user: "u" }, piDetected: false, reason: "stub" }),
