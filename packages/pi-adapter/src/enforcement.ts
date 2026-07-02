@@ -1,6 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { PhaseConfig, RunProjection } from "@fil/contract";
+import type { PhaseConfig, RunProjection } from "@color-sunset/fil-contract";
 
 /**
  * The Pi Adapter enforcement surface (Pi is the Agent Runtime).

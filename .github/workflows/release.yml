@@ -7,12 +7,29 @@ name: release
 #   2. Push to main: this workflow runs `changeset version`, opens/updates a
 #      "Version Packages" PR that bumps versions + CHANGELOGs.
 #   3. When the Version Packages PR merges to main, this workflow runs again
-#      and `changeset publish --provenance` ships the bumped packages to npm
-#      with npm provenance (OIDC, no NPM_TOKEN required).
+#      and `changeset publish` ships the bumped packages to npm with
+#      npm provenance (OIDC signing + NPM_TOKEN auth).
+#
+# Auth strategy (transitional):
+#   - Today: `NPM_TOKEN` is set as a repository secret. `NODE_AUTH_TOKEN`
+#     forwards it to every `pnpm publish` (changesets doesn't accept the
+#     `--provenance` flag, so we have to set the auth via env). Provenance
+#     itself is signed via the GitHub Actions OIDC token (`id-token: write`).
+#   - Once the @color-sunset/fil-* packages have a Trusted Publisher
+#     configured on npmjs.com (Repo: RemyFevry/fil, Workflow: release.yml),
+#     `NPM_TOKEN` can be removed and the workflow goes pure-OIDC.
+#
+# Provenance strategy:
+#   - `NPM_CONFIG_PROVENANCE: 'true'` is set in the publish env so every
+#     `pnpm publish` invocation (including the one `changeset publish`
+#     triggers under the hood) attaches npm provenance. We do NOT pass
+#     `--provenance` to `changeset publish` (its CLI rejects the flag), and
+#     we do NOT set it in .npmrc (it would break local `pnpm publish`).
 #
 # Required secrets/permissions:
-#   - id-token: write         — npm provenance via OIDC (recommended over NPM_TOKEN)
+#   - id-token: write         — npm provenance via OIDC
 #   - GITHUB_TOKEN            — implicit, used to open the Version Packages PR
+#   - NPM_TOKEN               — npm publish auth (drop after Trusted Publishers)
 #
 # Documentation:
 #   - https://github.com/changesets/action
@@ -64,9 +81,15 @@ jobs:
       - name: Create version PR or publish
         uses: changesets/action@v1
         with:
-          publish: pnpm changeset publish --provenance
+          publish: pnpm changeset publish
           version: pnpm changeset version
           commit: "changesets-action/commit"
           title: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Auth for `pnpm publish` (the changesets CLI doesn't accept an
+          # auth flag). Forwarded to the npm registry as the Bearer token.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Attach npm provenance on every `pnpm publish` this action triggers.
+          # See the file header for why this lives here and not in .npmrc.
+          NPM_CONFIG_PROVENANCE: "true"

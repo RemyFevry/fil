@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decideToolUse } from "../src/enforcement.js";
-import type { RunProjection } from "@fil/contract";
+import type { RunProjection } from "@color-sunset/fil-contract";
 
 function projection(allowedTools: string[], phase = "Code"): RunProjection {
   return {

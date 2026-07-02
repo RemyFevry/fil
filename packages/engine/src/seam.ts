@@ -1,4 +1,4 @@
-import type { PhaseConfig } from "@fil/contract";
+import type { PhaseConfig } from "@color-sunset/fil-contract";
 
 /**
  * The FlowEngine seam (ADR-0003).
@@ -9,18 +9,18 @@ import type { PhaseConfig } from "@fil/contract";
  *
  * Rule (ADR-0003): **no engine-library imports outside the engine adapter
  * module.** Flow code never imports `xstate`; it imports `createMachine` from
- * `@fil/engine` (which wraps xstate's `createMachine` internally). For another
+ * `@color-sunset/fil-engine` (which wraps xstate's `createMachine` internally). For another
  * engine the Flow would be that engine's native machine code (e.g. `.py`).
  *
  * Flows are engine-native machine JS code (ADR-0002): for the XState engine a
  * Flow is a `.js`/`.ts` module that calls `createMachine(...)` from
- * `@fil/engine` and exports the resulting machine — the same shape as the
+ * `@color-sunset/fil-engine` and exports the resulting machine — the same shape as the
  * canonical XState examples at https://stately.ai/docs/xstate. There is no
  * neutral Flow format, and the engine owns the state-machine library.
  */
 
 /**
- * A loaded Flow — the result of `createMachine(...)` from `@fil/engine`.
+ * A loaded Flow — the result of `createMachine(...)` from `@color-sunset/fil-engine`.
  * Engine-library-opaque: the seam deliberately avoids importing the engine's
  * state-machine types here so fil-core stays portable across engines.
  *

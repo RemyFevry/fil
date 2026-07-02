@@ -8,31 +8,31 @@ importers:
 
   .:
     dependencies:
-      '@fil/cli':
+      '@color-sunset/fil-cli':
         specifier: workspace:*
         version: link:packages/cli
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:packages/contract
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:packages/engine
-      '@fil/evolution':
+      '@color-sunset/fil-evolution':
         specifier: workspace:*
         version: link:packages/evolution
-      '@fil/flow-loader':
+      '@color-sunset/fil-flow-loader':
         specifier: workspace:*
         version: link:packages/flow-loader
-      '@fil/gate-runner':
+      '@color-sunset/fil-gate-runner':
         specifier: workspace:*
         version: link:packages/gate-runner
-      '@fil/inspect-view':
+      '@color-sunset/fil-inspect-view':
         specifier: workspace:*
         version: link:packages/inspect-view
-      '@fil/orchestrator':
+      '@color-sunset/fil-orchestrator':
         specifier: workspace:*
         version: link:packages/orchestrator
-      '@fil/store':
+      '@color-sunset/fil-store':
         specifier: workspace:*
         version: link:packages/store
     devDependencies:
@@ -72,40 +72,40 @@ importers:
 
   packages/claude-adapter:
     dependencies:
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
 
   packages/cli:
     dependencies:
-      '@fil/claude-adapter':
+      '@color-sunset/fil-claude-adapter':
         specifier: workspace:*
         version: link:../claude-adapter
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
-      '@fil/evolution':
+      '@color-sunset/fil-evolution':
         specifier: workspace:*
         version: link:../evolution
-      '@fil/flow-loader':
+      '@color-sunset/fil-flow-loader':
         specifier: workspace:*
         version: link:../flow-loader
-      '@fil/gate-runner':
+      '@color-sunset/fil-gate-runner':
         specifier: workspace:*
         version: link:../gate-runner
-      '@fil/inspect-view':
+      '@color-sunset/fil-inspect-view':
         specifier: workspace:*
         version: link:../inspect-view
-      '@fil/orchestrator':
+      '@color-sunset/fil-orchestrator':
         specifier: workspace:*
         version: link:../orchestrator
-      '@fil/pi-adapter':
+      '@color-sunset/fil-pi-adapter':
         specifier: workspace:*
         version: link:../pi-adapter
-      '@fil/store':
+      '@color-sunset/fil-store':
         specifier: workspace:*
         version: link:../store
 
@@ -117,7 +117,7 @@ importers:
 
   packages/engine:
     dependencies:
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
       xstate:
@@ -126,61 +126,61 @@ importers:
 
   packages/evolution:
     dependencies:
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
 
   packages/flow-loader:
     dependencies:
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
 
   packages/gate-runner:
     dependencies:
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
 
   packages/inspect-view:
     dependencies:
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
 
   packages/orchestrator:
     dependencies:
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
-      '@fil/gate-runner':
+      '@color-sunset/fil-gate-runner':
         specifier: workspace:*
         version: link:../gate-runner
-      '@fil/store':
+      '@color-sunset/fil-store':
         specifier: workspace:*
         version: link:../store
 
   packages/pi-adapter:
     dependencies:
+      '@color-sunset/fil-contract':
+        specifier: workspace:*
+        version: link:../contract
       '@earendil-works/pi-coding-agent':
         specifier: '>=0.78.0 <0.100.0'
         version: 0.78.1(ws@8.21.0)(zod@3.25.76)
-      '@fil/contract':
-        specifier: workspace:*
-        version: link:../contract
 
   packages/store:
     dependencies:
-      '@fil/contract':
+      '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
-      '@fil/engine':
+      '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
 

@@ -9,7 +9,7 @@ import type {
   Receipt,
   ReceiptEvidence,
   ReceiptOutcome,
-} from "@fil/contract";
+} from "@color-sunset/fil-contract";
 
 /**
  * The deep module that turns a user-defined Gate into a Receipt.

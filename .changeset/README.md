@@ -1,7 +1,7 @@
 # Changesets
 
 This folder is managed by [`@changesets/cli`](https://github.com/changesets/changesets). It drives the
-semver of every `@fil/*` package and the `fil` meta-package.
+semver of every `@color-sunset/fil-*` package and the `@color-sunset/fil` meta-package.
 
 ## What is a changeset?
 
@@ -31,9 +31,9 @@ of the change. A new Markdown file is written to `.changeset/` — commit it alo
 ## Internal-dependency coherence
 
 Fil sets `updateInternalDependencies: "patch"` in `.changeset/config.json`. When package **A** (say
-`@fil/engine`) bumps, every package that depends on **A** (here `@fil/cli`, `@fil/flow-loader`,
-`@fil/store`, `@fil/orchestrator`, and the root `fil`) gets a `patch` bump too. This keeps the published
-versions coherent — no `@fil/cli@0.2.0` referencing a phantom `@fil/engine@0.1.0`.
+`@color-sunset/fil-engine`) bumps, every package that depends on **A** (here `@color-sunset/fil-cli`, `@color-sunset/fil-flow-loader`,
+`@color-sunset/fil-store`, `@color-sunset/fil-orchestrator`, and the root `@color-sunset/fil`) gets a `patch` bump too. This keeps the published
+versions coherent — no `@color-sunset/fil-cli@0.2.0` referencing a phantom `@color-sunset/fil-engine@0.1.0`.
 
 ## How do I release?
 
@@ -42,8 +42,17 @@ automatically:
 
 1. A PR adds a changeset (or many).
 2. Push to `main` opens (or updates) a **Version Packages** PR that bumps versions and writes CHANGELOGs.
-3. Merging that PR runs `pnpm changeset publish --provenance`, which ships the bumped packages to npm
-   with [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (OIDC, no `NPM_TOKEN`).
+3. Merging that PR runs `pnpm changeset publish`, which ships the bumped packages to npm with
+   [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (OIDC, no `NPM_TOKEN`).
+
+Provenance is enabled in CI only: the release workflow sets
+`NPM_CONFIG_PROVENANCE: 'true'` in its publish step's env. We don't put it in
+`.npmrc` because that would break local `pnpm publish` (npm rejects
+`--provenance` outside the GitHub Actions OIDC environment with
+`EUSAGE Automatic provenance generation not supported for provider: null`).
+We also don't pass `--provenance` to `changeset publish` (its CLI rejects
+unknown flags) — pnpm picks the env-var setting up automatically under the
+hood.
 
 To do a release by hand:
 
@@ -51,7 +60,7 @@ To do a release by hand:
 pnpm install
 pnpm build
 pnpm version-packages      # bump + CHANGELOG (writes to disk; review and commit)
-pnpm release               # pnpm changeset publish --provenance
+pnpm release               # pnpm changeset publish (provenance comes from CI env)
 ```
 
 ## Pre-releases (alpha / beta)
@@ -70,4 +79,4 @@ pnpm pre-exit
 ```
 
 The published tags (`alpha`, `beta`, `latest`) let users opt into pre-releases with
-`npm install fil@beta`.
+`npm install @color-sunset/fil@beta`.

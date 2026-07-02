@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { renderPreToolUseHookSource } from "../src/hook-source.js";
-import { serializeRunProjection, type RunProjection } from "@fil/contract";
+import { serializeRunProjection, type RunProjection } from "@color-sunset/fil-contract";
 
 /**
  * End-to-end runtime test — writes the *rendered* hook script to disk, drops a

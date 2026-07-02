@@ -1,4 +1,4 @@
-import type { RunProjection } from "@fil/contract";
+import type { RunProjection } from "@color-sunset/fil-contract";
 
 /**
  * The Claude Code Adapter enforcement surface (Claude Code is the Agent Runtime).

@@ -1,6 +1,6 @@
 {
-  "name": "fil",
-  "version": "0.0.0",
+  "name": "@color-sunset/fil",
+  "version": "0.2.0",
   "description": "An open-source harness for agentic software-development lifecycles.",
   "license": "MIT",
   "type": "module",
@@ -28,11 +28,11 @@
     "ci": "pnpm run lint && pnpm run lint:md && pnpm run build && pnpm run typecheck && pnpm run test",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish --provenance",
+    "release": "pnpm build && changeset publish",
     "pre-enter": "changeset pre enter",
     "pre-exit": "changeset pre exit",
-    "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --provenance --tag alpha",
-    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --provenance --tag beta"
+    "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --tag alpha",
+    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --tag beta"
   },
   "repository": {
     "type": "git",
@@ -47,15 +47,15 @@
     "provenance": true
   },
   "dependencies": {
-    "@fil/cli": "workspace:*",
-    "@fil/contract": "workspace:*",
-    "@fil/engine": "workspace:*",
-    "@fil/evolution": "workspace:*",
-    "@fil/flow-loader": "workspace:*",
-    "@fil/gate-runner": "workspace:*",
-    "@fil/inspect-view": "workspace:*",
-    "@fil/orchestrator": "workspace:*",
-    "@fil/store": "workspace:*"
+    "@color-sunset/fil-cli": "workspace:*",
+    "@color-sunset/fil-contract": "workspace:*",
+    "@color-sunset/fil-engine": "workspace:*",
+    "@color-sunset/fil-evolution": "workspace:*",
+    "@color-sunset/fil-flow-loader": "workspace:*",
+    "@color-sunset/fil-gate-runner": "workspace:*",
+    "@color-sunset/fil-inspect-view": "workspace:*",
+    "@color-sunset/fil-orchestrator": "workspace:*",
+    "@color-sunset/fil-store": "workspace:*"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",

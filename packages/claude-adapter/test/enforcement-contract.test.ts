@@ -3,7 +3,7 @@ import {
   parseRunProjection,
   serializeRunProjection,
   type RunProjection,
-} from "@fil/contract";
+} from "@color-sunset/fil-contract";
 import { enforceClaudeEnforcement, decideToolUse } from "../src/enforcement.js";
 
 /**
