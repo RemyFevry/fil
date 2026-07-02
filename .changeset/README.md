@@ -42,8 +42,12 @@ automatically:
 
 1. A PR adds a changeset (or many).
 2. Push to `main` opens (or updates) a **Version Packages** PR that bumps versions and writes CHANGELOGs.
-3. Merging that PR runs `pnpm changeset publish --provenance`, which ships the bumped packages to npm
-   with [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (OIDC, no `NPM_TOKEN`).
+3. Merging that PR runs `pnpm changeset publish`, which ships the bumped packages to npm with
+   [npm provenance](https://docs.npmjs.com/generating-provenance-statements) (OIDC, no `NPM_TOKEN`).
+
+`provenance=true` lives in `.npmrc` (project-wide pnpm config) so every `pnpm publish` invocation
+attaches it. We do **not** pass `--provenance` to `changeset publish` — the changesets CLI rejects
+unknown flags, and pnpm picks the setting up automatically under the hood.
 
 To do a release by hand:
 
@@ -51,7 +55,7 @@ To do a release by hand:
 pnpm install
 pnpm build
 pnpm version-packages      # bump + CHANGELOG (writes to disk; review and commit)
-pnpm release               # pnpm changeset publish --provenance
+pnpm release               # pnpm changeset publish (provenance via .npmrc)
 ```
 
 ## Pre-releases (alpha / beta)

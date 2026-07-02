@@ -64,7 +64,11 @@ jobs:
       - name: Create version PR or publish
         uses: changesets/action@v1
         with:
-          publish: pnpm changeset publish --provenance
+          # NOTE: `changeset publish` does not accept --provenance (its CLI
+          # rejects the flag). Provenance is configured project-wide in
+          # .npmrc so every `pnpm publish` invocation (including the one
+          # `changeset publish` triggers under the hood) attaches it.
+          publish: pnpm changeset publish
           version: pnpm changeset version
           commit: "changesets-action/commit"
           title: "chore(release): version packages"

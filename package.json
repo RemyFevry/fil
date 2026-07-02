@@ -28,11 +28,11 @@
     "ci": "pnpm run lint && pnpm run lint:md && pnpm run build && pnpm run typecheck && pnpm run test",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish --provenance",
+    "release": "pnpm build && changeset publish",
     "pre-enter": "changeset pre enter",
     "pre-exit": "changeset pre exit",
-    "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --provenance --tag alpha",
-    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --provenance --tag beta"
+    "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --tag alpha",
+    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --tag beta"
   },
   "repository": {
     "type": "git",
