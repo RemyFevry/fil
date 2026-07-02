@@ -122,7 +122,7 @@ function resolveArgValue(
   }
   // Reject non-primitives so an object/array never stringifies to "[object Object]".
   if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
-    throw new Error(`Argument "${p.name}" for ${tool.toolName} must be a primitive (string/number/boolean).`);
+    throw new TypeError(`Argument "${p.name}" for ${tool.toolName} must be a primitive (string/number/boolean).`);
   }
   return String(v);
 }
@@ -235,7 +235,7 @@ function filToArgv(params, spec) {
       continue;
     }
     if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
-      throw new Error("Argument '" + name + "' must be a primitive (string/number/boolean).");
+      throw new TypeError("Argument '" + name + "' must be a primitive (string/number/boolean).");
     }
     if (kind === "positional") positionals.push(String(v));
     else flags.push("--" + name, String(v));
@@ -244,7 +244,7 @@ function filToArgv(params, spec) {
 }
 
 function filToolResult(r) {
-  const text = (r.stdout + (r.stderr ? "\\n" + r.stderr : "")).trim();
+  const text = [r.stdout, r.stderr].filter(Boolean).join(String.fromCharCode(10)).trim();
   return {
     content: [{ type: "text", text: text || ("(fil exited " + r.exitCode + ")") }],
     details: { exitCode: r.exitCode },
