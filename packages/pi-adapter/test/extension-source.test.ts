@@ -47,3 +47,40 @@ describe("Pi extension source (rendered string)", () => {
     expect(src).not.toContain("contextPaths");
   });
 });
+
+describe("Pi extension source — control surface (#15)", () => {
+  it("imports the runtime deps Pi aliases (typebox) and child_process", () => {
+    const src = renderPiExtensionSource();
+    expect(src).toContain('from "node:child_process"');
+    expect(src).toContain('from "@sinclair/typebox"');
+  });
+
+  it("registers every fil verb as a native Pi tool", () => {
+    const src = renderPiExtensionSource();
+    expect(src).toContain("pi.registerTool");
+    for (const name of ["fil_start", "fil_next", "fil_status", "fil_propose", "fil_approve"]) {
+      expect(src).toContain(`"name":"${name}"`);
+    }
+  });
+
+  it("maps each tool to its fil CLI verb and shells out via FIL_BIN/fil", () => {
+    const src = renderPiExtensionSource();
+    // The FIL_TOOLS data carries the verb mapping.
+    expect(src).toContain('"verb":"next"');
+    expect(src).toContain('"verb":"start"');
+    expect(src).toContain('"verb":"propose"');
+    // The execute path runs the fil CLI from the session cwd.
+    expect(src).toContain("spawnSync");
+    expect(src).toContain("process.env.FIL_BIN");
+    expect(src).toContain("ctx.cwd");
+  });
+
+  it("still keeps the enforcement hooks intact (regression)", () => {
+    const src = renderPiExtensionSource();
+    expect(src).toMatch(/pi\.on\(\s*["']session_start["']/);
+    expect(src).toMatch(/pi\.on\(\s*["']tool_call["']/);
+    expect(src).toContain("setActiveTools");
+    expect(src).toContain("block: true");
+  });
+});
+
