@@ -1,7 +1,7 @@
 # Changesets
 
 This folder is managed by [`@changesets/cli`](https://github.com/changesets/changesets). It drives the
-semver of every `@fil/*` package and the `fil` meta-package.
+semver of every `@fil/*` package and the `fil-cli` meta-package.
 
 ## What is a changeset?
 
@@ -70,4 +70,4 @@ pnpm pre-exit
 ```
 
 The published tags (`alpha`, `beta`, `latest`) let users opt into pre-releases with
-`npm install fil@beta`.
+`npm install fil-cli@beta`.

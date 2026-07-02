@@ -106,7 +106,7 @@ The repo is a pnpm workspace monorepo. Each package is independently publishable
 | `@fil/orchestrator` | `startRun / advance / back / cancel`. |
 | `@fil/inspect-view` | View-only Flow visualizer. |
 | `@fil/cli` | The `fil` command — thin wiring over the modules above. |
-| `fil` | The meta-package that depends on `@fil/cli` and provides the `fil` bin. |
+| `fil-cli` | The meta-package that depends on `@fil/cli` and provides the `fil` bin. (The unscoped `fil` name is taken on npm — see the README.) |
 
 ## Filing issues
 
