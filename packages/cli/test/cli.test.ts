@@ -244,3 +244,168 @@ describe("fil CLI — end to end", () => {
     expect(errors.join("\n")).toContain("stranded");
   });
 });
+
+// ---------------------------------------------------------------------------
+// fil init — Pi adapter install
+// ---------------------------------------------------------------------------
+
+describe("fil init — Pi adapter install", () => {
+  it("installs the Pi extension on first init (real FS, project scope)", () => {
+    const calls: Array<{ scope: string }> = [];
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: ({ scope }) => {
+        calls.push({ scope });
+        return {
+          installed: true,
+          paths: { project: join(ctx.cwd, ".pi/extensions/fil.ts"), user: "" },
+          piDetected: true,
+        };
+      },
+    });
+    const code = initCommand(ctx);
+    expect(code).toBe(0);
+    expect(calls).toEqual([{ scope: "project" }]);
+    expect(lines.join("\n")).toContain("pi adapter: installed");
+    expect(lines.join("\n")).toContain("scope=project");
+  });
+
+  it("respects --scope user", () => {
+    const calls: Array<{ scope: string }> = [];
+    const { ctx } = ctxFor({
+      installPiAdapter: ({ scope }) => {
+        calls.push({ scope });
+        return {
+          installed: true,
+          paths: { project: "", user: "/h/.pi/agent/extensions/fil.ts" },
+          piDetected: true,
+        };
+      },
+    });
+    const code = initCommand(ctx, parseArgs(["--scope", "user"]));
+    expect(code).toBe(0);
+    expect(calls).toEqual([{ scope: "user" }]);
+  });
+
+  it("--scope both lists both project and user paths in the log line", () => {
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: () => ({
+        installed: true,
+        paths: {
+          project: "/p/.pi/extensions/fil.ts",
+          user: "/h/.pi/agent/extensions/fil.ts",
+        },
+        piDetected: true,
+      }),
+    });
+    expect(initCommand(ctx, parseArgs(["--scope", "both"]))).toBe(0);
+    const out = lines.join("\n");
+    expect(out).toContain("scope=both");
+    expect(out).toContain("/p/.pi/extensions/fil.ts");
+    expect(out).toContain("/h/.pi/agent/extensions/fil.ts");
+    expect(out).toContain(" and ");
+  });
+
+  it("is idempotent — re-running init does not reinstall the adapter", () => {
+    let n = 0;
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: () => {
+        n++;
+        return {
+          installed: n === 1, // only the first call "installs"
+          paths: { project: join(ctx.cwd, ".pi/extensions/fil.ts"), user: "" },
+          piDetected: true,
+          reason: n === 1 ? undefined : "Pi extension already installed (idempotent).",
+        };
+      },
+    });
+    expect(initCommand(ctx)).toBe(0);
+    expect(initCommand(ctx)).toBe(0);
+    // Both runs called the install callback exactly once each (the second was
+    // a no-op as far as the callback's `installed` flag is concerned).
+    expect(n).toBe(2);
+    // The second run prints the idempotent reason, not "installed".
+    const out = lines.join("\n");
+    expect(out).toMatch(/already installed|idempotent/i);
+  });
+
+  it("skips the adapter install line when Pi is not detected", () => {
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: () => ({
+        installed: false,
+        paths: { project: "", user: "" },
+        piDetected: false,
+        reason: "Pi not detected on this machine; skipping Pi Adapter install.",
+      }),
+    });
+    expect(initCommand(ctx)).toBe(0);
+    const out = lines.join("\n");
+    expect(out).toContain("Pi not detected");
+    expect(out).not.toContain("pi adapter: installed");
+  });
+
+  it("rejects an unknown --scope with exit code 2", () => {
+    const calls: Array<{ scope: string }> = [];
+    const { ctx, errors } = ctxFor({
+      installPiAdapter: ({ scope }) => {
+        calls.push({ scope });
+        return {
+          installed: false,
+          paths: { project: "", user: "" },
+          piDetected: true,
+        };
+      },
+    });
+    const code = initCommand(ctx, parseArgs(["--scope", "global"]));
+    expect(code).toBe(2);
+    expect(calls).toEqual([]); // never reached the callback
+    expect(errors.join("\n")).toContain("Invalid --scope");
+    expect(errors.join("\n")).toContain("global");
+  });
+
+  it("skips the adapter step entirely when no callback is on the context", () => {
+    const lines: string[] = [];
+    const ctx = defaultContext(workdir, {
+      installPiAdapter: undefined,
+      out: { log: (l) => lines.push(l), error: () => {} },
+    });
+    expect(initCommand(ctx)).toBe(0);
+    // No "pi adapter:" line is emitted.
+    expect(lines.join("\n")).not.toMatch(/pi adapter:/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enforcement through the contract — end to end
+// ---------------------------------------------------------------------------
+
+describe("Pi enforcement — through the contract", () => {
+  it("matches the projection the orchestrator writes to .fil/run.json", async () => {
+    const { ctx } = ctxFor();
+    initCommand(ctx);
+    ctx.store.writeFlowText(
+      "demo",
+      serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]),
+    );
+    await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
+
+    const projection = ctx.store.readProjection();
+    expect(projection).not.toBeNull();
+    if (!projection) return;
+
+    // Now run the same enforcement logic the Pi extension will run on load.
+    const { enforcePiEnforcement } = await import("@fil/pi-adapter");
+    const enforced = enforcePiEnforcement(
+      { projection },
+      { projectRoot: ctx.cwd, userFilDir: ctx.userFilDir, fileExists: () => false },
+    );
+    expect(enforced.hasActiveRun).toBe(true);
+    // The orchestrator's projection is the single source of truth — the
+    // Pi extension reads the same `.fil/run.json` and surfaces identical
+    // allowedTools to the agent.
+    expect(enforced.allowedTools).toEqual(projection.phaseConfig.allowedTools);
+    expect(enforced.phase).toBe(projection.phase);
+    expect(enforced.phases).toEqual(projection.phases);
+    expect(enforced.systemPrompt).toContain(projection.phaseConfig.instructions);
+    expect(enforced.systemPrompt).toContain(projection.runId);
+  });
+});

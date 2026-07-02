@@ -16,7 +16,7 @@ const USAGE = `\
 fil — an open-source harness for agentic software-development lifecycles.
 
 Usage:
-  fil init                              Scaffold the .fil/ layout
+  fil init [--scope <s>]                 Scaffold the .fil/ layout (scope: project|user|both; default project)
   fil start <change> [--flow <name>]    Start a Run bound to a Change
   fil next                              Run the current Phase's Gate and advance
   fil status                            Show the current Phase and Gate
@@ -35,7 +35,7 @@ interface ParsedArgsLike {
 }
 
 const commands: Record<string, CommandFn> = {
-  init: (ctx) => initCommand(ctx),
+  init: (ctx, args) => initCommand(ctx, args),
   start: (ctx, args) => startCommand(ctx, args),
   next: (ctx) => nextCommand(ctx),
   status: (ctx) => statusCommand(ctx),

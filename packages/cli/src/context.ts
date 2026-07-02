@@ -2,6 +2,13 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { defaultFlowEngine } from "@fil/engine";
 import type { FlowEngine } from "@fil/engine";
+import {
+  detectPi,
+  defaultFs as defaultPiFs,
+  installPiAdapter as installPiAdapterReal,
+  type InstallResult,
+  type InstallScope,
+} from "@fil/pi-adapter";
 import { FilStore, type Store } from "@fil/store";
 
 /** Runtime context shared by every CLI command. */
@@ -14,6 +21,8 @@ export interface CliContext {
   engine: FlowEngine;
   /** User-level flows directory (`~/.fil/flows`). */
   userFlowsDir: string;
+  /** User-level Fil directory (`~/.fil`) — used by the Pi Adapter installer. */
+  userFilDir: string;
   /** Output streams (captured in tests). */
   out: {
     log: (line: string) => void;
@@ -21,15 +30,47 @@ export interface CliContext {
   };
   /** Human-confirmation prompter (defaults to interactive stdin). */
   prompter?: (message: string) => Promise<boolean>;
+  /**
+   * Installs the Pi adapter for the project. Optional so tests can stub it;
+   * `defaultContext` binds a real one that respects the working directory
+   * and detects Pi via the host filesystem.
+   */
+  installPiAdapter?: (opts: { scope: InstallScope }) => InstallResult;
 }
 
-export function defaultContext(cwd: string, overrides: Partial<Omit<CliContext, "cwd">> = {}): CliContext {
+/** Options for {@link defaultContext}. `cwd` is always required. */
+export type DefaultContextOptions = Partial<Omit<CliContext, "cwd">>;
+
+/** The full default context — production wiring. */
+export function defaultContext(
+  cwd: string,
+  overrides: DefaultContextOptions = {},
+): CliContext {
+  // Resolve the *final* values first (after overrides merge) so the
+  // installPiAdapter closure below reads the same paths the rest of the
+  // context exposes — otherwise an overridden `userFilDir` would be
+  // ignored at install time.
   const base: CliContext = {
     cwd,
     store: new FilStore(join(cwd, ".fil")),
     engine: defaultFlowEngine,
-    userFlowsDir: join(homedir(), ".fil", "flows"),
+    userFlowsDir: join(overrides.userFilDir ?? join(homedir(), ".fil"), "flows"),
+    userFilDir: overrides.userFilDir ?? join(homedir(), ".fil"),
     out: { log: console.log, error: console.error },
   };
-  return { ...base, ...overrides };
+  const merged: CliContext = { ...base, ...overrides };
+  // Only auto-bind the real installer if the caller didn't supply one
+  // (an explicit `installPiAdapter: undefined` opts out — the test for
+  // the "no callback" branch relies on this).
+  if (!("installPiAdapter" in overrides)) {
+    merged.installPiAdapter = ({ scope }) =>
+      installPiAdapterReal({
+        projectRoot: merged.cwd,
+        userFilDir: merged.userFilDir,
+        scope,
+        fs: defaultPiFs(),
+        piDetected: detectPi(),
+      });
+  }
+  return merged;
 }
