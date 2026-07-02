@@ -1,6 +1,6 @@
 {
-  "name": "fil-cli",
-  "version": "0.1.0",
+  "name": "@color-sunset/fil",
+  "version": "0.2.0",
   "description": "An open-source harness for agentic software-development lifecycles.",
   "license": "MIT",
   "type": "module",
@@ -47,15 +47,15 @@
     "provenance": true
   },
   "dependencies": {
-    "@fil/cli": "workspace:*",
-    "@fil/contract": "workspace:*",
-    "@fil/engine": "workspace:*",
-    "@fil/evolution": "workspace:*",
-    "@fil/flow-loader": "workspace:*",
-    "@fil/gate-runner": "workspace:*",
-    "@fil/inspect-view": "workspace:*",
-    "@fil/orchestrator": "workspace:*",
-    "@fil/store": "workspace:*"
+    "@color-sunset/fil-cli": "workspace:*",
+    "@color-sunset/fil-contract": "workspace:*",
+    "@color-sunset/fil-engine": "workspace:*",
+    "@color-sunset/fil-evolution": "workspace:*",
+    "@color-sunset/fil-flow-loader": "workspace:*",
+    "@color-sunset/fil-gate-runner": "workspace:*",
+    "@color-sunset/fil-inspect-view": "workspace:*",
+    "@color-sunset/fil-orchestrator": "workspace:*",
+    "@color-sunset/fil-store": "workspace:*"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",

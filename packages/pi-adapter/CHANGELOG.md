@@ -1,27 +1,22 @@
-# @fil/pi-adapter
+# @color-sunset/fil-pi-adapter
 
-## 0.1.0
+## 0.2.0
 
 ### Minor Changes
 
-- 723d8a6: Initial public release.
+- 68e4a2a: Rescope every package under the `color-sunset` npm org.
 
-  - All `@fil/*` packages and the `fil-cli` meta-package are now publishable to npm under the MIT license.
-  - `fil-cli` ships a `bin: fil` entry, so `npm install -g fil-cli` and `npx fil-cli` work post-install. (The `fil` name itself was already taken on npm by an unrelated static-site generator, so the meta-package is `fil-cli` while the `fil` command is unchanged.)
-  - A release workflow (`.github/workflows/release.yml`) drives versioning via Changesets and publishes to npm with provenance on tag.
-  - OSS governance docs added: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`.
-  - The Pi Adapter (`@fil/pi-adapter`) constrains the Pi Agent Runtime to the active Fil Phase (allowedTools / instructions / context / skills) and installs through Pi's native extension channel; `fil init` installs it on detected machines (#14).
+  - The meta-package is now `@color-sunset/fil` (was `fil-cli`).
+  - The 10 sub-packages are now `@color-sunset/fil-{cli,contract,engine,evolution,flow-loader,gate-runner,inspect-view,orchestrator,pi-adapter,store}` (were `@fil/*`).
+  - The `fil` _command_ (the bin) is unchanged — users still run `fil init`, `fil start`, `fil next`, etc.
 
-- ef08e34: Add the **Pi Adapter** package (`@fil/pi-adapter`), closing #14:
+  **Why:** the unscoped `fil` name on npm is already taken by an unrelated static-site generator (`ubenzer/fil`), and the `@fil` scope is unowned. The `color-sunset` org (owned by the Fil maintainer) gives every package a stable, owned home.
 
-  - Pure `enforcePiEnforcement` derives the `PiEnforcement` surface (allowedTools, system prompt, skill paths, context paths) directly from the contract's `RunProjection` — the only file allowed to import the Pi runtime is the rendered extension source, mirroring the engine-isolation pattern (ADR-0003).
-  - `installPiAdapter` writes the generated extension into Pi's native extension directory (`.pi/extensions/fil.ts` for project scope, `~/.pi/agent/extensions/fil.ts` for user scope), idempotent on source match.
-  - `detectPi()` walks `~/.pi` and `$PATH` (using `path.delimiter` for cross-platform).
-  - `fil init [--scope project|user|both]` now installs the Pi adapter when detected; default scope is `project`; unknown scopes fail fast with exit 2.
-  - Path-containment check on Phase `context.files` rejects `..` traversals and absolute paths that escape the project root.
-  - The rendered extension's `tool_call` hook is fail-closed when `allowedTools` is empty (mirrors `setActiveTools([])` in `session_start`).
+  **Install migration:** `npm install -g fil-cli` → `npm install -g @color-sunset/fil`. Internal `import` statements also change; downstream consumers of `@fil/*` must update their imports.
+
+  **Provenance strategy change:** `provenance=true` was removed from `.npmrc` (it broke local `pnpm publish` with `EUSAGE Automatic provenance generation not supported for provider: null`) and moved to the release workflow's `NPM_CONFIG_PROVENANCE` env. CI still attaches provenance; local manual publishes work without it.
 
 ### Patch Changes
 
-- Updated dependencies [723d8a6]
-  - @fil/contract@0.1.0
+- Updated dependencies [68e4a2a]
+  - @color-sunset/fil-contract@0.2.0

@@ -9,7 +9,7 @@ import {
   defaultRunner,
   type FilVerbTool,
   type VerbRunner,
-} from "@fil/pi-adapter";
+} from "@color-sunset/fil-pi-adapter";
 
 /**
  * The Fil MCP server — exposes Fil's control verbs as MCP tools.
@@ -17,7 +17,7 @@ import {
  * The verbs are *thin callers* over the `fil` CLI (ADR-0001): each tool's handler
  * invokes the matching `fil <verb>` and returns its output, so behaviour is
  * identical to the CLI. The verb set + arg mapping come from the shared control
- * surface (`@fil/pi-adapter`'s `control-surface`), keeping the two control
+ * surface (`@color-sunset/fil-pi-adapter`'s `control-surface`), keeping the two control
  * surfaces (Pi tools, MCP tools) in lockstep.
  */
 

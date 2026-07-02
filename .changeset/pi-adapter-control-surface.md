@@ -1,6 +1,6 @@
 ---
-"@fil/pi-adapter": minor
-"@fil/cli": patch
+"@color-sunset/fil-pi-adapter": minor
+"@color-sunset/fil-cli": patch
 ---
 
 Add the Pi Adapter **control surface** — Fil's control verbs as native Pi tools, closing #15.

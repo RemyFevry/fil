@@ -1,4 +1,4 @@
-import type { FlowGraph, FlowGraphNode } from "@fil/engine";
+import type { FlowGraph, FlowGraphNode } from "@color-sunset/fil-engine";
 
 /**
  * A view-only visualizer (ADR: MVP is view-only).

@@ -4,7 +4,7 @@ import {
   parseRunProjection,
   serializeRunProjection,
   type RunProjection,
-} from "@fil/contract";
+} from "@color-sunset/fil-contract";
 import {
   enforcePiEnforcement,
   PROJECT_SKILLS_DIR,

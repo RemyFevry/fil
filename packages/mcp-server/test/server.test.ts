@@ -3,7 +3,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createServer, mcpToolNames, shapeFor, runServer } from "../src/server.js";
-import { FIL_VERB_TOOLS, type VerbRunner } from "@fil/pi-adapter";
+import { FIL_VERB_TOOLS, type VerbRunner } from "@color-sunset/fil-pi-adapter";
 
 /** Connect an in-memory client to a server and return the client. */
 async function linkClient(server: McpServer): Promise<Client> {

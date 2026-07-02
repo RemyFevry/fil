@@ -5,7 +5,7 @@ import {
   engineEntryUrl,
   builtInFlow,
   serializeFlowCode,
-} from "@fil/engine";
+} from "@color-sunset/fil-engine";
 import { resolveFlow, type FlowLoaderDeps } from "../src/index.js";
 
 const defaultFlow = builtInFlow("default")!;
@@ -115,16 +115,16 @@ describe("flow-loader", () => {
   });
 
   it("serialized built-in flows round-trip through the real engine", async () => {
-    // The code form (import { createMachine } from "@fil/engine"; export default
+    // The code form (import { createMachine } from "@color-sunset/fil-engine"; export default
     // createMachine({...})) produced by serializeFlowCode must import and load
-    // identically to the in-memory machine. Rewrite the @fil/engine specifier
+    // identically to the in-memory machine. Rewrite the @color-sunset/fil-engine specifier
     // to the engine's absolute URL so the temp file can live anywhere.
     const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
     const { pathToFileURL } = await import("node:url");
     const code = serializeFlowCode(defaultFlow.rawConfig).replace(
-      /from\s+["']@fil\/engine["']/g,
+      /from\s+["']@color-sunset\/fil-engine["']/g,
       `from "${engineEntryUrl}"`,
     );
     expect(code).toContain("export default");

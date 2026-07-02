@@ -1,5 +1,5 @@
 {
-  "name": "@fil/mcp-server",
+  "name": "@color-sunset/fil-mcp-server",
   "version": "0.0.0",
   "description": "The Fil MCP server: exposes Fil's control verbs (start/next/status/propose/approve) to MCP clients (e.g. Claude Code) as tools — a thin caller over the `fil` CLI.",
   "license": "MIT",
@@ -38,7 +38,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/pi-adapter": "workspace:*",
+    "@color-sunset/fil-pi-adapter": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.25.0"
   }

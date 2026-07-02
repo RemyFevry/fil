@@ -1,4 +1,4 @@
-import { applyProposal, loadFlowCode } from "@fil/evolution";
+import { applyProposal, loadFlowCode } from "@color-sunset/fil-evolution";
 import { flag, type ParsedArgs } from "../args.js";
 import type { CliContext } from "../context.js";
 import { readFlowText } from "./common.js";

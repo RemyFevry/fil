@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer } from "../src/server.js";
-import { defaultRunner } from "@fil/pi-adapter";
+import { defaultRunner } from "@color-sunset/fil-pi-adapter";
 
 /**
  * Integration: the MCP verbs behave identically to the CLI. Drives the real
@@ -18,7 +18,7 @@ import { defaultRunner } from "@fil/pi-adapter";
 const FIL_BIN = resolve(dirname(fileURLToPath(import.meta.url)), "../../cli/dist/index.js");
 const CLI_BUILT = existsSync(FIL_BIN);
 
-const DEMO_FLOW = `import { createMachine } from "@fil/engine";
+const DEMO_FLOW = `import { createMachine } from "@color-sunset/fil-engine";
 export default createMachine({
   id: "demo", initial: "a", context: {},
   states: {

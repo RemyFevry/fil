@@ -48,10 +48,10 @@ encrypted channel. Do **not** include exploit details in that issue.
 In scope:
 
 - Code under `packages/*/src` and the shipped `fil` CLI (the npm package
-  `fil` and any `@fil/*` package).
+  `@color-sunset/fil` and any `@color-sunset/fil-*` package).
 - The release workflow (`.github/workflows/release.yml`) and the publishing
   pipeline.
-- The default Flows shipped under `@fil/engine/flows` (`default`, `hotfix`).
+- The default Flows shipped under `@color-sunset/fil-engine/flows` (`default`, `hotfix`).
 
 Out of scope:
 

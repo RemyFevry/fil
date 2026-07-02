@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
  *
  * The verbs are *thin callers* over the `fil` CLI: behaviour is identical to the
  * CLI because they invoke the same binary. This keeps the deep logic in
- * `@fil/cli`/`@fil/orchestrator` and out of the Adapter (ADR-0001: steer, don't
+ * `@color-sunset/fil-cli`/`@color-sunset/fil-orchestrator` and out of the Adapter (ADR-0001: steer, don't
  * run). The rendered Pi extension (extension-source.ts) embeds a self-contained
  * equivalent; this module is the unit-testable source of truth for the verb set
  * and the arg↔argv mapping.
@@ -103,26 +103,38 @@ export interface VerbResult {
 
 export type VerbRunner = (argv: string[], opts: { cwd: string }) => VerbResult;
 
+/**
+ * Resolve a single param's value (or undefined when absent). Throws for a
+ * missing required param. Extracted from `toArgv` to keep that function's
+ * cognitive complexity under the Sonar threshold — both kinds share the
+ * "resolve value → check missing/required → throw or skip" logic here.
+ */
+function resolveArgValue(
+  p: FilVerbParam,
+  args: Record<string, unknown>,
+  tool: FilVerbTool,
+): string | undefined {
+  const v = args[p.name];
+  const missing = p.kind === "flag" ? v === undefined || v === null || v === false : v === undefined || v === null;
+  if (missing) {
+    if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
+    return undefined;
+  }
+  return String(v);
+}
+
 /** Map a tool invocation's args to the `fil` CLI argv (positionals in order, then flags). Pure. */
 export function toArgv(tool: FilVerbTool, args: Record<string, unknown>): string[] {
   const argv: string[] = [];
   for (const p of tool.params) {
     if (p.kind !== "positional") continue;
-    const v = args[p.name];
-    if (v === undefined || v === null) {
-      if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
-      continue;
-    }
-    argv.push(String(v));
+    const v = resolveArgValue(p, args, tool);
+    if (v !== undefined) argv.push(v);
   }
   for (const p of tool.params) {
     if (p.kind !== "flag") continue;
-    const v = args[p.name];
-    if (v === undefined || v === null || v === false) {
-      if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
-      continue;
-    }
-    argv.push(`--${p.name}`, String(v));
+    const v = resolveArgValue(p, args, tool);
+    if (v !== undefined) argv.push(`--${p.name}`, v);
   }
   return argv;
 }
@@ -150,7 +162,7 @@ export function runFilVerb(
 /**
  * Resolve the `fil` executable. `FIL_BIN` (absolute path to the CLI entry, a
  * `.js`) → run via `node <entry>`; otherwise the `fil` bin is expected on PATH.
- * The `isMain` guard in `@fil/cli` recognises both forms from any cwd.
+ * The `isMain` guard in `@color-sunset/fil-cli` recognises both forms from any cwd.
  */
 export function filBin(): { cmd: string; pre: string[] } {
   const envBin = process.env.FIL_BIN;
@@ -225,6 +237,12 @@ function filToArgv(params, spec) {
 }
 
 function filRun(argv, cwd) {
+  // Test seam: when set, route through the injected runner instead of spawning
+  // the fil binary. Lets the tool-surface tests verify dispatch without spawning
+  // it (environment-flaky in CI). Undefined in production.
+  if (typeof globalThis !== "undefined" && globalThis.__filRunForTests__) {
+    return globalThis.__filRunForTests__(argv, cwd);
+  }
   const envBin = process.env.FIL_BIN;
   const res = envBin
     ? spawnSync(process.execPath, [envBin, ...argv], { cwd, encoding: "utf8" })

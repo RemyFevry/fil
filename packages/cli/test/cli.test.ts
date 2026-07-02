@@ -12,12 +12,12 @@ import { proposeCommand } from "../src/commands/propose.js";
 import { approveCommand } from "../src/commands/approve.js";
 import { inspectCommand } from "../src/commands/inspect.js";
 import { parseArgs } from "../src/args.js";
-import { serializeFlowCode, createMachine, type FlowDefinition } from "@fil/engine";
+import { serializeFlowCode, createMachine, type FlowDefinition } from "@color-sunset/fil-engine";
 
 let workdir: string;
 
 beforeAll(async () => {
-  workdir = await mkdtemp(join(tmpdir(), "fil-cli-"));
+  workdir = await mkdtemp(join(tmpdir(), "color-sunset-fil-"));
 });
 afterAll(async () => {
   if (workdir) {
@@ -393,7 +393,7 @@ describe("Pi enforcement — through the contract", () => {
     if (!projection) return;
 
     // Now run the same enforcement logic the Pi extension will run on load.
-    const { enforcePiEnforcement } = await import("@fil/pi-adapter");
+    const { enforcePiEnforcement } = await import("@color-sunset/fil-pi-adapter");
     const enforced = enforcePiEnforcement(
       { projection },
       { projectRoot: ctx.cwd, userFilDir: ctx.userFilDir, fileExists: () => false },

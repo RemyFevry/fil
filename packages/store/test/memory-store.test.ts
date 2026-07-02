@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RunProjection } from "@fil/contract";
+import type { RunProjection } from "@color-sunset/fil-contract";
 import { MemoryStore } from "../src/memory-store.js";
 import type { RunState } from "../src/types.js";
 

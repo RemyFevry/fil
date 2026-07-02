@@ -11,13 +11,13 @@ import {
  *
  * Rule (ADR-0003): **no engine-library imports outside the engine adapter
  * module.** Flow code never imports `xstate`; it imports `createMachine` from
- * `@fil/engine` (i.e. this module), which delegates to xstate's `createMachine`
+ * `@color-sunset/fil-engine` (i.e. this module), which delegates to xstate's `createMachine`
  * internally. The returned machine is what Fil's `XStateFlowEngine.load(...)`
  * consumes; the engine itself does not call `createMachine` again.
  *
  * ```ts
  * // .fil/flows/default.js — matches https://stately.ai/docs/xstate
- * import { createMachine } from "@fil/engine";
+ * import { createMachine } from "@color-sunset/fil-engine";
  *
  * export default createMachine({
  *   id: "default",

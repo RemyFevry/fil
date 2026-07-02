@@ -1,4 +1,4 @@
-import type { RunProjection } from "@fil/contract";
+import type { RunProjection } from "@color-sunset/fil-contract";
 import {
   DEFAULT_CONFIG,
   type FilConfig,

@@ -1,6 +1,6 @@
 {
-  "name": "@fil/flow-loader",
-  "version": "0.1.0",
+  "name": "@color-sunset/fil-flow-loader",
+  "version": "0.2.0",
   "description": "Resolves Flow files across project/user precedence and load-validates the chosen config.",
   "license": "MIT",
   "type": "module",
@@ -35,7 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/contract": "workspace:*",
-    "@fil/engine": "workspace:*"
+    "@color-sunset/fil-contract": "workspace:*",
+    "@color-sunset/fil-engine": "workspace:*"
   }
 }
