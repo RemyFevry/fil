@@ -104,7 +104,7 @@ the **restrictions strategy is user-owned**.
 ## Quickstart
 
 ```sh
-# 1. Install the Fil CLI (published to npm once #20 lands).
+# 1. Install the Fil CLI from npm.
 npm install -g fil
 
 # 2. Inside a project repo, scaffold the durable layout + built-in Flows.
@@ -248,25 +248,60 @@ in doubt, read [`CONTEXT.md`](./CONTEXT.md) first — terminology is precise
 (Gate ≠ check, Phase ≠ state, Receipt ≠ log) and assumes you mean what the
 glossary means.
 
-Workflow:
+The full contributor guide lives in [`CONTRIBUTING.md`](./CONTRIBUTING.md) —
+it covers local setup, the Worktrunk worktree workflow, the Conventional
+Commits convention, and the Changesets-driven release process. The TL;DR:
 
-1. Read `CONTEXT.md` and the relevant ADR in `docs/adr/`.
-2. Pick an issue from the [Fil MVP project board](https://github.com/users/RemyFevry/projects/1).
+1. Read [`CONTEXT.md`](./CONTEXT.md) and the relevant ADR in
+   [`docs/adr/`](./docs/adr/).
+2. Pick an issue from the
+   [Fil MVP project board](https://github.com/users/RemyFevry/projects/1).
    Triage labels follow the canonical vocabulary in
-   [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md).
-3. Open a PR; CI runs `pnpm lint && pnpm lint:md && pnpm build && pnpm typecheck && pnpm test`
+   [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md). Issues
+   that are grabbable carry `ready-for-agent` and have `Status = Todo`.
+3. Work in a Worktrunk worktree (`wt switch -c feat/<short-name>`).
+4. Add a changeset with `pnpm changeset` for any user-facing change.
+5. Open a PR; CI runs `pnpm lint && pnpm lint:md && pnpm build && pnpm typecheck && pnpm test`
    on Ubuntu and macOS, Node 20 and 22.
 
-The repository is Apache-2.0 / MIT-licensed at your option (see
-[`LICENSE`](./LICENSE)). Adapters are distributed through each Agent
-Runtime's native channel (Claude Code marketplace, Pi extensions, …), not
-through npm.
+Everyone in the project is expected to follow
+[`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), and security issues are
+reported privately per [`SECURITY.md`](./SECURITY.md). The repository is
+MIT-licensed — see [`LICENSE`](./LICENSE). Adapters are distributed through
+each Agent Runtime's native channel (Claude Code marketplace, Pi
+extensions, …), not through npm.
 
 ## Status
 
 Fil is pre-1.0 and under active development. The MVP scope is tracked in
 [#21 — PRD: Fil MVP](https://github.com/RemyFevry/fil/issues/21). Issues and
 PRs are tagged on the [Fil MVP project board](https://github.com/users/RemyFevry/projects/1).
+
+## Releases
+
+The `fil` meta-package and every `@fil/*` package are published to npm under
+the MIT license. Versions are driven by
+[Changesets](https://github.com/changesets/changesets) and follow
+[Semantic Versioning](https://semver.org/):
+
+1. Each PR that changes user-facing behavior adds a `.changeset/*.md` file
+   (`pnpm changeset`). Pick `patch` for fixes, `minor` for backwards-compatible
+   additions, `major` for breaking changes. Full guidance lives in
+   [`.changeset/README.md`](./.changeset/README.md).
+2. Pushing to `main` opens (or updates) a **Version Packages** PR that bumps
+   the affected packages and writes their `CHANGELOG.md`. Internal-dependency
+   coherence (`updateInternalDependencies: "patch"` in `.changeset/config.json`)
+   means that bumping `@fil/engine` also bumps every package that depends on
+   it, so published versions stay in lockstep.
+3. Merging that PR runs the `release` workflow (`.github/workflows/release.yml`),
+   which publishes the bumped packages to npm with
+   [provenance](https://docs.npmjs.com/generating-provenance-statements) (OIDC,
+   no `NPM_TOKEN` needed).
+
+Releases are tagged `v<version>` and listed on the
+[GitHub releases page](https://github.com/RemyFevry/fil/releases). Pre-releases
+(`alpha`, `beta`) are published under their own npm dist-tags so users can
+opt in with `npm install fil@beta`.
 
 ## License
 

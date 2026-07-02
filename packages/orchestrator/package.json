@@ -1,11 +1,17 @@
 {
   "name": "@fil/orchestrator",
   "version": "0.0.0",
-  "private": true,
   "description": "startRun / advance / back / cancel — drives the Flow via the engine and gate-runner, persists through the store.",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,6 +21,18 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RemyFevry/fil.git",
+    "directory": "packages/orchestrator"
+  },
+  "homepage": "https://github.com/RemyFevry/fil",
+  "bugs": {
+    "url": "https://github.com/RemyFevry/fil/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@fil/contract": "workspace:*",

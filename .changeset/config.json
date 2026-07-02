@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@2.27.0/schema.json",
+  "changelog": [
+    "@changesets/cli/changelog",
+    {
+      "name": "fil",
+      "baseBranch": "main",
+      "repo": "RemyFevry/fil"
+    }
+  ],
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch"
+}

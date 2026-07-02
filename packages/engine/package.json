@@ -1,11 +1,17 @@
 {
   "name": "@fil/engine",
   "version": "0.0.0",
-  "private": true,
   "description": "The FlowEngine seam (ADR-0003) and the default XState implementation (ADR-0002).",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,6 +25,18 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RemyFevry/fil.git",
+    "directory": "packages/engine"
+  },
+  "homepage": "https://github.com/RemyFevry/fil",
+  "bugs": {
+    "url": "https://github.com/RemyFevry/fil/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@fil/contract": "workspace:*",
