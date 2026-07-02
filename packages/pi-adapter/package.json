@@ -1,11 +1,17 @@
 {
   "name": "@fil/pi-adapter",
   "version": "0.0.0",
-  "private": true,
   "description": "The Pi Adapter: constrains the Pi Agent Runtime to the active Fil Phase (allowedTools / instructions / context / skills) and installs through Pi's native extension channel.",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,6 +21,18 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RemyFevry/fil.git",
+    "directory": "packages/pi-adapter"
+  },
+  "homepage": "https://github.com/RemyFevry/fil",
+  "bugs": {
+    "url": "https://github.com/RemyFevry/fil/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@fil/contract": "workspace:*"
