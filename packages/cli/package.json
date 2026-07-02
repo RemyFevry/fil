@@ -1,5 +1,5 @@
 {
-  "name": "@fil/cli",
+  "name": "@color-sunset/fil-cli",
   "version": "0.1.0",
   "description": "The `fil` CLI: a thin wiring over the Fil modules.",
   "license": "MIT",
@@ -38,14 +38,14 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/contract": "workspace:*",
-    "@fil/engine": "workspace:*",
-    "@fil/evolution": "workspace:*",
-    "@fil/flow-loader": "workspace:*",
-    "@fil/gate-runner": "workspace:*",
-    "@fil/inspect-view": "workspace:*",
-    "@fil/orchestrator": "workspace:*",
-    "@fil/pi-adapter": "workspace:*",
-    "@fil/store": "workspace:*"
+    "@color-sunset/fil-contract": "workspace:*",
+    "@color-sunset/fil-engine": "workspace:*",
+    "@color-sunset/fil-evolution": "workspace:*",
+    "@color-sunset/fil-flow-loader": "workspace:*",
+    "@color-sunset/fil-gate-runner": "workspace:*",
+    "@color-sunset/fil-inspect-view": "workspace:*",
+    "@color-sunset/fil-orchestrator": "workspace:*",
+    "@color-sunset/fil-pi-adapter": "workspace:*",
+    "@color-sunset/fil-store": "workspace:*"
   }
 }

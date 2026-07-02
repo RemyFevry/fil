@@ -2,7 +2,7 @@ import type {
   EngineInstance,
   FlowDefinition,
   FlowEngine,
-} from "@fil/engine";
+} from "@color-sunset/fil-engine";
 
 /**
  * Resolves which Flow file wins and load-validates it.

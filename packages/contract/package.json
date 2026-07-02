@@ -1,5 +1,5 @@
 {
-  "name": "@fil/contract",
+  "name": "@color-sunset/fil-contract",
   "version": "0.1.0",
   "description": "The .fil/run.json schema plus serializers/validators — the single source of truth every Adapter reads.",
   "license": "MIT",

@@ -1,5 +1,5 @@
 {
-  "name": "@fil/gate-runner",
+  "name": "@color-sunset/fil-gate-runner",
   "version": "0.1.0",
   "description": "runGate(gateSpec, ctx) -> Receipt. Executes shell / test / human-confirmation gates and captures evidence.",
   "license": "MIT",
@@ -35,6 +35,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/contract": "workspace:*"
+    "@color-sunset/fil-contract": "workspace:*"
   }
 }

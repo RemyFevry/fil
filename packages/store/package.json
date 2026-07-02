@@ -1,5 +1,5 @@
 {
-  "name": "@fil/store",
+  "name": "@color-sunset/fil-store",
   "version": "0.1.0",
   "description": "Repository over .fil/: Runs, the run.json projection, Flow snapshots, and proposals.",
   "license": "MIT",
@@ -35,7 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/contract": "workspace:*",
-    "@fil/engine": "workspace:*"
+    "@color-sunset/fil-contract": "workspace:*",
+    "@color-sunset/fil-engine": "workspace:*"
   }
 }

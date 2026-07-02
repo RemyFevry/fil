@@ -1,12 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
-import type { FlowDefinition } from "@fil/engine";
-import { engineEntryUrl } from "@fil/engine";
-import { resolveFlow, type FlowLoaderDeps, type ResolvedFlow } from "@fil/flow-loader";
-import type { OrchestratorDeps } from "@fil/orchestrator";
-import type { RunState } from "@fil/store";
-import type { RunProjection } from "@fil/contract";
+import type { FlowDefinition } from "@color-sunset/fil-engine";
+import { engineEntryUrl } from "@color-sunset/fil-engine";
+import { resolveFlow, type FlowLoaderDeps, type ResolvedFlow } from "@color-sunset/fil-flow-loader";
+import type { OrchestratorDeps } from "@color-sunset/fil-orchestrator";
+import type { RunState } from "@color-sunset/fil-store";
+import type { RunProjection } from "@color-sunset/fil-contract";
 import type { CliContext } from "../context.js";
 
 export function orchestratorDeps(ctx: CliContext): OrchestratorDeps {
@@ -41,7 +41,7 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
             .map((n) => n.slice(0, -3))
         : [],
     importFlowFile: async (path) => {
-      // Flow files import createMachine from "@fil/engine". Rewrite that bare
+      // Flow files import createMachine from "@color-sunset/fil-engine". Rewrite that bare
       // specifier to an absolute URL resolved from this module so the Flow
       // file can be imported from any location (including temp dirs in tests).
       const source = readFileSync(path, "utf8");

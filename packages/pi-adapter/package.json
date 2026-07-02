@@ -1,5 +1,5 @@
 {
-  "name": "@fil/pi-adapter",
+  "name": "@color-sunset/fil-pi-adapter",
   "version": "0.1.0",
   "description": "The Pi Adapter: constrains the Pi Agent Runtime to the active Fil Phase (allowedTools / instructions / context / skills) and installs through Pi's native extension channel.",
   "license": "MIT",
@@ -35,7 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/contract": "workspace:*"
+    "@color-sunset/fil-contract": "workspace:*"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.78.0 <0.100.0"

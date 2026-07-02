@@ -16,8 +16,8 @@ import { XStateFlowEngine } from "./xstate-engine.js";
 export const defaultFlowEngine: FlowEngine = new XStateFlowEngine();
 
 /**
- * The absolute file:// URL of this module (`@fil/engine`'s dist entry). Used
- * by the Flow loader to rewrite the bare `@fil/engine` specifier in Flow code
+ * The absolute file:// URL of this module (`@color-sunset/fil-engine`'s dist entry). Used
+ * by the Flow loader to rewrite the bare `@color-sunset/fil-engine` specifier in Flow code
  * to an absolute URL, so the Flow file can be imported from any location
  * (including temp directories outside the workspace's node_modules hierarchy).
  */

@@ -5,7 +5,7 @@ import {
   PROJECT_SKILLS_DIR,
   type PiEnforcementDeps,
 } from "../src/enforcement.js";
-import type { RunProjection } from "@fil/contract";
+import type { RunProjection } from "@color-sunset/fil-contract";
 
 function fixture(): RunProjection {
   return {

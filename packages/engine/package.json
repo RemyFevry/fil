@@ -1,5 +1,5 @@
 {
-  "name": "@fil/engine",
+  "name": "@color-sunset/fil-engine",
   "version": "0.1.0",
   "description": "The FlowEngine seam (ADR-0003) and the default XState implementation (ADR-0002).",
   "license": "MIT",
@@ -39,7 +39,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/contract": "workspace:*",
+    "@color-sunset/fil-contract": "workspace:*",
     "xstate": "^5.18.0"
   }
 }

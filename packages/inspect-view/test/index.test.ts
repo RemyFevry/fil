@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderGraph } from "../src/index.js";
-import type { FlowGraph } from "@fil/engine";
+import type { FlowGraph } from "@color-sunset/fil-engine";
 
 const graph: FlowGraph = {
   flowName: "default",

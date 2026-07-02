@@ -57,7 +57,7 @@ export function builtInFlowNames(): string[] {
  */
 export function serializeFlowCode(rawConfig: FlowConfig): string {
   return (
-    `import { createMachine } from "@fil/engine";\n` +
+    `import { createMachine } from "@color-sunset/fil-engine";\n` +
     `\n` +
     `export default createMachine(${JSON.stringify(rawConfig, null, 2)});\n`
   );
