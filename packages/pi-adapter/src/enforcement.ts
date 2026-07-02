@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { RunProjection } from "@fil/contract";
 
@@ -33,6 +33,13 @@ export interface PiEnforcementDeps {
   userFilDir: string;
   /** Filesystem probe — injection point for tests. */
   fileExists?: (path: string) => boolean;
+  /**
+   * Canonical-path probe — injection point for tests. Returns the
+   * resolved path (with symlinks followed) or `undefined` when the
+   * path is missing / not canonicalizable. Defaults to
+   * `fs.realpathSync` wrapped to return `undefined` on error.
+   */
+  realpath?: (path: string) => string | undefined;
 }
 
 export interface PiEnforcement {
@@ -97,6 +104,7 @@ export function enforcePiEnforcement(
   if (input.projection.status !== "active") return DORMANT;
   const cfg = input.projection.phaseConfig;
   const exists = deps.fileExists ?? defaultFileExists;
+  const realpath = deps.realpath ?? safeRealpath;
   const projectRoot = deps.projectRoot;
   const userSkillsRoot = userSkillsDir(deps.userFilDir);
 
@@ -115,14 +123,24 @@ export function enforcePiEnforcement(
   }
 
   // Resolve Phase context files (absolute paths that exist on disk and
-  // stay within the project root). Traversal escapes are dropped — the
-  // Phase's context stays in-repo so the adapter cannot be tricked into
-  // surfacing files outside the user's tree.
+  // stay within the project root). Traversal escapes *and* symlinks that
+  // point outside the project are dropped — the Phase's context stays
+  // in-repo so the adapter cannot be tricked into surfacing files
+  // outside the user's tree (a repo-local symlink to /etc/passwd would
+  // otherwise pass the lexical check).
+  //
+  // Fail-closed: if realpathSync can't resolve the path (missing target,
+  // broken symlink, permission error), the candidate is dropped. We
+  // never fall back to the lexical path, since that re-opens the
+  // escape window the canonicalization was added to close.
   const contextPaths: string[] = [];
+  const realRoot = realpath(projectRoot) ?? projectRoot;
   for (const file of cfg.context.files) {
     const abs = isAbsolute(file) ? resolve(file) : resolve(projectRoot, file);
-    if (!isWithinProject(projectRoot, abs)) continue;
-    if (exists(abs)) contextPaths.push(abs);
+    const real = realpath(abs);
+    if (!real) continue; // broken symlink / missing target / no read perms
+    if (!isWithinProject(realRoot, real)) continue;
+    if (exists(real)) contextPaths.push(real);
   }
 
   return {
@@ -192,6 +210,21 @@ function describeGate(type: string): string {
 
 function defaultFileExists(path: string): boolean {
   return existsSync(path);
+}
+
+/**
+ * Best-effort `realpathSync` that returns `undefined` on any failure
+ * (missing path, broken symlink, permission error). Used to canonicalize
+ * the project root and each context-file candidate before the in-repo
+ * check; we then run the *original* `exists` probe against the
+ * canonical path so missing targets still drop out cleanly.
+ */
+function safeRealpath(path: string): string | undefined {
+  try {
+    return realpathSync(path);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

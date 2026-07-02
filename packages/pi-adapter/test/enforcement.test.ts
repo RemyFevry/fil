@@ -121,13 +121,18 @@ describe("enforcePiEnforcement — pure logic", () => {
   });
 
   it("keeps context files that exist (project-relative → joined with projectRoot)", () => {
-    const exists: PiEnforcementDeps["fileExists"] = (p) =>
-      p === join("/x", "src/auth/login.ts");
+    const target = join("/x", "src/auth/login.ts");
+    const exists: PiEnforcementDeps["fileExists"] = (p) => p === target;
     const r = enforcePiEnforcement(
       { projection: fixture() },
-      { projectRoot: "/x", userFilDir: "/x/.fil", fileExists: exists },
+      {
+        projectRoot: "/x",
+        userFilDir: "/x/.fil",
+        fileExists: exists,
+        realpath: (p) => p, // synthetic FS — no symlinks
+      },
     );
-    expect(r.contextPaths).toEqual([join("/x", "src/auth/login.ts")]);
+    expect(r.contextPaths).toEqual([target]);
   });
 
   it("labels the active Phase(s) in the contract, parallel included", () => {

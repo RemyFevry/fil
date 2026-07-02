@@ -48,6 +48,20 @@ function existsAt(skillPath: string, contextPaths: readonly string[]) {
     p === skillPath || contextPaths.includes(p);
 }
 
+/**
+ * Realpath stub for tests. The contract test runs against synthetic paths
+ * (`/proj/...`, `/etc/...`) that don't exist on the host filesystem; we
+ * treat the lexical path as already canonical so the containment check
+ * exercises the in-repo logic without touching realpathSync. To prove
+ * a candidate is rejected, return `undefined` (broken/missing).
+ */
+function identityRealpath(allowed: readonly string[] = []) {
+  return (p: string): string | undefined => {
+    if (allowed.includes(p)) return p;
+    return undefined;
+  };
+}
+
 describe("Pi enforcement ↔ contract (round-trip)", () => {
   it("the projection validates against the contract schema", () => {
     const projection = contractFixture();
@@ -95,6 +109,7 @@ describe("Pi enforcement ↔ contract (round-trip)", () => {
         projectRoot: "/proj",
         userFilDir: "/home/pilot/.fil",
         fileExists: existsAt("", ["/proj/src/auth/login.ts", "/proj/docs/auth.md"]),
+        realpath: identityRealpath(["/proj", "/proj/src/auth/login.ts", "/proj/docs/auth.md"]),
       },
     );
     expect(r.contextPaths).toEqual(["/proj/src/auth/login.ts", "/proj/docs/auth.md"]);
@@ -166,8 +181,76 @@ describe("Pi enforcement ↔ contract (round-trip)", () => {
       p === "/etc/hostname";
     const r = enforcePiEnforcement(
       { projection },
-      { projectRoot: "/proj", userFilDir: "/home/pilot/.fil", fileExists: exists },
+      {
+        projectRoot: "/proj",
+        userFilDir: "/home/pilot/.fil",
+        fileExists: exists,
+        realpath: identityRealpath([
+          "/proj",
+          "/etc/passwd",
+          "/etc/hostname",
+          "/proj/src/auth/login.ts",
+        ]),
+      },
     );
     expect(r.contextPaths).toEqual(["/proj/src/auth/login.ts"]);
+  });
+
+  it("drops context files whose canonical path escapes the project root (symlink escape)", () => {
+    // A repo-local symlink (`/proj/link` → `/etc/passwd`) would pass a
+    // lexical containment check; only canonicalizing both sides
+    // (projectRoot and the candidate) catches the escape. The realpath
+    // stub simulates the resolved real path of each candidate.
+    const projection: RunProjection = {
+      ...contractFixture(),
+      phaseConfig: {
+        ...contractFixture().phaseConfig,
+        context: {
+          files: ["link", "src/auth/login.ts"],
+          priorResults: [],
+        },
+      },
+    };
+    const exists: PiEnforcementDeps["fileExists"] = (p) =>
+      p === "/etc/passwd" || p === "/proj/src/auth/login.ts";
+    const r = enforcePiEnforcement(
+      { projection },
+      {
+        projectRoot: "/proj",
+        userFilDir: "/home/pilot/.fil",
+        fileExists: exists,
+        realpath: identityRealpath([
+          "/proj",
+          "/etc/passwd",         // the symlink's real target
+          "/proj/src/auth/login.ts",
+        ]),
+      },
+    );
+    // `/proj/link` resolves to `/etc/passwd` (outside the project) →
+    // dropped. The in-repo login.ts is kept.
+    expect(r.contextPaths).toEqual(["/proj/src/auth/login.ts"]);
+  });
+
+  it("drops context files whose canonical path fails (broken symlink)", () => {
+    // A symlink whose target is missing cannot be canonicalized;
+    // fail-closed: drop the candidate rather than fall back to the
+    // lexical path.
+    const projection: RunProjection = {
+      ...contractFixture(),
+      phaseConfig: {
+        ...contractFixture().phaseConfig,
+        context: { files: ["broken-link"], priorResults: [] },
+      },
+    };
+    const r = enforcePiEnforcement(
+      { projection },
+      {
+        projectRoot: "/proj",
+        userFilDir: "/home/pilot/.fil",
+        fileExists: () => true,
+        realpath: identityRealpath(["/proj"]), // broken-link not allowed
+      },
+    );
+    expect(r.contextPaths).toEqual([]);
   });
 });
