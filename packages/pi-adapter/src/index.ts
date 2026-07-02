@@ -10,6 +10,22 @@ export {
 export { renderPiExtensionSource } from "./extension-source.js";
 
 export {
+  FIL_VERB_TOOLS,
+  toArgv,
+  findVerbTool,
+  runFilVerb,
+  filBin,
+  formatVerbResult,
+  renderToolRegistrations,
+  defaultRunner,
+  type FilVerbTool,
+  type FilVerbParam,
+  type VerbParamKind,
+  type VerbResult,
+  type VerbRunner,
+} from "./control-surface.js";
+
+export {
   detectPi,
   installPiAdapter,
   defaultFs,

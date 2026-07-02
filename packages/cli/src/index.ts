@@ -75,7 +75,10 @@ export async function run(argv: string[], cwd = process.cwd()): Promise<number> 
 }
 
 // Execute only when invoked directly as the `fil` bin.
-// Compare paths after normalizing both sides (Windows uses `\`, POSIX uses `/`).
+// True when this module IS the process entry point — compared against the
+// module's own URL so it works regardless of cwd or install layout. This matters
+// because the Adapters' control surfaces spawn `fil` from arbitrary project
+// directories (and the published bin lives under node_modules, not packages/cli).
 const isMain = (() => {
   const argv1 = process.argv[1];
   if (!argv1) return false;
@@ -85,6 +88,14 @@ const isMain = (() => {
   } catch {
     return false;
   }
+  let own = "";
+  try {
+    own = fileURLToPath(import.meta.url);
+  } catch {
+    // ignore — fall through to the repo-dev heuristics below
+  }
+  if (own && entry === own) return true;
+  // Repo-dev fallback: running src/index.ts or dist/index.js from the monorepo root.
   return (
     entry.endsWith(`${resolve("packages/cli/dist/index.js")}`) ||
     entry.endsWith(`${resolve("packages/cli/src/index.ts")}`)
