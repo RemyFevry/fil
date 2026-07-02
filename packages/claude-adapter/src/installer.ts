@@ -73,6 +73,7 @@ const USER_HOOK_DIR = ".claude/fil";
 const USER_SETTINGS = ".claude/settings.json";
 /** Claude Code matcher value that matches every tool (filtering happens inside the hook). */
 const ALL_TOOLS_MATCHER = "";
+/** Fil leaves the user's settings untouched when the file is malformed (see parseSettings). */
 
 /**
  * Detect whether Claude Code is installed on this machine. `home` defaults to
