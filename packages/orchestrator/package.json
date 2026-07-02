@@ -1,6 +1,6 @@
 {
   "name": "@fil/orchestrator",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "startRun / advance / back / cancel — drives the Flow via the engine and gate-runner, persists through the store.",
   "license": "MIT",
   "type": "module",

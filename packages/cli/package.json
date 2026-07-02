@@ -1,6 +1,6 @@
 {
   "name": "@fil/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The `fil` CLI: a thin wiring over the Fil modules.",
   "license": "MIT",
   "type": "module",
