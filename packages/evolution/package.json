@@ -1,6 +1,6 @@
 {
   "name": "@fil/evolution",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Pure validation of proposed Flow patches (load + reachability) and unified-diff helpers.",
   "license": "MIT",
   "type": "module",

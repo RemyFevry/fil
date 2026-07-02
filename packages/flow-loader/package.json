@@ -1,6 +1,6 @@
 {
   "name": "@fil/flow-loader",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Resolves Flow files across project/user precedence and load-validates the chosen config.",
   "license": "MIT",
   "type": "module",

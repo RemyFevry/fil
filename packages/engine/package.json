@@ -1,6 +1,6 @@
 {
   "name": "@fil/engine",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The FlowEngine seam (ADR-0003) and the default XState implementation (ADR-0002).",
   "license": "MIT",
   "type": "module",

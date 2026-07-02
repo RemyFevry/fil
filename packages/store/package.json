@@ -1,6 +1,6 @@
 {
   "name": "@fil/store",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Repository over .fil/: Runs, the run.json projection, Flow snapshots, and proposals.",
   "license": "MIT",
   "type": "module",
