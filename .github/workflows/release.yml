@@ -1,0 +1,72 @@
+name: release
+
+# Changesets-driven versioning + npm publish with provenance.
+#
+# Flow:
+#   1. A PR adds a changeset (or many) describing user-facing changes.
+#   2. Push to main: this workflow runs `changeset version`, opens/updates a
+#      "Version Packages" PR that bumps versions + CHANGELOGs.
+#   3. When the Version Packages PR merges to main, this workflow runs again
+#      and `changeset publish --provenance` ships the bumped packages to npm
+#      with npm provenance (OIDC, no NPM_TOKEN required).
+#
+# Required secrets/permissions:
+#   - id-token: write         — npm provenance via OIDC (recommended over NPM_TOKEN)
+#   - GITHUB_TOKEN            — implicit, used to open the Version Packages PR
+#
+# Documentation:
+#   - https://github.com/changesets/action
+#   - https://docs.npmjs.com/generating-provenance-statements
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: version + publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        # Version is read from `packageManager` in package.json.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build before publish so each package's `dist/` is up to date.
+      - name: Build
+        run: pnpm build
+
+      - name: Create version PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm changeset publish --provenance
+          version: pnpm changeset version
+          commit: "changesets-action/commit"
+          title: "chore(release): version packages"
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
