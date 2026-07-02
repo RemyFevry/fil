@@ -1,5 +1,31 @@
 # @color-sunset/fil-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 3399dbc: Add the **Claude Code Adapter** package (`@color-sunset/fil-claude-adapter`), closing #16.
+
+  - Pure `enforceClaudeEnforcement` derives the `ClaudeEnforcement` surface (allowedTools, system prompt, skill paths, context paths) directly from the contract's `RunProjection`; `decideToolUse(projection, toolName)` is the fail-closed PreToolUse decision — empty `allowedTools` denies every tool, mirroring the Pi Adapter.
+  - The hard enforcement layer is a self-contained `PreToolUse` hook (`renderPreToolUseHookSource`) that Claude Code spawns via `node`: it reads `.fil/run.json` (from `CLAUDE_PROJECT_DIR`), and emits Claude's `{ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", … } }` JSON to block a tool outside the active Phase's `allowedTools`, or stays silent to allow. Dormant (allows all) when there is no active Run.
+  - `installClaudeAdapter` installs through Claude Code's native channel: writes the hook script (`.claude/fil/pretooluse-hook.js`, project scope, or `~/.claude/fil/` for user scope) and merges a `PreToolUse` handler into `.claude/settings.json` — preserving existing hooks and deduplicating by command+args, so re-runs are idempotent. `detectClaude()` walks `~/.claude`, `~/.claude.json`, and `$PATH`.
+  - `fil init [--scope project|user|both]` now installs the Claude adapter alongside the Pi adapter when detected; the single `--scope` flag applies to both.
+  - Integration test executes the rendered hook via `node` against a contract-written `.fil/run.json`, proving it blocks/allows tools exactly as the active Phase's contract specifies.
+
+### Patch Changes
+
+- d28ea6f: Add the Pi Adapter **control surface** — Fil's control verbs as native Pi tools, closing #15.
+
+  - `control-surface.ts` is the unit-testable source of truth: `FIL_VERB_TOOLS` declares the five verbs (`fil_start`/`fil_next`/`fil_status`/`fil_propose`/`fil_approve`) mapped 1:1 to the `fil` CLI; `toArgv` maps tool args to CLI argv; `runFilVerb` is a thin caller over an injectable runner; `defaultRunner` shells out to `fil` (`FIL_BIN` override → `node <entry>`, else `fil` on PATH).
+  - The rendered Pi extension (`renderPiExtensionSource`) now registers the verbs via `pi.registerTool` at load time. Each tool's `execute` runs the matching `fil <verb>` from the session `cwd` and returns a Pi `AgentToolResult`. The verbs are thin callers, so behaviour is identical to the CLI. `typebox`/`@sinclair/typebox` resolve through Pi's jiti aliases (verified against Pi's extension loader); enforcement is untouched.
+  - `fix(cli)`: the `fil` bin's `isMain` guard now compares against the module's own URL (`import.meta.url`) instead of a cwd-relative path, so the bin runs when spawned from any directory/install layout — required for the control surface (and any consumer) to shell out to `fil`.
+  - Tests: pure verb/argv mapping; rendered-source structure; an integration test driving the real `fil` via `runFilVerb` (fil_next advances, status/propose/approve behave as the CLI); and a "through Pi's tool surface" test that loads the exact registration code with a stub `pi` and invokes registered tools' `execute` against a real Run.
+
+- Updated dependencies [3399dbc]
+- Updated dependencies [d28ea6f]
+  - @color-sunset/fil-claude-adapter@0.1.0
+  - @color-sunset/fil-pi-adapter@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
