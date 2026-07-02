@@ -105,7 +105,7 @@ the **restrictions strategy is user-owned**.
 
 ```sh
 # 1. Install the Fil CLI from npm.
-npm install -g fil
+npm install -g fil-cli
 
 # 2. Inside a project repo, scaffold the durable layout + built-in Flows.
 fil init
@@ -279,8 +279,8 @@ PRs are tagged on the [Fil MVP project board](https://github.com/users/RemyFevry
 
 ## Releases
 
-The `fil` meta-package and every `@fil/*` package are published to npm under
-the MIT license. Versions are driven by
+The `fil-cli` meta-package and every `@fil/*` package are published to npm
+under the MIT license. Versions are driven by
 [Changesets](https://github.com/changesets/changesets) and follow
 [Semantic Versioning](https://semver.org/):
 
@@ -301,7 +301,12 @@ the MIT license. Versions are driven by
 Releases are tagged `v<version>` and listed on the
 [GitHub releases page](https://github.com/RemyFevry/fil/releases). Pre-releases
 (`alpha`, `beta`) are published under their own npm dist-tags so users can
-opt in with `npm install fil@beta`.
+opt in with `npm install fil-cli@beta`.
+
+> **Note on the name.** The package is `fil-cli`, not `fil` — the unscoped
+> `fil` name is already taken on npm by an unrelated static-site generator
+> ([ubenzer/fil](https://github.com/ubenzer/fil)). The `fil` *command* (the
+> bin) is unchanged.
 
 ## License
 
