@@ -82,5 +82,19 @@ describe("Pi extension source — control surface (#15)", () => {
     expect(src).toContain("setActiveTools");
     expect(src).toContain("block: true");
   });
+
+  it("exempts the Fil control verbs from the Phase tool-block (CodeRabbit #3513613141)", () => {
+    // The fil_* verbs ARE the steering surface — they must not be blocked by a
+    // Phase's allowedTools restriction, and they stay in the active-tools set.
+    const src = renderPiExtensionSource();
+    expect(src).toContain("FIL_TOOL_NAMES.includes(event.toolName)");
+    expect(src).toContain("[...cachedEnforcement.allowedTools, ...FIL_TOOL_NAMES]");
+    expect(src).toContain("const FIL_TOOL_NAMES = FIL_TOOLS.map");
+  });
+
+  it("does not ship a production test-seam for the runner (CodeRabbit #3514146636)", () => {
+    const src = renderPiExtensionSource();
+    expect(src).not.toContain("__filRunForTests__");
+  });
 });
 

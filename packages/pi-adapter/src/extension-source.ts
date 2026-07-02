@@ -34,6 +34,17 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const RUN_JSON_REL = ".fil/run.json";
 
+// Runs the fil CLI for a control verb (called by the registered tools' execute).
+// Kept at module scope so the test harness can supply its own without a
+// production test-seam: the rendered registration code simply calls filRun(...).
+function filRun(argv, cwd) {
+  const envBin = process.env.FIL_BIN;
+  const res = envBin
+    ? spawnSync(process.execPath, [envBin, ...argv], { cwd, encoding: "utf8" })
+    : spawnSync("fil", argv, { cwd, encoding: "utf8" });
+  return { exitCode: res.status == null ? -1 : res.status, stdout: res.stdout || "", stderr: res.stderr || "" };
+}
+
 function readProjection(cwd: string) {
   const path = join(cwd, RUN_JSON_REL);
   if (!existsSync(path)) return null;
@@ -152,7 +163,9 @@ ${renderToolRegistrations()}
   pi.on("session_start", async (event, ctx) => {
     refresh(ctx.cwd);
     if (!cachedEnforcement) return;
-    pi.setActiveTools(cachedEnforcement.allowedTools);
+    // Keep Fil's own control verbs active alongside the Phase's allowedTools —
+    // the agent always needs to advance/propose/status, regardless of Phase.
+    pi.setActiveTools([...cachedEnforcement.allowedTools, ...FIL_TOOL_NAMES]);
     ctx.ui.setStatus(
       "fil-phase",
       ctx.ui.theme?.fg?.("accent", \`fil · \${cachedEnforcement.phase}\`) ?? \`fil · \${cachedEnforcement.phase}\`,
@@ -173,6 +186,9 @@ ${renderToolRegistrations()}
 
   pi.on("tool_call", async (event) => {
     if (!cachedEnforcement) return;
+    // Fil's own control verbs are always permitted — they ARE the steering
+    // surface, not subject to the active Phase's tool restriction.
+    if (event.toolName && FIL_TOOL_NAMES.includes(event.toolName)) return undefined;
     // Fail-closed: an empty allowedTools set means the Phase permits no
     // tools at all. Block every tool call with a clear reason, mirroring
     // session_start's setActiveTools([]) (which surfaces the same intent

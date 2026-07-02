@@ -54,11 +54,13 @@ async function loadToolsWith(runner: StubRunner): Promise<{
   calls: string[][];
 }> {
   const calls: string[][] = [];
-  const harness = `import { spawnSync } from "node:child_process";
-const Type = { String: () => ({ type: "string" }), Optional: (s) => s, Object: (o) => ({ type: "object", properties: o }) };
+  // The harness supplies its own module-scope filRun (a stub) — the same name
+  // the production extension defines at module scope. renderToolRegistrations()
+  // calls filRun(...) without defining it, so no production test-seam is needed.
+  const harness = `const Type = { String: () => ({ type: "string" }), Optional: (s) => s, Object: (o) => ({ type: "object", properties: o }) };
+function filRun(argv, cwd) { return globalThis.__stubRunner(argv, cwd); }
 const __tools = new Map();
 const pi = { on() {}, setActiveTools() {}, registerTool(t) { __tools.set(t.name, t); } };
-globalThis.__filRunForTests__ = (argv, cwd) => globalThis.__stubRunner(argv, cwd);
 ${renderToolRegistrations()}
 export const tools = __tools;
 `;
