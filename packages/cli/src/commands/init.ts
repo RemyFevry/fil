@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILT_IN_FLOWS, serializeFlowCode } from "@fil/engine";
 import type { InstallScope, InstallResult } from "@fil/pi-adapter";
+import type { InstallResult as ClaudeInstallResult } from "@fil/claude-adapter";
 import type { ParsedArgs } from "../args.js";
 import { flag } from "../args.js";
 import type { CliContext } from "../context.js";
@@ -21,7 +22,11 @@ export function initCommand(ctx: CliContext, args?: ParsedArgs): number {
   updateGitignore(ctx.cwd);
   const scaffolded = scaffoldBuiltInFlows(ctx);
   logInitSummary(ctx, scaffolded);
-  return installPiAdapterStep(ctx, args ?? EMPTY_ARGS);
+  const parsed = args ?? EMPTY_ARGS;
+  // A bad --scope fails fast (exit 2) before touching either adapter.
+  const pi = installPiAdapterStep(ctx, parsed);
+  if (pi !== 0) return pi;
+  return installClaudeAdapterStep(ctx, parsed);
 }
 
 /** Ensure `.fil/flows/`, `.fil/runs/`, `.fil/proposals/`, and config.json exist. */
@@ -115,4 +120,42 @@ function formatTargets(
 ): string {
   if (scope === "both") return `${paths.project} and ${paths.user}`;
   return paths[scope];
+}
+
+/**
+ * Optional Claude Code adapter install: tolerant of an uninstalled Claude
+ * Code, idempotent across re-runs, and opt-out via
+ * `ctx.installClaudeAdapter === undefined`. Shares the single `--scope` flag
+ * with the Pi step. Returns 2 on an unknown `--scope`.
+ */
+function installClaudeAdapterStep(ctx: CliContext, args: ParsedArgs): number {
+  if (!ctx.installClaudeAdapter) return 0;
+  const scope = parseScope(flag(args, "scope"));
+  if (!scope.ok) {
+    ctx.out.error(scope.error);
+    return 2;
+  }
+  const result = ctx.installClaudeAdapter({ scope: scope.value });
+  ctx.out.log(formatClaudeLog(scope.value, result));
+  return 0;
+}
+
+function formatClaudeLog(scope: InstallScope, result: ClaudeInstallResult): string {
+  if (!result.claudeDetected) {
+    return `  claude adapter: ${result.reason ?? "skipped (Claude Code not detected)"}`;
+  }
+  const targets = formatClaudeTargets(scope, result.paths);
+  const action = result.installed
+    ? `installed (scope=${scope})`
+    : (result.reason ?? "already installed");
+  return `  claude adapter: ${action} at ${targets}`;
+}
+
+function formatClaudeTargets(
+  scope: InstallScope,
+  paths: { project: { hook: string; settings: string }; user: { hook: string; settings: string } },
+): string {
+  const fmt = (p: { hook: string; settings: string }) => `${p.hook} (+ ${p.settings})`;
+  if (scope === "both") return `${fmt(paths.project)} and ${fmt(paths.user)}`;
+  return fmt(paths[scope]);
 }

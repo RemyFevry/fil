@@ -70,8 +70,17 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.20.0)
 
+  packages/claude-adapter:
+    dependencies:
+      '@fil/contract':
+        specifier: workspace:*
+        version: link:../contract
+
   packages/cli:
     dependencies:
+      '@fil/claude-adapter':
+        specifier: workspace:*
+        version: link:../claude-adapter
       '@fil/contract':
         specifier: workspace:*
         version: link:../contract

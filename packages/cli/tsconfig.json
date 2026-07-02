@@ -14,6 +14,7 @@
     { "path": "../inspect-view" },
     { "path": "../orchestrator" },
     { "path": "../pi-adapter" },
+    { "path": "../claude-adapter" },
     { "path": "../store" }
   ]
 }
