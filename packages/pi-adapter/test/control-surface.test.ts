@@ -72,6 +72,11 @@ describe("toArgv — arg↔CLI argv mapping (pure)", () => {
   it("throws on a missing required positional", () => {
     expect(() => toArgv(t("fil_start"), {})).toThrow(/change/);
   });
+
+  it("throws on a non-primitive value instead of stringifying it to [object Object]", () => {
+    expect(() => toArgv(t("fil_start"), { change: { nope: true } })).toThrow(/primitive/);
+    expect(() => toArgv(t("fil_propose"), { flow: "demo", file: ["a", "b"] })).toThrow(/primitive/);
+  });
 });
 
 describe("runFilVerb — thin caller over an injectable runner", () => {

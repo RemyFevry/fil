@@ -120,6 +120,10 @@ function resolveArgValue(
     if (p.required) throw new Error(`Missing required argument "${p.name}" for ${tool.toolName}.`);
     return undefined;
   }
+  // Reject non-primitives so an object/array never stringifies to "[object Object]".
+  if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
+    throw new Error(`Argument "${p.name}" for ${tool.toolName} must be a primitive (string/number/boolean).`);
+  }
   return String(v);
 }
 
@@ -230,24 +234,13 @@ function filToArgv(params, spec) {
       if (required) throw new Error("Missing required argument '" + name + "'.");
       continue;
     }
+    if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
+      throw new Error("Argument '" + name + "' must be a primitive (string/number/boolean).");
+    }
     if (kind === "positional") positionals.push(String(v));
     else flags.push("--" + name, String(v));
   }
   return [...positionals, ...flags];
-}
-
-function filRun(argv, cwd) {
-  // Test seam: when set, route through the injected runner instead of spawning
-  // the fil binary. Lets the tool-surface tests verify dispatch without spawning
-  // it (environment-flaky in CI). Undefined in production.
-  if (typeof globalThis !== "undefined" && globalThis.__filRunForTests__) {
-    return globalThis.__filRunForTests__(argv, cwd);
-  }
-  const envBin = process.env.FIL_BIN;
-  const res = envBin
-    ? spawnSync(process.execPath, [envBin, ...argv], { cwd, encoding: "utf8" })
-    : spawnSync("fil", argv, { cwd, encoding: "utf8" });
-  return { exitCode: res.status == null ? -1 : res.status, stdout: res.stdout || "", stderr: res.stderr || "" };
 }
 
 function filToolResult(r) {
@@ -281,6 +274,11 @@ for (const t of FIL_TOOLS) {
       return filToolResult(filRun([t.verb, ...argv], cwd));
     },
   });
-}`;
+}
+
+// Names of the native Fil control verbs. The enforcement layer exempts these
+// (they ARE the steering surface, not subject to a Phase's tool restriction)
+// and keeps them in the active-tools set alongside the Phase's allowedTools.
+const FIL_TOOL_NAMES = FIL_TOOLS.map((t) => t.name);`;
 }
 
