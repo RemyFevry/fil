@@ -90,7 +90,7 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
 
   const resolvedCode = engineEntryUrl
     ? code.replace(
-        /from\s+["']@fil\/engine["']/g,
+        /from\s+["']@color-sunset\/fil-engine["']/g,
         `from "${engineEntryUrl}"`,
       )
     : code;

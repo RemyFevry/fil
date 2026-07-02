@@ -47,7 +47,7 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
       const source = readFileSync(path, "utf8");
       const rewritten = engineEntryUrl
         ? source.replace(
-            /from\s+["']@fil\/engine["']/g,
+            /from\s+["']@color-sunset\/fil-engine["']/g,
             `from "${engineEntryUrl}"`,
           )
         : source;

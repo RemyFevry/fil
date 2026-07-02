@@ -124,7 +124,7 @@ describe("flow-loader", () => {
     const { join } = await import("node:path");
     const { pathToFileURL } = await import("node:url");
     const code = serializeFlowCode(defaultFlow.rawConfig).replace(
-      /from\s+["']@fil\/engine["']/g,
+      /from\s+["']@color-sunset\/fil-engine["']/g,
       `from "${engineEntryUrl}"`,
     );
     expect(code).toContain("export default");
