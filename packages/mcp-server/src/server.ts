@@ -1,4 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { z } from "zod";
 import {
   FIL_VERB_TOOLS,
@@ -64,4 +66,19 @@ export function shapeFor(tool: FilVerbTool): Record<string, z.ZodTypeAny> {
 /** The tool names the server exposes, in a stable order. */
 export function mcpToolNames(): readonly string[] {
   return FIL_VERB_TOOLS.map((t) => t.toolName);
+}
+
+/**
+ * Build the server and connect it to a transport. Defaults to the stdio
+ * transport (what the `fil-mcp` bin and Claude Code use); tests inject an
+ * in-memory transport. Keeping this out of `bin.ts` lets the connect path be
+ * covered by tests (bin.ts is a top-level-await shim).
+ */
+export async function runServer(
+  deps: ServerDeps = {},
+  transport: Transport = new StdioServerTransport(),
+): Promise<McpServer> {
+  const server = createServer(deps);
+  await server.connect(transport);
+  return server;
 }

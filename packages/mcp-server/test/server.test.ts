@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createServer, mcpToolNames, shapeFor } from "../src/server.js";
+import { createServer, mcpToolNames, shapeFor, runServer } from "../src/server.js";
 import { FIL_VERB_TOOLS, type VerbRunner } from "@fil/pi-adapter";
 
 /** Connect an in-memory client to a server and return the client. */
@@ -80,5 +80,31 @@ describe("shapeFor — MCP input schema", () => {
   it("a parameterless verb yields an empty shape", () => {
     const next = FIL_VERB_TOOLS.find((t) => t.toolName === "fil_next")!;
     expect(Object.keys(shapeFor(next))).toEqual([]);
+  });
+});
+
+describe("createServer / runServer — defaults + connect", () => {
+  it("createServer() with no deps still exposes the verbs (covers default cwd/runner branches)", async () => {
+    const server = createServer();
+    const [clientTrans, serverTrans] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    await Promise.all([client.connect(clientTrans), server.connect(serverTrans)]);
+    const listed = await client.listTools();
+    expect((listed.tools ?? []).map((t) => t.name).sort()).toEqual([...mcpToolNames()].sort());
+    await client.close();
+  });
+
+  it("runServer connects the server to an injected transport (the bin's connect path)", async () => {
+    const [clientTrans, serverTrans] = InMemoryTransport.createLinkedPair();
+    const noopRunner: VerbRunner = () => ({ exitCode: 0, stdout: "ok", stderr: "" });
+    const server = await runServer({ cwd: "/p", runner: noopRunner }, serverTrans);
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    await client.connect(clientTrans);
+    const res = (await client.callTool({ name: "fil_next", arguments: {} })) as {
+      content?: { text: string }[];
+    };
+    expect(res.content?.[0]?.text).toBe("ok");
+    await client.close();
+    await server.close();
   });
 });
