@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The `fil` CLI: a thin wiring over the Fil modules.",
   "license": "MIT",
   "type": "module",

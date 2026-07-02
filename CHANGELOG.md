@@ -1,5 +1,13 @@
 # @color-sunset/fil
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [3399dbc]
+- Updated dependencies [d28ea6f]
+  - @color-sunset/fil-cli@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
