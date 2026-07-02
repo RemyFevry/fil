@@ -29,9 +29,9 @@ export function initCommand(ctx: CliContext, args?: ParsedArgs): number {
   updateGitignore(ctx.cwd);
   const scaffolded = scaffoldBuiltInFlows(ctx);
   logInitSummary(ctx, scaffolded);
-  const pi = installPiAdapterStep(ctx, scope.value);
-  if (pi !== 0) return pi;
-  return installClaudeAdapterStep(ctx, scope.value);
+  installPiAdapterStep(ctx, scope.value);
+  installClaudeAdapterStep(ctx, scope.value);
+  return 0;
 }
 
 /** Ensure `.fil/flows/`, `.fil/runs/`, `.fil/proposals/`, and config.json exist. */
@@ -80,11 +80,10 @@ function logInitSummary(ctx: CliContext, scaffolded: readonly string[]): void {
  * unit tests use this to exercise the layout path in isolation). `--scope`
  * is resolved once up front in `initCommand` and passed in here.
  */
-function installPiAdapterStep(ctx: CliContext, scope: InstallScope): number {
-  if (!ctx.installPiAdapter) return 0;
+function installPiAdapterStep(ctx: CliContext, scope: InstallScope): void {
+  if (!ctx.installPiAdapter) return;
   const result = ctx.installPiAdapter({ scope });
   ctx.out.log(formatAdapterLog(scope, result));
-  return 0;
 }
 
 function formatAdapterLog(scope: InstallScope, result: InstallResult): string {
@@ -126,11 +125,10 @@ function formatTargets(
  * `ctx.installClaudeAdapter === undefined`. `--scope` is resolved once up
  * front in `initCommand` (shared with the Pi step) and passed in here.
  */
-function installClaudeAdapterStep(ctx: CliContext, scope: InstallScope): number {
-  if (!ctx.installClaudeAdapter) return 0;
+function installClaudeAdapterStep(ctx: CliContext, scope: InstallScope): void {
+  if (!ctx.installClaudeAdapter) return;
   const result = ctx.installClaudeAdapter({ scope });
   ctx.out.log(formatClaudeLog(scope, result));
-  return 0;
 }
 
 function formatClaudeLog(scope: InstallScope, result: ClaudeInstallResult): string {
