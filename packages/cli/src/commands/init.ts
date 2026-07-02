@@ -1,71 +1,103 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILT_IN_FLOWS, serializeFlowCode } from "@fil/engine";
-import type { InstallScope } from "@fil/pi-adapter";
+import type { InstallScope, InstallResult } from "@fil/pi-adapter";
 import type { ParsedArgs } from "../args.js";
 import { flag } from "../args.js";
 import type { CliContext } from "../context.js";
 
 const VALID_SCOPES: readonly InstallScope[] = ["project", "user", "both"];
+const EMPTY_ARGS: ParsedArgs = { positional: [], flags: {} };
+const GITIGNORE_ENTRIES: readonly string[] = [
+  ".fil/runs/",
+  ".fil/run.json",
+  ".fil/proposals/",
+];
+const GITIGNORE_HEADER = "# Fil — durable local state (Runs/proposals are not committed)";
 
 /** `fil init` — scaffold the durable `.fil/` layout (idempotent). */
-export function initCommand(ctx: CliContext, args: ParsedArgs = { positional: [], flags: {} }): number {
-  const { store, out } = ctx;
-  store.ensureLayout();
+export function initCommand(ctx: CliContext, args?: ParsedArgs): number {
+  ensureFilLayout(ctx);
+  updateGitignore(ctx.cwd);
+  const scaffolded = scaffoldBuiltInFlows(ctx);
+  logInitSummary(ctx, scaffolded);
+  return installPiAdapterStep(ctx, args ?? EMPTY_ARGS);
+}
 
-  const gitignorePath = join(ctx.cwd, ".gitignore");
-  const gitignoreEntries = [
-    ".fil/runs/",
-    ".fil/run.json",
-    ".fil/proposals/",
-  ];
-  const existing = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf8") : "";
-  const missing = gitignoreEntries.filter((entry) => !existing.includes(entry));
-  if (missing.length > 0) {
-    const block = `\n# Fil — durable local state (Runs/proposals are not committed)\n${missing.join("\n")}\n`;
-    appendFileSync(gitignorePath, existing.endsWith("\n") || existing === "" ? block : `\n${block}`);
-  }
+/** Ensure `.fil/flows/`, `.fil/runs/`, `.fil/proposals/`, and config.json exist. */
+function ensureFilLayout(ctx: CliContext): void {
+  ctx.store.ensureLayout();
+}
 
+/** Append Fil's gitignore entries to the project `.gitignore` (idempotent). */
+function updateGitignore(projectRoot: string): void {
+  const path = join(projectRoot, ".gitignore");
+  const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
+  const missing = GITIGNORE_ENTRIES.filter((entry) => !existing.includes(entry));
+  if (missing.length === 0) return;
+  const block = `\n${GITIGNORE_HEADER}\n${missing.join("\n")}\n`;
+  const needsLeadingNewline = existing.length > 0 && !existing.endsWith("\n");
+  appendFileSync(path, needsLeadingNewline ? `\n${block}` : block);
+}
+
+/** Write the built-in Flows that aren't already on disk. Returns the names scaffolded. */
+function scaffoldBuiltInFlows(ctx: CliContext): string[] {
   const scaffolded: string[] = [];
   for (const flow of BUILT_IN_FLOWS) {
-    if (!store.flowExists(flow.name)) {
-      store.writeFlowText(flow.name, serializeFlowCode(flow.rawConfig));
+    if (!ctx.store.flowExists(flow.name)) {
+      ctx.store.writeFlowText(flow.name, serializeFlowCode(flow.rawConfig));
       scaffolded.push(flow.name);
     }
   }
+  return scaffolded;
+}
 
+/** Print the human-readable summary of the init step. */
+function logInitSummary(ctx: CliContext, scaffolded: readonly string[]): void {
+  const { store, out } = ctx;
   out.log("Initialised Fil in .fil/");
   out.log(`  flows: ${store.listFlows().join(", ") || "(none)"}`);
-  if (scaffolded.length > 0) out.log(`  scaffolded built-in flows: ${scaffolded.join(", ")}`);
+  if (scaffolded.length > 0) {
+    out.log(`  scaffolded built-in flows: ${scaffolded.join(", ")}`);
+  }
   out.log(`  default flow: ${store.readConfig()?.defaultFlow ?? "default"}`);
   out.log("  .fil/flows/ and .fil/config.json are committable; runs/proposals are gitignored.");
+}
 
-  // Adapter install: optional (tests stub the callback) and tolerant of an
-  // uninstalled Pi. Default scope is `project`; the user can pick a wider
-  // scope with `--scope user` or `--scope both`.
-  if (ctx.installPiAdapter) {
-    const scope = parseScope(flag(args, "scope"));
-    if (!scope.ok) {
-      out.error(scope.error);
-      return 2;
-    }
-    const result = ctx.installPiAdapter({ scope: scope.value });
-    if (result.piDetected) {
-      const targets = formatTargets(scope.value, result.paths);
-      if (result.installed) {
-        out.log(`  pi adapter: installed (scope=${scope.value}) at ${targets}`);
-      } else {
-        out.log(`  pi adapter: ${result.reason ?? "already installed"} at ${targets}`);
-      }
-    } else {
-      out.log(`  pi adapter: ${result.reason ?? "skipped (Pi not detected)"}`);
-    }
+/**
+ * Optional adapter install: tolerant of an uninstalled Pi, idempotent
+ * across re-runs, and opt-out via `ctx.installPiAdapter === undefined`
+ * (the unit tests use this to exercise the layout path in isolation).
+ * Default scope is `project`; the user can widen with `--scope user`
+ * or `--scope both`. Returns 2 on an unknown `--scope` (the only
+ * non-zero exit the command produces).
+ */
+function installPiAdapterStep(ctx: CliContext, args: ParsedArgs): number {
+  if (!ctx.installPiAdapter) return 0;
+  const scope = parseScope(flag(args, "scope"));
+  if (!scope.ok) {
+    ctx.out.error(scope.error);
+    return 2;
   }
-
+  const result = ctx.installPiAdapter({ scope: scope.value });
+  ctx.out.log(formatAdapterLog(scope.value, result));
   return 0;
 }
 
-function parseScope(raw: string | undefined): { ok: true; value: InstallScope } | { ok: false; error: string } {
+function formatAdapterLog(scope: InstallScope, result: InstallResult): string {
+  if (!result.piDetected) {
+    return `  pi adapter: ${result.reason ?? "skipped (Pi not detected)"}`;
+  }
+  const targets = formatTargets(scope, result.paths);
+  const action = result.installed
+    ? `installed (scope=${scope})`
+    : (result.reason ?? "already installed");
+  return `  pi adapter: ${action} at ${targets}`;
+}
+
+function parseScope(
+  raw: string | undefined,
+): { ok: true; value: InstallScope } | { ok: false; error: string } {
   if (raw === undefined) return { ok: true, value: "project" };
   if ((VALID_SCOPES as readonly string[]).includes(raw)) {
     return { ok: true, value: raw as InstallScope };

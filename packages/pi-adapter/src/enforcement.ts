@@ -1,6 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { RunProjection } from "@fil/contract";
+import type { PhaseConfig, RunProjection } from "@fil/contract";
 
 /**
  * The Pi Adapter enforcement surface (Pi is the Agent Runtime).
@@ -105,43 +105,9 @@ export function enforcePiEnforcement(
   const cfg = input.projection.phaseConfig;
   const exists = deps.fileExists ?? defaultFileExists;
   const realpath = deps.realpath ?? safeRealpath;
-  const projectRoot = deps.projectRoot;
-  const userSkillsRoot = userSkillsDir(deps.userFilDir);
 
-  // Resolve Phase skills by name (project then user precedence).
-  const skillPaths: string[] = [];
-  for (const name of cfg.skills) {
-    const project = resolveSkillPath(projectRoot, name);
-    if (project && exists(project)) {
-      skillPaths.push(project);
-      continue;
-    }
-    const user = resolveSkillAt(userSkillsRoot, name);
-    if (user && exists(user)) {
-      skillPaths.push(user);
-    }
-  }
-
-  // Resolve Phase context files (absolute paths that exist on disk and
-  // stay within the project root). Traversal escapes *and* symlinks that
-  // point outside the project are dropped — the Phase's context stays
-  // in-repo so the adapter cannot be tricked into surfacing files
-  // outside the user's tree (a repo-local symlink to /etc/passwd would
-  // otherwise pass the lexical check).
-  //
-  // Fail-closed: if realpathSync can't resolve the path (missing target,
-  // broken symlink, permission error), the candidate is dropped. We
-  // never fall back to the lexical path, since that re-opens the
-  // escape window the canonicalization was added to close.
-  const contextPaths: string[] = [];
-  const realRoot = realpath(projectRoot) ?? projectRoot;
-  for (const file of cfg.context.files) {
-    const abs = isAbsolute(file) ? resolve(file) : resolve(projectRoot, file);
-    const real = realpath(abs);
-    if (!real) continue; // broken symlink / missing target / no read perms
-    if (!isWithinProject(realRoot, real)) continue;
-    if (exists(real)) contextPaths.push(real);
-  }
+  const skillPaths = resolveSkillPaths(cfg.skills, deps, exists);
+  const contextPaths = resolveContextPaths(cfg.context.files, deps, realpath, exists);
 
   return {
     hasActiveRun: true,
@@ -154,6 +120,63 @@ export function enforcePiEnforcement(
   };
 }
 
+/**
+ * Resolve a Phase's skill names to absolute SKILL.md paths, project first
+ * then user. Missing skills (neither project nor user exists) are
+ * silently dropped — Pi still loads, the skill simply isn't surfaced.
+ */
+function resolveSkillPaths(
+  skills: readonly string[],
+  deps: PiEnforcementDeps,
+  exists: (path: string) => boolean,
+): string[] {
+  const userSkillsRoot = userSkillsDir(deps.userFilDir);
+  const out: string[] = [];
+  for (const name of skills) {
+    const project = resolveSkillPath(deps.projectRoot, name);
+    if (project && exists(project)) {
+      out.push(project);
+      continue;
+    }
+    const user = resolveSkillAt(userSkillsRoot, name);
+    if (user && exists(user)) {
+      out.push(user);
+    }
+  }
+  return out;
+}
+
+/**
+ * Resolve a Phase's context files to absolute paths that exist on disk
+ * *and* stay within the project root. Traversal escapes *and* symlinks
+ * that point outside the project are dropped — the Phase's context stays
+ * in-repo so the adapter cannot be tricked into surfacing files outside
+ * the user's tree (a repo-local symlink to /etc/passwd would otherwise
+ * pass the lexical check).
+ *
+ * Fail-closed: if realpath can't resolve the path (missing target,
+ * broken symlink, permission error), the candidate is dropped. We
+ * never fall back to the lexical path, since that re-opens the escape
+ * window the canonicalization was added to close.
+ */
+function resolveContextPaths(
+  files: readonly string[],
+  deps: PiEnforcementDeps,
+  realpath: (path: string) => string | undefined,
+  exists: (path: string) => boolean,
+): string[] {
+  const realRoot = realpath(deps.projectRoot) ?? deps.projectRoot;
+  const out: string[] = [];
+  for (const file of files) {
+    const abs = isAbsolute(file) ? resolve(file) : resolve(deps.projectRoot, file);
+    const real = realpath(abs);
+    if (!real) continue;
+    if (!isWithinProject(realRoot, real)) continue;
+    if (exists(real)) out.push(real);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // helpers (pure)
 // ---------------------------------------------------------------------------
@@ -161,38 +184,43 @@ export function enforcePiEnforcement(
 /** Compose the system-prompt injection from the contract's content. */
 function composeSystemPrompt(projection: RunProjection): string {
   const cfg = projection.phaseConfig;
-  const lines: string[] = [];
-  lines.push("# Fil — Phase instructions");
-  lines.push("");
-  lines.push(cfg.instructions.trim());
-  lines.push("");
-  lines.push("# Fil — context");
+  const phaseLine = projection.phases.length > 1
+    ? `${projection.phases.join(", ")} (parallel)`
+    : projection.phase;
+  const blocks: string[] = [
+    "# Fil — Phase instructions",
+    "",
+    cfg.instructions.trim(),
+    "",
+    contextBlock(cfg),
+    "",
+    "# Fil — current Run",
+    `Run ${projection.runId} · change "${projection.change}" · flow "${projection.flowName}"`,
+    `Phase ${phaseLine} · actor ${projection.actorMode}`,
+    `Gate (to advance): ${describeGate(cfg.gate.type)}`,
+    "Advance via `fil next` (the gate runs an external test, not the agent's say-so).",
+  ];
+  return blocks.filter((b) => b.length > 0).join("\n");
+}
+
+/** Build the "Fil — context" block from the contract's context. */
+function contextBlock(cfg: PhaseConfig): string {
+  const parts: string[] = ["# Fil — context"];
   if (cfg.context.files.length > 0) {
-    lines.push("Files in scope:");
-    for (const file of cfg.context.files) lines.push(`  - ${file}`);
+    parts.push("Files in scope:", ...cfg.context.files.map((f) => `  - ${f}`));
   }
-  if (cfg.context.notes && cfg.context.notes.trim().length > 0) {
-    lines.push("");
-    lines.push("Notes:");
-    lines.push(cfg.context.notes.trim());
+  const notes = cfg.context.notes?.trim();
+  if (notes) {
+    parts.push("Notes:", notes);
   }
   if (cfg.context.priorResults.length > 0) {
-    lines.push("");
-    lines.push("Receipts from prior Phases:");
-    for (const entry of cfg.context.priorResults) lines.push(`  - ${entry}`);
+    parts.push(
+      "Receipts from prior Phases:",
+      ...cfg.context.priorResults.map((r) => `  - ${r}`),
+    );
   }
-  lines.push("");
-  lines.push("# Fil — current Run");
-  lines.push(`Run ${projection.runId} · change "${projection.change}" · flow "${projection.flowName}"`);
-  lines.push(
-    `Phase ${projection.phases.length > 1 ? projection.phases.join(", ") + " (parallel)" : projection.phase}` +
-      ` · actor ${projection.actorMode}`,
-  );
-  lines.push(`Gate (to advance): ${describeGate(cfg.gate.type)}`);
-  lines.push(
-    "Advance via `fil next` (the gate runs an external test, not the agent's say-so).",
-  );
-  return lines.join("\n");
+  // If the context is empty, return just the header (no trailing blank).
+  return parts.length === 1 ? "" : parts.join("\n");
 }
 
 function describeGate(type: string): string {
