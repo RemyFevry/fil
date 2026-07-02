@@ -31,8 +31,8 @@
     "release": "pnpm build && changeset publish --provenance",
     "pre-enter": "changeset pre enter",
     "pre-exit": "changeset pre exit",
-    "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --tag alpha",
-    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --tag beta"
+    "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --provenance --tag alpha",
+    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --provenance --tag beta"
   },
   "repository": {
     "type": "git",

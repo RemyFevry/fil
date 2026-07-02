@@ -59,9 +59,11 @@ public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainers through the channels listed in
-[`SECURITY.md`](./SECURITY.md). All complaints will be reviewed and
-investigated promptly and fairly.
+reported to the project maintainers by emailing **conduct@remyfevry.dev**
+(or, if you have GitHub access, by DMing `@RemyFevry`). All complaints will be
+reviewed and investigated promptly and fairly. (For *security vulnerabilities*
+rather than conduct issues, follow the private reporting flow in
+[`SECURITY.md`](./SECURITY.md) instead.)
 
 All project maintainers are obligated to respect the privacy and security of
 the reporter of any incident.
