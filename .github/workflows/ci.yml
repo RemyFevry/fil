@@ -15,12 +15,15 @@ concurrency:
 jobs:
   verify:
     name: lint + typecheck + build + test
+    # Run on Blacksmith (free-tier tuned): ARM 2vCPU is the cheapest tier
+    # (0.625x the x64-2vCPU rate). macOS is intentionally NOT in the PR
+    # matrix because it consumes free-tier minutes at 20x the rate — see
+    # ci-macos-weekly.yml for the dedicated weekly macOS verification job.
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         node: [20, 22]
-    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,21 +37,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+          # `cache: pnpm` transparently uses Blacksmith's colocated
+          # cache (~400 MB/s, 25 GB/week free) instead of GitHub's
+          # slower Azure-backed cache. No code changes needed.
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # `pnpm fetch` populates the content-addressable store from cache;
+      # `pnpm install --offline` then only links into node_modules, so
+      # on a cache hit this step is seconds instead of 30s+.
+      - name: Fetch deps into pnpm store
+        run: pnpm fetch
+
+      - name: Install dependencies (offline)
+        run: pnpm install --offline --frozen-lockfile
+
+      # Build first: `tsc -b` emits the .d.ts declarations that the
+      # cross-package typecheck resolves, and type-checks the whole graph.
+      - name: Build
+        run: pnpm build
 
       - name: Lint
         run: pnpm lint
 
       - name: Lint markdown
         run: pnpm lint:md
-
-      # Build first: `tsc -b` emits the .d.ts declarations that the
-      # cross-package typecheck resolves, and type-checks the whole graph.
-      - name: Build
-        run: pnpm build
 
       - name: Typecheck
         run: pnpm typecheck
