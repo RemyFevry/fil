@@ -1,5 +1,5 @@
 {
-  "name": "@fil/evolution",
+  "name": "@color-sunset/fil-evolution",
   "version": "0.1.0",
   "description": "Pure validation of proposed Flow patches (load + reachability) and unified-diff helpers.",
   "license": "MIT",
@@ -35,6 +35,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/engine": "workspace:*"
+    "@color-sunset/fil-engine": "workspace:*"
   }
 }

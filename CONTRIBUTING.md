@@ -97,16 +97,16 @@ The repo is a pnpm workspace monorepo. Each package is independently publishable
 
 | Package | Role |
 |---|---|
-| `@fil/contract` | The `.fil/run.json` schema + serializers/validators. |
-| `@fil/engine` | The `FlowEngine` seam + the default XState implementation. |
-| `@fil/flow-loader` | Resolves Flow files across project/user precedence. |
-| `@fil/gate-runner` | Executes Gates → Receipts. |
-| `@fil/evolution` | Pure validation of proposed Flow patches. |
-| `@fil/store` | Repository over `.fil/`. |
-| `@fil/orchestrator` | `startRun / advance / back / cancel`. |
-| `@fil/inspect-view` | View-only Flow visualizer. |
-| `@fil/cli` | The `fil` command — thin wiring over the modules above. |
-| `fil-cli` | The meta-package that depends on `@fil/cli` and provides the `fil` bin. (The unscoped `fil` name is taken on npm — see the README.) |
+| `@color-sunset/fil-contract` | The `.fil/run.json` schema + serializers/validators. |
+| `@color-sunset/fil-engine` | The `FlowEngine` seam + the default XState implementation. |
+| `@color-sunset/fil-flow-loader` | Resolves Flow files across project/user precedence. |
+| `@color-sunset/fil-gate-runner` | Executes Gates → Receipts. |
+| `@color-sunset/fil-evolution` | Pure validation of proposed Flow patches. |
+| `@color-sunset/fil-store` | Repository over `.fil/`. |
+| `@color-sunset/fil-orchestrator` | `startRun / advance / back / cancel`. |
+| `@color-sunset/fil-inspect-view` | View-only Flow visualizer. |
+| `@color-sunset/fil-cli` | The `fil` command — thin wiring over the modules above. |
+| `@color-sunset/fil` | The meta-package that depends on `@color-sunset/fil-cli` and provides the `fil` bin. (Scoped under the `color-sunset` npm org because the `@fil` scope and the unscoped `fil` name are both unavailable — see the README.) |
 
 ## Filing issues
 

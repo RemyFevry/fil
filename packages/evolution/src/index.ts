@@ -1,5 +1,5 @@
-import type { FlowDefinition, FlowEngine } from "@fil/engine";
-import { engineEntryUrl } from "@fil/engine";
+import type { FlowDefinition, FlowEngine } from "@color-sunset/fil-engine";
+import { engineEntryUrl } from "@color-sunset/fil-engine";
 
 /**
  * Safe Flow evolution (the differentiator).
@@ -77,7 +77,7 @@ export async function applyProposal(
 
 /**
  * Default `loadCode`: write the Flow source to a temporary file, then
- * dynamically import it. The `@fil/engine` import in the Flow code is
+ * dynamically import it. The `@color-sunset/fil-engine` import in the Flow code is
  * rewritten to an absolute path resolved from this module's own location,
  * so the temp file can live anywhere (including the OS temp directory)
  * without Node ESM resolution failures.
@@ -90,7 +90,7 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
 
   const resolvedCode = engineEntryUrl
     ? code.replace(
-        /from\s+["']@fil\/engine["']/g,
+        /from\s+["']@color-sunset\/fil-engine["']/g,
         `from "${engineEntryUrl}"`,
       )
     : code;

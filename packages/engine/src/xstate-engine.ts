@@ -1,6 +1,6 @@
 import { createActor } from "xstate";
 import type { AnyStateMachine } from "xstate";
-import type { PhaseConfig } from "@fil/contract";
+import type { PhaseConfig } from "@color-sunset/fil-contract";
 import type {
   EngineSnapshot,
   EngineStatus,
@@ -16,7 +16,7 @@ import type {
  * The default `FlowEngine` implementation over XState v5 (ADR-0002, ADR-0003).
  *
  * A Flow is XState machine JS code, authored with `createMachine(...)` from
- * `@fil/engine` (which wraps xstate's `createMachine` internally) — matching
+ * `@color-sunset/fil-engine` (which wraps xstate's `createMachine` internally) — matching
  * the canonical XState examples at https://stately.ai/docs/xstate. Fil supplies
  * no inline implementations to the machine; per-Phase configuration lives on
  * each state node's `meta.phase`. Gate execution (with Receipt capture) is the

@@ -7,8 +7,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import type { RunProjection } from "@fil/contract";
-import { parseRunProjection, serializeRunProjection } from "@fil/contract";
+import type { RunProjection } from "@color-sunset/fil-contract";
+import { parseRunProjection, serializeRunProjection } from "@color-sunset/fil-contract";
 import {
   DEFAULT_CONFIG,
   type FilConfig,

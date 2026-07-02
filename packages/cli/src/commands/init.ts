@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BUILT_IN_FLOWS, serializeFlowCode } from "@fil/engine";
-import type { InstallScope, InstallResult } from "@fil/pi-adapter";
+import { BUILT_IN_FLOWS, serializeFlowCode } from "@color-sunset/fil-engine";
+import type { InstallScope, InstallResult } from "@color-sunset/fil-pi-adapter";
 import type { ParsedArgs } from "../args.js";
 import { flag } from "../args.js";
 import type { CliContext } from "../context.js";

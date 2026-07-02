@@ -1,6 +1,6 @@
-import { renderGraph } from "@fil/inspect-view";
-import { currentPhases } from "@fil/orchestrator";
-import { createMachine } from "@fil/engine";
+import { renderGraph } from "@color-sunset/fil-inspect-view";
+import { currentPhases } from "@color-sunset/fil-orchestrator";
+import { createMachine } from "@color-sunset/fil-engine";
 import type { CliContext } from "../context.js";
 import { activeRun, resolveFlowDefinition } from "./common.js";
 

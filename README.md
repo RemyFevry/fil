@@ -25,7 +25,7 @@ produces a verification Receipt.
 ## Highlights
 
 - **Flow as XState machine code** — Lifecycles are state machines authored with
-  `createMachine(...)` from `@fil/engine` — the same shape as the canonical
+  `createMachine(...)` from `@color-sunset/fil-engine` — the same shape as the canonical
   XState examples at <https://stately.ai/docs/xstate>. Fil owns the wrapper so Flow
   code never imports `xstate` directly.
 - **Steer, don't run** — Fil runs as a sidecar governor. The human keeps their
@@ -55,16 +55,16 @@ flowchart LR
             Phase["Phase<br/>(active, one at a time)"]
             Receipts["Receipts<br/>(per Gate)"]
         end
-        Store["@fil/store<br/>run.json projection"]
-        Contracts["@fil/contract<br/>schema"]
+        Store["@color-sunset/fil-store<br/>run.json projection"]
+        Contracts["@color-sunset/fil-contract<br/>schema"]
     end
 
     subgraph Fil["Fil CLI  (the spine)"]
         direction TB
-        Orchestrator["@fil/orchestrator<br/>startRun / advance / back / cancel"]
-        GateRunner["@fil/gate-runner<br/>runGate -> Receipt"]
-        Engine["@fil/engine<br/>FlowEngine seam<br/>+ XState impl"]
-        InspectView["@fil/inspect-view<br/>(view-only)"]
+        Orchestrator["@color-sunset/fil-orchestrator<br/>startRun / advance / back / cancel"]
+        GateRunner["@color-sunset/fil-gate-runner<br/>runGate -> Receipt"]
+        Engine["@color-sunset/fil-engine<br/>FlowEngine seam<br/>+ XState impl"]
+        InspectView["@color-sunset/fil-inspect-view<br/>(view-only)"]
     end
 
     subgraph Adapters["Adapters  (per Agent Runtime)"]
@@ -105,7 +105,7 @@ the **restrictions strategy is user-owned**.
 
 ```sh
 # 1. Install the Fil CLI from npm.
-npm install -g fil-cli
+npm install -g @color-sunset/fil
 
 # 2. Inside a project repo, scaffold the durable layout + built-in Flows.
 fil init
@@ -138,7 +138,7 @@ canonical example at <https://stately.ai/docs/xstate>.
 
 ```js
 // .fil/flows/default.js
-import { createMachine } from "@fil/engine";
+import { createMachine } from "@color-sunset/fil-engine";
 
 export default createMachine({
   id: "default",
@@ -222,20 +222,20 @@ audit trail — primitive #10 (verification & observability) made literal.
 
 ## Packages
 
-`fil` is a pnpm workspace monorepo. The CLI (`@fil/cli`) is a thin wiring
+`fil` is a pnpm workspace monorepo. The CLI (`@color-sunset/fil-cli`) is a thin wiring
 layer; everything else is a focused module.
 
 | Package | Responsibility |
 |---|---|
-| `@fil/contract` | The `.fil/run.json` schema + serializers/validators — the single source of truth every Adapter reads. |
-| `@fil/engine` | The `FlowEngine` seam (ADR-0003) plus the default XState implementation (ADR-0002). Ships `createMachine` (the Flow author-facing wrapper) and the built-in Flows (`default`, `hotfix`). |
-| `@fil/flow-loader` | Resolves Flow files across project/user precedence and load-validates the chosen config. |
-| `@fil/store` | Repository over `.fil/`: Runs, the `run.json` projection, Flow snapshots, and proposals. |
-| `@fil/orchestrator` | `startRun / advance / back / cancel` — drives the Flow via the engine and gate-runner, persists through the store. |
-| `@fil/gate-runner` | `runGate(gateSpec, ctx) → Receipt`. Executes shell, test-suite, and human-confirmation gates and captures evidence. |
-| `@fil/evolution` | Pure validation of proposed Flow patches (load + reachability) and unified-diff helpers. |
-| `@fil/inspect-view` | View-only visualizer over `FlowEngine.serialize()` and the active Phase. Consumes only the seam. |
-| `@fil/cli` | The `fil` command — a thin wiring over the modules above. |
+| `@color-sunset/fil-contract` | The `.fil/run.json` schema + serializers/validators — the single source of truth every Adapter reads. |
+| `@color-sunset/fil-engine` | The `FlowEngine` seam (ADR-0003) plus the default XState implementation (ADR-0002). Ships `createMachine` (the Flow author-facing wrapper) and the built-in Flows (`default`, `hotfix`). |
+| `@color-sunset/fil-flow-loader` | Resolves Flow files across project/user precedence and load-validates the chosen config. |
+| `@color-sunset/fil-store` | Repository over `.fil/`: Runs, the `run.json` projection, Flow snapshots, and proposals. |
+| `@color-sunset/fil-orchestrator` | `startRun / advance / back / cancel` — drives the Flow via the engine and gate-runner, persists through the store. |
+| `@color-sunset/fil-gate-runner` | `runGate(gateSpec, ctx) → Receipt`. Executes shell, test-suite, and human-confirmation gates and captures evidence. |
+| `@color-sunset/fil-evolution` | Pure validation of proposed Flow patches (load + reachability) and unified-diff helpers. |
+| `@color-sunset/fil-inspect-view` | View-only visualizer over `FlowEngine.serialize()` and the active Phase. Consumes only the seam. |
+| `@color-sunset/fil-cli` | The `fil` command — a thin wiring over the modules above. |
 
 ## Contributing
 
@@ -279,8 +279,8 @@ PRs are tagged on the [Fil MVP project board](https://github.com/users/RemyFevry
 
 ## Releases
 
-The `fil-cli` meta-package and every `@fil/*` package are published to npm
-under the MIT license. Versions are driven by
+The `@color-sunset/fil` meta-package and every `@color-sunset/fil-*` package
+are published to npm under the MIT license. Versions are driven by
 [Changesets](https://github.com/changesets/changesets) and follow
 [Semantic Versioning](https://semver.org/):
 
@@ -291,7 +291,7 @@ under the MIT license. Versions are driven by
 2. Pushing to `main` opens (or updates) a **Version Packages** PR that bumps
    the affected packages and writes their `CHANGELOG.md`. Internal-dependency
    coherence (`updateInternalDependencies: "patch"` in `.changeset/config.json`)
-   means that bumping `@fil/engine` also bumps every package that depends on
+   means that bumping `@color-sunset/fil-engine` also bumps every package that depends on
    it, so published versions stay in lockstep.
 3. Merging that PR runs the `release` workflow (`.github/workflows/release.yml`),
    which publishes the bumped packages to npm with
@@ -301,12 +301,18 @@ under the MIT license. Versions are driven by
 Releases are tagged `v<version>` and listed on the
 [GitHub releases page](https://github.com/RemyFevry/fil/releases). Pre-releases
 (`alpha`, `beta`) are published under their own npm dist-tags so users can
-opt in with `npm install fil-cli@beta`.
+opt in with `npm install @color-sunset/fil@beta`.
 
-> **Note on the name.** The package is `fil-cli`, not `fil` — the unscoped
-> `fil` name is already taken on npm by an unrelated static-site generator
-> ([ubenzer/fil](https://github.com/ubenzer/fil)). The `fil` *command* (the
-> bin) is unchanged.
+> **Note on the name.** The npm package is `@color-sunset/fil` (not
+> `@fil/fil` or unscoped `fil`) because:
+>
+> - the unscoped `fil` name is already taken on npm by an unrelated
+>   static-site generator ([ubenzer/fil](https://github.com/ubenzer/fil));
+> - the `@fil` scope on npm isn't owned by anyone, so we can't publish there.
+>
+> The `fil` *command* (the bin) is unchanged — users install
+> `npm install -g @color-sunset/fil` and still run `fil init`, `fil start`,
+> `fil next`, etc.
 
 ## License
 
