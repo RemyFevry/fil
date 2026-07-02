@@ -13,6 +13,7 @@
     { "path": "../gate-runner" },
     { "path": "../inspect-view" },
     { "path": "../orchestrator" },
+    { "path": "../pi-adapter" },
     { "path": "../store" }
   ]
 }

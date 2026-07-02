@@ -9,6 +9,7 @@
     { "path": "packages/store" },
     { "path": "packages/orchestrator" },
     { "path": "packages/inspect-view" },
-    { "path": "packages/cli" }
+    { "path": "packages/cli" },
+    { "path": "packages/pi-adapter" }
   ]
 }

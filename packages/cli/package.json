@@ -45,6 +45,7 @@
     "@fil/gate-runner": "workspace:*",
     "@fil/inspect-view": "workspace:*",
     "@fil/orchestrator": "workspace:*",
+    "@fil/pi-adapter": "workspace:*",
     "@fil/store": "workspace:*"
   }
 }
