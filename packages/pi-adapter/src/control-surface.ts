@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
  *
  * The verbs are *thin callers* over the `fil` CLI: behaviour is identical to the
  * CLI because they invoke the same binary. This keeps the deep logic in
- * `@fil/cli`/`@fil/orchestrator` and out of the Adapter (ADR-0001: steer, don't
+ * `@color-sunset/fil-cli`/`@color-sunset/fil-orchestrator` and out of the Adapter (ADR-0001: steer, don't
  * run). The rendered Pi extension (extension-source.ts) embeds a self-contained
  * equivalent; this module is the unit-testable source of truth for the verb set
  * and the arg↔argv mapping.
@@ -162,7 +162,7 @@ export function runFilVerb(
 /**
  * Resolve the `fil` executable. `FIL_BIN` (absolute path to the CLI entry, a
  * `.js`) → run via `node <entry>`; otherwise the `fil` bin is expected on PATH.
- * The `isMain` guard in `@fil/cli` recognises both forms from any cwd.
+ * The `isMain` guard in `@color-sunset/fil-cli` recognises both forms from any cwd.
  */
 export function filBin(): { cmd: string; pre: string[] } {
   const envBin = process.env.FIL_BIN;

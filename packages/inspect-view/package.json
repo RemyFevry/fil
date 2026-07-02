@@ -1,6 +1,6 @@
 {
-  "name": "@fil/inspect-view",
-  "version": "0.1.0",
+  "name": "@color-sunset/fil-inspect-view",
+  "version": "0.2.0",
   "description": "View-only visualizer over FlowEngine.serialize() + the active Phase. Consumes only the seam.",
   "license": "MIT",
   "type": "module",
@@ -35,6 +35,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@fil/engine": "workspace:*"
+    "@color-sunset/fil-engine": "workspace:*"
   }
 }

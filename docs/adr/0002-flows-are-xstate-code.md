@@ -6,7 +6,7 @@ Fil needs a format for Flows. Two options: a custom declarative schema (e.g. JSO
 
 ## Decision
 
-**Flows are XState machine JS code, authored with `createMachine(...)` from `@fil/engine`** (which wraps xstate's `createMachine` internally). Fil is a thin **host** over the chosen engine: it supplies Gate execution and Receipt capture, per-Phase harness configuration, and durability (snapshot persistence) — so Flows carry no inline functions. For the XState engine a Flow is a `.js`/`.ts` module matching the canonical XState example at https://stately.ai/docs/xstate; for a future engine (e.g. `python-statemachine`) the Flow would be `.py` code in that engine's native style. Fil layers SDLC semantics (Phase, Gate, Receipt, actor mode), durable Run records, Adapters, the gate-runner, Flow evolution, and the CLI on top.
+**Flows are XState machine JS code, authored with `createMachine(...)` from `@color-sunset/fil-engine`** (which wraps xstate's `createMachine` internally). Fil is a thin **host** over the chosen engine: it supplies Gate execution and Receipt capture, per-Phase harness configuration, and durability (snapshot persistence) — so Flows carry no inline functions. For the XState engine a Flow is a `.js`/`.ts` module matching the canonical XState example at https://stately.ai/docs/xstate; for a future engine (e.g. `python-statemachine`) the Flow would be `.py` code in that engine's native style. Fil layers SDLC semantics (Phase, Gate, Receipt, actor mode), durable Run records, Adapters, the gate-runner, Flow evolution, and the CLI on top.
 
 Fil does **not** reimplement: state machines, states, transitions, guards, actors, inspection/visualization, or versioning. Flow versioning is **git** (Flows are committed code).
 

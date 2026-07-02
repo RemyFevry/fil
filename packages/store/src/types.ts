@@ -1,5 +1,5 @@
-import type { EngineSnapshot } from "@fil/engine";
-import type { Receipt, RunProjection, RunStatus } from "@fil/contract";
+import type { EngineSnapshot } from "@color-sunset/fil-engine";
+import type { Receipt, RunProjection, RunStatus } from "@color-sunset/fil-contract";
 
 /**
  * Durable Fil layout (PRD):

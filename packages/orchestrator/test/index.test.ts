@@ -2,8 +2,8 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createMachine, defaultFlowEngine } from "@fil/engine";
-import { MemoryStore } from "@fil/store";
+import { createMachine, defaultFlowEngine } from "@color-sunset/fil-engine";
+import { MemoryStore } from "@color-sunset/fil-store";
 import {
   advance,
   back,

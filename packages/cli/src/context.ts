@@ -1,15 +1,15 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { defaultFlowEngine } from "@fil/engine";
-import type { FlowEngine } from "@fil/engine";
+import { defaultFlowEngine } from "@color-sunset/fil-engine";
+import type { FlowEngine } from "@color-sunset/fil-engine";
 import {
   detectPi,
   defaultFs as defaultPiFs,
   installPiAdapter as installPiAdapterReal,
   type InstallResult,
   type InstallScope,
-} from "@fil/pi-adapter";
-import { FilStore, type Store } from "@fil/store";
+} from "@color-sunset/fil-pi-adapter";
+import { FilStore, type Store } from "@color-sunset/fil-store";
 
 /** Runtime context shared by every CLI command. */
 export interface CliContext {
