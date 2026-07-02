@@ -46,6 +46,7 @@
     "@color-sunset/fil-inspect-view": "workspace:*",
     "@color-sunset/fil-orchestrator": "workspace:*",
     "@color-sunset/fil-pi-adapter": "workspace:*",
+    "@color-sunset/fil-claude-adapter": "workspace:*",
     "@color-sunset/fil-store": "workspace:*"
   }
 }

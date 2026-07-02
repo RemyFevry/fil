@@ -1,0 +1,40 @@
+{
+  "name": "@color-sunset/fil-claude-adapter",
+  "version": "0.0.0",
+  "description": "The Claude Code Adapter: constrains the Claude Code Agent Runtime to the active Fil Phase (allowedTools via a PreToolUse hook, instructions, context, skills) and installs through Claude Code's native settings channel.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RemyFevry/fil.git",
+    "directory": "packages/claude-adapter"
+  },
+  "homepage": "https://github.com/RemyFevry/fil",
+  "bugs": {
+    "url": "https://github.com/RemyFevry/fil/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@color-sunset/fil-contract": "workspace:*"
+  }
+}
