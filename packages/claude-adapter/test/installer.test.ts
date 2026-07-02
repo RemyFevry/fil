@@ -166,10 +166,36 @@ describe("mergePreToolUseHandler", () => {
     expect(doc.hooks.PreToolUse[0].hooks).toHaveLength(1);
   });
 
-  it("treats malformed settings JSON as empty (output is always valid JSON)", () => {
-    const { body, added } = mergePreToolUseHandler("{ not json", handler);
-    expect(added).toBe(true);
-    expect(() => JSON.parse(body)).not.toThrow();
+  it("throws on malformed settings JSON rather than silently clobbering it", () => {
+    // A broken settings.json must NOT be swallowed into {} (which would make
+    // the merge write a fresh doc and discard the user's settings).
+    expect(() => mergePreToolUseHandler("{ not json", handler)).toThrow(/not valid JSON/i);
+  });
+
+  it("throws on a non-object root or unexpected hook shape", () => {
+    expect(() => mergePreToolUseHandler("[1,2,3]", handler)).toThrow(/not a JSON object/i);
+    expect(() => mergePreToolUseHandler(JSON.stringify({ hooks: "nope" }), handler)).toThrow(/hooks.*not an object/i);
+    expect(() => mergePreToolUseHandler(JSON.stringify({ hooks: { PreToolUse: "nope" } }), handler)).toThrow(
+      /PreToolUse.*not an array/i,
+    );
+    expect(() =>
+      mergePreToolUseHandler(JSON.stringify({ hooks: { PreToolUse: [{ matcher: "", hooks: "nope" }] } }), handler),
+    ).toThrow(/hooks.*not an array/i);
+  });
+});
+
+describe("installClaudeAdapter — settings.json safety", () => {
+  it("leaves a malformed settings.json untouched and reports the error (no clobber)", () => {
+    const fs = memFs();
+    fs.write(join(workdir, ".claude/settings.json"), "{ broken");
+    const result = installClaudeAdapter({ projectRoot: workdir, fs, claudeDetected: true });
+    // Hook script still installed…
+    expect(result.installed).toBe(true);
+    expect(fs.read(join(workdir, ".claude/fil/pretooluse-hook.js"))).toBeTruthy();
+    // …but settings.json is preserved verbatim and the reason explains it.
+    expect(fs.read(join(workdir, ".claude/settings.json"))).toBe("{ broken");
+    expect(result.reason).toMatch(/settings.json was left untouched/);
+    expect(result.reason).toMatch(/not valid JSON/i);
   });
 });
 
@@ -188,5 +214,18 @@ describe("detectClaude", () => {
     const fs = memFs();
     fs.write("/home/pilot/.claude.json", "{}");
     expect(detectClaude(fs, "/home/pilot")).toBe(true);
+  });
+
+  it("detects claude.exe on PATH (Windows-style filename, cross-platform probe)", () => {
+    const fs = memFs();
+    fs.mkdir("/custom-bin");
+    fs.write("/custom-bin/claude.exe", "");
+    const oldPath = process.env.PATH;
+    process.env.PATH = "/custom-bin";
+    try {
+      expect(detectClaude(fs, "/home/empty")).toBe(true);
+    } finally {
+      process.env.PATH = oldPath;
+    }
   });
 });
