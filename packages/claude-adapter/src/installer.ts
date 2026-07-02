@@ -268,18 +268,18 @@ export function mergePreToolUseHandler(
   return { body: stringifySettings(doc), added };
 }
 
-/** Throw a clear error if `v` is not a plain object; otherwise narrow it. */
+/** Throw a clear TypeError if `v` is not a plain object; otherwise narrow it. */
 function asObject<T extends Record<string, unknown>>(v: unknown, where: string): T {
   if (!v || typeof v !== "object" || Array.isArray(v)) {
-    throw new Error(`Existing .claude/settings.json has an unexpected shape: "${where}" is not an object.`);
+    throw new TypeError(`Existing .claude/settings.json has an unexpected shape: "${where}" is not an object.`);
   }
   return v as T;
 }
 
-/** Throw a clear error if `v` is not an array; otherwise narrow it. */
+/** Throw a clear TypeError if `v` is not an array; otherwise narrow it. */
 function asArray<T>(v: unknown, where: string): T[] {
   if (!Array.isArray(v)) {
-    throw new Error(`Existing .claude/settings.json has an unexpected shape: "${where}" is not an array.`);
+    throw new TypeError(`Existing .claude/settings.json has an unexpected shape: "${where}" is not an array.`);
   }
   return v as T[];
 }
