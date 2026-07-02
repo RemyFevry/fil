@@ -237,6 +237,12 @@ function filToArgv(params, spec) {
 }
 
 function filRun(argv, cwd) {
+  // Test seam: when set, route through the injected runner instead of spawning
+  // the fil binary. Lets the tool-surface tests verify dispatch without spawning
+  // it (environment-flaky in CI). Undefined in production.
+  if (typeof globalThis !== "undefined" && globalThis.__filRunForTests__) {
+    return globalThis.__filRunForTests__(argv, cwd);
+  }
   const envBin = process.env.FIL_BIN;
   const res = envBin
     ? spawnSync(process.execPath, [envBin, ...argv], { cwd, encoding: "utf8" })
