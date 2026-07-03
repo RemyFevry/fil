@@ -136,7 +136,7 @@ export function installClaudeAdapter(opts: InstallOptions): InstallResult {
   let wrote = false;
   const settingsErrors: string[] = [];
   for (const s of scopesOf(scope)) {
-    const r = installAtScope(fs, paths[s], s, projectRoot, source);
+    const r = installAtScope(fs, paths[s], s, source);
     wrote = r.wrote || wrote;
     if (r.settingsError) settingsErrors.push(r.settingsError);
   }
@@ -169,7 +169,6 @@ function installAtScope(
   fs: InstallerFs,
   paths: ClaudeScopePaths,
   scope: "project" | "user",
-  projectRoot: string,
   source: string,
 ): { wrote: boolean; settingsError?: string } {
   let wrote = false;
