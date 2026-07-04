@@ -16,18 +16,19 @@ beforeAll(async () => {
   await writeFile(failScript, "#!/bin/sh\necho 'boom' 1>&2\nexit 3\n");
 });
 
-afterAll(async () => {
+afterAll(() => {
   // tmpdir contents are reaped by the OS; nothing to clean here.
 });
 
 describe("gate-runner", () => {
   it("a passing shell gate yields a pass Receipt with evidence", async () => {
     const receipt = await runGate(
-      { type: "shell", script: `sh ${passScript}` },
+      { name: "g", type: "shell", script: `sh ${passScript}` },
       { cwd: workdir, phase: "code" },
     );
     expect(receipt.outcome).toBe("pass");
     expect(receipt.gateType).toBe("shell");
+    expect(receipt.gateName).toBe("g");
     expect(receipt.phase).toBe("code");
     expect(receipt.evidence.exitCode).toBe(0);
     expect(receipt.evidence.stdout).toBe("all good");
@@ -36,7 +37,7 @@ describe("gate-runner", () => {
 
   it("a failing shell gate yields a fail Receipt with captured output", async () => {
     const receipt = await runGate(
-      { type: "shell", script: `sh ${failScript}` },
+      { name: "g", type: "shell", script: `sh ${failScript}` },
       { cwd: workdir, phase: "code" },
     );
     expect(receipt.outcome).toBe("fail");
@@ -46,7 +47,7 @@ describe("gate-runner", () => {
 
   it("a testsPass gate runs the given command", async () => {
     const receipt = await runGate(
-      { type: "testsPass", command: "true" },
+      { name: "g", type: "testsPass", command: "true" },
       { cwd: workdir },
     );
     expect(receipt.outcome).toBe("pass");
@@ -56,6 +57,7 @@ describe("gate-runner", () => {
   it("records an artifactPath when declared", async () => {
     const receipt = await runGate(
       {
+        name: "g",
         type: "shell",
         script: "true",
         artifactPath: join(workdir, "pass.sh"),
@@ -67,17 +69,18 @@ describe("gate-runner", () => {
 
   it("a human gate confirms via the injected prompter", async () => {
     const receipt = await runGate(
-      { type: "human", prompt: "Ship it?" },
+      { name: "approve", type: "human", prompt: "Ship it?" },
       { cwd: workdir, phase: "review", prompter: async () => true },
     );
     expect(receipt.outcome).toBe("pass");
     expect(receipt.evidence.confirmed).toBe(true);
     expect(receipt.gateType).toBe("human");
+    expect(receipt.gateName).toBe("approve");
   });
 
   it("declining a human gate yields a fail Receipt", async () => {
     const receipt = await runGate(
-      { type: "human" },
+      { name: "approve", type: "human" },
       { cwd: workdir, phase: "review", prompter: async () => false },
     );
     expect(receipt.outcome).toBe("fail");
@@ -86,7 +89,7 @@ describe("gate-runner", () => {
 
   it("Receipts are JSON-serializable", async () => {
     const receipt = await runGate(
-      { type: "shell", script: "true" },
+      { name: "g", type: "shell", script: "true" },
       { cwd: workdir },
     );
     expect(() => JSON.stringify(receipt)).not.toThrow();

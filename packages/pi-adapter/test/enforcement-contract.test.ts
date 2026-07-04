@@ -38,7 +38,7 @@ function contractFixture(): RunProjection {
         priorResults: [".fil/runs/run-0/receipts/receipt-1.json"],
       },
       actorMode: "agent",
-      gate: { type: "testsPass", command: "pnpm test" },
+      gates: [{ name: "tests", type: "testsPass", command: "pnpm test" }],
     },
   };
 }
@@ -133,7 +133,7 @@ describe("Pi enforcement ↔ contract (round-trip)", () => {
     expect(prompt).toContain('change "add-login"');
     expect(prompt).toContain('flow "default"');
     expect(prompt).toContain("Phase Code");
-    expect(prompt).toContain("Gate (to advance): test suite");
+    expect(prompt).toContain("Gates (to advance, all must pass): tests=test suite");
   });
 
   it("is dormant when the contract status is not active (acceptance criterion: no enforcement on done/cancelled)", () => {

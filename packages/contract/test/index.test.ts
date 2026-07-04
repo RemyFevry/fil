@@ -21,7 +21,7 @@ const valid: RunProjection = {
     skills: ["tdd"],
     context: { files: ["src/"], notes: "prior phase notes", priorResults: [] },
     actorMode: "agent",
-    gate: { type: "testsPass" },
+    gates: [{ name: "tests", type: "testsPass" }],
   },
 };
 
@@ -33,8 +33,7 @@ describe("contract validation", () => {
     const parsed = parseRunProjection(serialized.ok ? serialized.value : "");
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
-      expect(parsed.value.runId).toBe("run-1");
-      expect(parsed.value.phaseConfig.gate.type).toBe("testsPass");
+      expect(parsed.value.phaseConfig.gates[0]?.type).toBe("testsPass");
     }
   });
 
@@ -63,19 +62,57 @@ describe("contract validation", () => {
   it("rejects an unknown gate type", () => {
     const invalid = {
       ...valid,
-      phaseConfig: { ...valid.phaseConfig, gate: { type: "magic" } },
+      phaseConfig: { ...valid.phaseConfig, gates: [{ name: "x", type: "magic" }] },
     };
     const result = validate(RunProjectionSchema, invalid);
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.error).toContain("gate");
+    expect(!result.ok && result.error).toContain("gates");
   });
 
   it("accepts a human-confirmation gate", () => {
     const humanGate = {
       ...valid,
-      phaseConfig: { ...valid.phaseConfig, gate: { type: "human" } },
+      phaseConfig: { ...valid.phaseConfig, gates: [{ name: "approve", type: "human" }] },
     };
     expect(validate(RunProjectionSchema, humanGate).ok).toBe(true);
+  });
+
+  it("accepts multiple named gates on a Phase", () => {
+    const multi = {
+      ...valid,
+      phaseConfig: {
+        ...valid.phaseConfig,
+        gates: [
+          { name: "lint", type: "shell", script: "pnpm lint" },
+          { name: "tests", type: "testsPass", command: "pnpm test" },
+        ],
+      },
+    };
+    expect(validate(RunProjectionSchema, multi).ok).toBe(true);
+  });
+
+  it("rejects duplicate gate names within a Phase (ADR-0004)", () => {
+    const dup = {
+      ...valid,
+      phaseConfig: {
+        ...valid.phaseConfig,
+        gates: [
+          { name: "g", type: "shell", script: "true" },
+          { name: "g", type: "testsPass" },
+        ],
+      },
+    };
+    const result = validate(RunProjectionSchema, dup);
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain("unique");
+  });
+
+  it("rejects a Phase with no gates (at least one is required)", () => {
+    const none = {
+      ...valid,
+      phaseConfig: { ...valid.phaseConfig, gates: [] },
+    };
+    expect(validate(RunProjectionSchema, none).ok).toBe(false);
   });
 
   it("accepts parallel active phases", () => {

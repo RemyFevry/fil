@@ -23,8 +23,8 @@ Most agent harnesses (Claude Code, Cursor, Pi) leave the SDLC to the human's dis
 - **Flow** — a state machine (default engine: XState) defining how a **Change** is delivered: its **Phases**, **Transitions**, **Gates**, and per-Phase harness config. Lives at project (`.fil/flows/`) or user (`~/.fil/flows/`) level; versioned via git; authored as serializable engine config.
 - **Run** — one execution of a Flow, bound to one **Change** (feature / fix / refactor). Snapshots the Flow version at start; frozen when done.
 - **Phase** — a node (XState state) agents execute within. Actor mode ∈ {`human`, `agent`, `collaborative`}. Carries per-Phase config: instructions, context delivery, tool-interface restrictions, skills, exit verification. Sub-agents are nudged via instructions (not declared); parallel attention = parallel Phases.
-- **Transition** — edge; carries one property: a **Gate**. Human-gating is simply a Gate whose test is a human-confirmation prompt.
-- **Gate** — a user-defined executable test (script / test file / API call / human-confirmation prompt). Always present (no ungated transitions). **Fil runs it** on `fil next`, capturing a **Receipt** (pass/fail + evidence).
+- **Transition** — edge; its taking is gated: all of the source **Phase**'s exit **Gates** must pass. Human-gating is simply a Gate whose test is a human-confirmation prompt.
+- **Gate** — a named, user-defined executable test (script / test file / API call / human-confirmation prompt). A Phase has one or more; all must pass (no ungated Phases). **Fil runs each** on `fil next`, capturing a **Receipt** per Gate (pass/fail + evidence) — see ADR-0004.
 - **FlowEngine** seam (ADR-0003) — XState is the default; the seam is cross-language-capable so a future engine (e.g. a Python service) can replace it. Flow files are engine-specific; migration is the user's job.
 
 ## How a Run flows

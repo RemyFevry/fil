@@ -39,7 +39,7 @@ function demoFlow() {
         skills: [],
         context: { files: [], priorResults: [] },
         actorMode: "agent",
-        gate,
+        gates: [{ name: "g", ...gate }],
         ...extra,
       },
     },
@@ -130,7 +130,7 @@ describe("fil CLI — end to end", () => {
     statusCommand(ctx);
     const out = lines.join("\n");
     expect(out).toContain("Phase   a");
-    expect(out).toContain("Gate    shell command");
+    expect(out).toContain("Gates   g (shell command)");
     expect(out).toContain("Actor   agent");
   });
 

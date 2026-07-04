@@ -20,7 +20,8 @@ export function statusCommand(ctx: CliContext): number {
     `Phase   ${projection.phases.join(", ")}${projection.phases.length > 1 ? "  (parallel)" : ""}`,
   );
   ctx.out.log(`Actor   ${projection.actorMode}`);
-  ctx.out.log(`Gate    ${describeGate(cfg.gate.type)}`);
+  const gateList = cfg.gates.map((g) => `${g.name} (${describeGate(g.type)})`).join(", ");
+  ctx.out.log(`Gates   ${gateList}`);
   ctx.out.log(`Tools   ${cfg.allowedTools.join(", ") || "(none)"}`);
   if (cfg.skills.length > 0) ctx.out.log(`Skills  ${cfg.skills.join(", ")}`);
   if (cfg.instructions) ctx.out.log(`\nInstructions:\n  ${cfg.instructions}`);

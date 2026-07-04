@@ -60,7 +60,7 @@ const FALLBACK_PHASE_CONFIG: PhaseConfig = {
   skills: [],
   context: { files: [], priorResults: [] },
   actorMode: "human",
-  gate: { type: "shell", script: "true" },
+  gates: [{ name: "noop", type: "shell", script: "true" }],
 };
 
 // ---------------------------------------------------------------------------
@@ -138,7 +138,8 @@ export async function advance(
     };
   }
 
-  // Run the exit Gate of every active Phase. All must pass (parallel Phases).
+  // Run every named exit Gate of every active Phase. All gates in all parallel
+  // Phases must pass (AND); run all and report every failure (ADR-0004).
   const runGate = deps.runGate ?? defaultRunGate;
   const receipts: Receipt[] = [];
   let allPassed = true;
@@ -150,20 +151,23 @@ export async function advance(
       continue;
     }
     const ctx: GateContext = { cwd: deps.cwd, phase: phaseId, prompter: deps.prompter };
-    let receipt: Receipt;
-    try {
-      receipt = await runGate(config.gate, ctx);
-    } catch (err) {
-      receipt = {
-        phase: phaseId,
-        gateType: config.gate.type,
-        outcome: "fail",
-        evidence: { stderr: `Gate runner error: ${errMsg(err)}` },
-        ranAt: new Date().toISOString(),
-      };
+    for (const gate of config.gates) {
+      let receipt: Receipt;
+      try {
+        receipt = await runGate(gate, ctx);
+      } catch (err) {
+        receipt = {
+          phase: phaseId,
+          gateName: gate.name,
+          gateType: gate.type,
+          outcome: "fail",
+          evidence: { stderr: `Gate runner error: ${errMsg(err)}` },
+          ranAt: new Date().toISOString(),
+        };
+      }
+      receipts.push(receipt);
+      if (receipt.outcome !== "pass") allPassed = false;
     }
-    receipts.push(receipt);
-    if (receipt.outcome !== "pass") allPassed = false;
   }
 
   if (!allPassed) {
@@ -286,6 +290,7 @@ function appendReceipts(run: RunState, receipts: Receipt[]): RunState {
 function missingConfigReceipt(phaseId: string): Receipt {
   return {
     phase: phaseId,
+    gateName: "(missing)",
     gateType: "none",
     outcome: "fail",
     evidence: { stderr: `Phase "${phaseId}" has no PhaseConfig.` },

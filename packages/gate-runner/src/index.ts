@@ -4,8 +4,8 @@ import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import type {
-  GateSpec,
   GateType,
+  NamedGate,
   Receipt,
   ReceiptEvidence,
   ReceiptOutcome,
@@ -29,24 +29,25 @@ export interface GateContext {
   prompter?: (message: string) => Promise<boolean>;
 }
 
-/** Run a Gate, capturing a Receipt (pass/fail + evidence). */
+/** Run a named Gate, capturing a Receipt (pass/fail + evidence). */
 export async function runGate(
-  gate: GateSpec,
+  gate: NamedGate,
   ctx: GateContext,
 ): Promise<Receipt> {
   switch (gate.type) {
     case "shell":
-      return runShell(gate.script, gate.artifactPath, ctx);
+      return runShell(gate.script, gate.artifactPath, gate.name, ctx);
     case "testsPass":
-      return runShell(gate.command ?? "npm test", undefined, ctx);
+      return runShell(gate.command ?? "npm test", undefined, gate.name, ctx);
     case "human":
-      return runHuman(gate.prompt, ctx);
+      return runHuman(gate.prompt, gate.name, ctx);
   }
 }
 
 function runShell(
   script: string,
   artifactPath: string | undefined,
+  gateName: string,
   ctx: GateContext,
 ): Receipt {
   const result = spawnSync(script, {
@@ -65,18 +66,19 @@ function runShell(
   if (artifactPath && outcome === "pass") {
     evidence.artifactPath = artifactPath;
   }
-  return buildReceipt(ctx, "shell", outcome, evidence);
+  return buildReceipt(ctx, gateName, "shell", outcome, evidence);
 }
 
 async function runHuman(
   prompt: string | undefined,
+  gateName: string,
   ctx: GateContext,
 ): Promise<Receipt> {
   const message = prompt ?? "Confirm this phase is complete and may advance.";
   const confirmed = ctx.prompter
     ? await ctx.prompter(message)
     : await defaultPrompter(message);
-  return buildReceipt(ctx, "human", confirmed ? "pass" : "fail", {
+  return buildReceipt(ctx, gateName, "human", confirmed ? "pass" : "fail", {
     confirmed,
   });
 }
@@ -93,12 +95,14 @@ async function defaultPrompter(message: string): Promise<boolean> {
 
 function buildReceipt(
   ctx: GateContext,
+  gateName: string,
   gateType: GateType,
   outcome: ReceiptOutcome,
   evidence: ReceiptEvidence,
 ): Receipt {
   return {
     phase: ctx.phase ?? "",
+    gateName,
     gateType,
     outcome,
     evidence,

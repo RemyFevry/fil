@@ -55,6 +55,19 @@ export class XStateFlowEngine implements FlowEngine {
       transitions,
     );
 
+    // ADR-0004 clean-break aid: a Phase still carrying the pre-ADR-0004 singular
+    // `gate` shape fails load with a migration hint (no silent compat shim).
+    const legacy = detectLegacyGateShape(meta);
+    if (legacy) {
+      return {
+        ok: false,
+        error:
+          `Flow "${flowName}" uses the old single-gate shape (Phase "${legacy}" has \`gate\` ` +
+          `instead of \`gates\`). Re-run \`fil init\` to re-scaffold, or rename \`gate:{...}\` ` +
+          `to \`gates:[{name, type, ...}]\` (ADR-0004).`,
+      };
+    }
+
     // Validate the machine actually runs by materialising its initial snapshot.
     let initialSnapshot: EngineSnapshot;
     try {
@@ -122,6 +135,21 @@ interface StateNodeDef {
 function persist(actor: ReturnType<typeof createActor>): EngineSnapshot {
   const persisted = actor.getPersistedSnapshot();
   return persisted as unknown as EngineSnapshot;
+}
+
+/**
+ * Detect a Phase still carrying the pre-ADR-0004 singular `gate` field. Such a
+ * Phase lacks the required `gates` array; surface a clear migration error
+ * instead of letting downstream code fail on `undefined` gates.
+ */
+function detectLegacyGateShape(meta: Map<string, PhaseConfig>): string | null {
+  for (const [id, phase] of meta) {
+    const raw = phase as unknown as { gate?: unknown; gates?: unknown };
+    if (raw.gate !== undefined && !Array.isArray(raw.gates)) {
+      return id;
+    }
+  }
+  return null;
 }
 
 function statusOf(snapshot: EngineSnapshot): EngineStatus {

@@ -74,7 +74,7 @@ describe("FilStore (real fs, tmpdir)", () => {
         skills: [],
         context: { files: [], priorResults: [] },
         actorMode: "collaborative" as const,
-        gate: { type: "shell" as const, script: "true" },
+        gates: [{ name: "noop", type: "shell" as const, script: "true" }],
       },
     };
     store.writeProjection(projection);

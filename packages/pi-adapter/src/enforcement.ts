@@ -197,7 +197,7 @@ function composeSystemPrompt(projection: RunProjection): string {
     "# Fil — current Run",
     `Run ${projection.runId} · change "${projection.change}" · flow "${projection.flowName}"`,
     `Phase ${phaseLine} · actor ${projection.actorMode}`,
-    `Gate (to advance): ${describeGate(cfg.gate.type)}`,
+    `Gates (to advance, all must pass): ${cfg.gates.map((g) => `${g.name}=${describeGate(g.type)}`).join(", ")}`,
     "Advance via `fil next` (the gate runs an external test, not the agent's say-so).",
   ];
   return blocks.filter((b) => b.length > 0).join("\n");

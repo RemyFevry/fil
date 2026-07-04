@@ -153,10 +153,13 @@ export default createMachine({
           skills: [],
           context: { files: ["docs/adr/", "docs/OVERVIEW.md"], priorResults: [] },
           actorMode: "collaborative",
-          gate: {
-            type: "human",
-            prompt: "Approve the design and proceed to implementation?",
-          },
+          gates: [
+            {
+              name: "approval",
+              type: "human",
+              prompt: "Approve the design and proceed to implementation?",
+            },
+          ],
         },
       },
       on: { NEXT: "code" },
@@ -169,7 +172,7 @@ export default createMachine({
           skills: ["tdd"],
           context: { files: ["src/"], priorResults: ["design"] },
           actorMode: "agent",
-          gate: { type: "testsPass", command: "npm test" },
+          gates: [{ name: "tests", type: "testsPass", command: "npm test" }],
         },
       },
       on: { NEXT: "review" },
@@ -183,10 +186,10 @@ A Run prints progress as Gates fire:
 ```text
 $ fil next
 Advanced to: design
-  gate (human): pass
+  gate approval (human): pass
 $ fil next
 Advanced to: code
-  gate (testsPass): pass
+  gate tests (testsPass): pass
 ```
 
 ## CLI reference
