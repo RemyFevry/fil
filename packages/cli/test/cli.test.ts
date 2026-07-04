@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultContext, type CliContext } from "../src/context.js";
 import { initCommand } from "../src/commands/init.js";
 import { startCommand } from "../src/commands/start.js";
@@ -10,7 +10,7 @@ import { statusCommand } from "../src/commands/status.js";
 import { backCommand, cancelCommand } from "../src/commands/back-cancel.js";
 import { proposeCommand } from "../src/commands/propose.js";
 import { approveCommand } from "../src/commands/approve.js";
-import { inspectCommand } from "../src/commands/inspect.js";
+import { inspectCommand, runInspectLoop, describeValue } from "../src/commands/inspect.js";
 import { parseArgs } from "../src/args.js";
 import { serializeFlowCode, createMachine, type FlowDefinition } from "@color-sunset/fil-engine";
 
@@ -162,21 +162,21 @@ describe("fil CLI — end to end", () => {
     expect(await nextCommand(ctx)).toBe(1);
   });
 
-  it("inspect renders the active Run's Flow with the active Phase highlighted", async () => {
+  it("inspect --text renders the active Run's Flow with the active Phase highlighted", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
     ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
-    inspectCommand(ctx);
+    await inspectCommand(ctx, parseArgs(["--text"]));
     const out = lines.join("\n");
     expect(out).toContain("demo");
     expect(out).toContain("active Phase: a");
   });
 
-  it("inspect renders the default Flow when there is no Run", () => {
+  it("inspect --text renders the default Flow when there is no Run", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    inspectCommand(ctx);
+    await inspectCommand(ctx, parseArgs(["--text"]));
     expect(lines.join("\n")).toContain("default");
   });
 
