@@ -7,7 +7,13 @@ export {
   serializeFlowCode,
 } from "./flows/index.js";
 export { createMachine } from "./flows/create-machine.js";
+export { inspectFlow } from "./inspect.js";
 export type { BuiltInFlow } from "./flows/index.js";
+export type {
+  InspectFlowOptions,
+  InspectFlowDeps,
+  InspectHandle,
+} from "./inspect.js";
 
 import type { FlowEngine } from "./seam.js";
 import { XStateFlowEngine } from "./xstate-engine.js";

@@ -27,7 +27,9 @@ function listTsFiles(dir: string, acc: string[] = []): string[] {
  * package — they ARE the engine's adapter surface. `create-machine.ts`
  * is the Fil Flow author-facing wrapper around `createMachine`; without
  * it Flow files would have to import xstate directly, breaking ADR-0003
- * at a higher level.
+ * at a higher level. `inspect.ts` wires the Stately inspector
+ * (`@statelyai/inspect`) to a real XState actor; the inspector needs
+ * `createActor`, so it lives here alongside the other xstate adapters.
  */
 describe("engine isolation (ADR-0003)", () => {
   it("imports the xstate package only from the engine adapter modules", () => {
@@ -35,6 +37,7 @@ describe("engine isolation (ADR-0003)", () => {
     const allowed = new Set([
       "packages/engine/src/xstate-engine.ts",
       "packages/engine/src/flows/create-machine.ts",
+      "packages/engine/src/inspect.ts",
     ]);
     for (const file of listTsFiles(packagesDir)) {
       const rel = relative(repoRoot, file).replace(/\\/g, "/");
