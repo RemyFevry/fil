@@ -506,3 +506,76 @@ describe("fil init — adapter installs (Claude + Pi, stubbed)", () => {
     expect(calls).toEqual([]);
   });
 });
+describe("runInspectLoop", () => {
+  it("exits immediately if the Flow is already done (never opens the reader)", async () => {
+    const opened: boolean[] = [];
+    const onDone = vi.fn();
+    await runInspectLoop({
+      isDone: () => true,
+      send: () => {},
+      openReader: async () => {
+        opened.push(true);
+        return async () => null;
+      },
+      onDone,
+    });
+    expect(opened).toHaveLength(0);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances once per line and stops at the terminal Phase", async () => {
+    const script = ["a", "a", ""]; // Enter, Enter, then EOF
+    let value = "a";
+    const sends = vi.fn(() => {
+      value = value === "a" ? "b" : "done";
+    });
+    const onAdvance = vi.fn();
+    const onDone = vi.fn();
+    await runInspectLoop({
+      isDone: () => value === "done",
+      send: sends,
+      openReader: async () => async () => script.shift() ?? null,
+      onAdvance,
+      onDone,
+    });
+    // Two advances: a -> b, then b -> done.
+    expect(sends).toHaveBeenCalledTimes(2);
+    expect(onAdvance).toHaveBeenCalledTimes(2);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops on EOF before reaching done", async () => {
+    const sends = vi.fn();
+    await runInspectLoop({
+      isDone: () => false,
+      send: sends,
+      openReader: async () => async () => null,
+      onDone: vi.fn(),
+    });
+    expect(sends).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe("describeValue", () => {
+  it("renders a leaf Phase name as-is", () => {
+    expect(describeValue("code")).toBe("code");
+  });
+
+  it("renders null/undefined as a placeholder", () => {
+    expect(describeValue(null)).toBe("—");
+    expect(describeValue(undefined)).toBe("—");
+  });
+
+  it("renders a parallel Phase value (object) as JSON", () => {
+    expect(describeValue({ branchA: "x", branchB: "y" })).toBe(
+      JSON.stringify({ branchA: "x", branchB: "y" }),
+    );
+  });
+
+  it("falls back to String() for non-serialisable values (circular)", () => {
+    const cyclic: { self?: unknown } = {};
+    cyclic.self = cyclic;
+    // JSON.stringify throws on cycles; describeValue must not.
+    expect(typeof describeValue(cyclic)).toBe("string");
+  });
+});

@@ -1,7 +1,12 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { defaultFlowEngine } from "@color-sunset/fil-engine";
-import type { FlowEngine } from "@color-sunset/fil-engine";
+import { defaultFlowEngine, inspectFlow } from "@color-sunset/fil-engine";
+import type {
+  FlowEngine,
+  InspectFlowDeps,
+  InspectFlowOptions,
+  InspectHandle,
+} from "@color-sunset/fil-engine";
 import {
   detectPi,
   defaultFs as defaultPiFs,
@@ -37,6 +42,15 @@ export interface CliContext {
   /** Human-confirmation prompter (defaults to interactive stdin). */
   prompter?: (message: string) => Promise<boolean>;
   /**
+   * Launch the Stately inspector for a Flow (ADR-0002 visualizer). Optional so
+   * tests can stub it; `defaultContext` binds the real engine export, which
+   * opens the inspector UI in the browser.
+   */
+  inspectFlow?: (
+    options: InspectFlowOptions,
+    deps?: InspectFlowDeps,
+  ) => Promise<InspectHandle>;
+  /**
    * Installs the Pi adapter for the project. Optional so tests can stub it;
    * `defaultContext` binds a real one that respects the working directory
    * and detects Pi via the host filesystem.
@@ -71,6 +85,9 @@ export function defaultContext(
     out: { log: console.log, error: console.error },
   };
   const merged: CliContext = { ...base, ...overrides };
+  if (!("inspectFlow" in overrides)) {
+    merged.inspectFlow = inspectFlow;
+  }
   // Only auto-bind the real installer if the caller didn't supply one
   // (an explicit `installPiAdapter: undefined` opts out — the test for
   // the "no callback" branch relies on this).

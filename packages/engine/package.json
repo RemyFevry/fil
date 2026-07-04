@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@color-sunset/fil-contract": "workspace:*",
+    "@statelyai/inspect": "^0.7.2",
     "xstate": "^5.18.0"
   }
 }
