@@ -37,8 +37,9 @@ contract that makes "grab any `ready-for-agent` issue and go" safe.
 
 ## Local setup
 
-You need **Node 20+** and **pnpm 10**. The exact pnpm version is pinned via the `packageManager` field in
-`package.json`.
+You need **Node 20+** locally (CI runs Node 26; pure-TS analysis is Node-version-independent so 22, 24,
+or 26 all work locally). You also need **pnpm 10**. The exact pnpm version is pinned via the
+`packageManager` field in `package.json`.
 
 ```sh
 # Clone
@@ -47,6 +48,20 @@ cd fil
 
 # Install deps (frozen lockfile — required by CI)
 pnpm install --frozen-lockfile
+```
+
+Fil uses [lefthook](https://lefthook.dev) for git hooks. Install it once per machine (the `prepare`
+script wires it up on `pnpm install`):
+
+```sh
+# macOS
+brew install lefthook
+
+# Windows (Scoop)
+scoop install lefthook
+
+# Debian / Ubuntu (download .deb from the GitHub releases page)
+# Fedora / RHEL: download .rpm, or `dnf install lefthook` if your distro ships it.
 ```
 
 ## Development workflow
@@ -76,8 +91,10 @@ If you don't use Worktrunk, a plain git worktree is fine — just make sure you'
   uses this to keep the board honest.
 - **Add a changeset** for any user-facing change: `pnpm changeset`. Pick the affected packages, the bump type
   (`patch` / `minor` / `major`), and write a one-line summary. Commit the resulting `.changeset/*.md` file.
-- **Pre-merge gates** (CI): `pnpm lint && pnpm lint:md && pnpm build && pnpm typecheck && pnpm test`, on
-  Ubuntu and macOS, Node 20 and 22.
+- **Pre-merge gates** (CI): two workflows — `lint-build` (Ubuntu + Node 26: lint, lint:md, build,
+  typecheck) and `test` (Linux always; macOS on non-draft PRs; Node 26 throughout). Required
+  status checks are `lint-build / verify`, `test / test-linux`, `test / test-cross-os (macos-latest)`.
+  Windows is deferred to a follow-up issue — see `docs/adr/0005-…` for context.
 
 ## Quick checks
 

@@ -1,0 +1,110 @@
+name: test
+
+# Cross-OS test matrix: Linux always; macOS runs on push-to-main and on
+# non-draft PRs. Two jobs total in steady state.
+#
+# Linux runs on draft PRs as a fast smoke test (vitest is the harness —
+# it works identically on every OS, so cross-OS is mostly about catching
+# path-separator / shell-script bugs in the runner, not vitest bugs).
+# macOS is deferred until the PR is ready for review to save CI minutes
+# on iteration.
+#
+# Windows was originally added in this matrix but is deferred — see
+# docs/adr/0005-… and the follow-up issue. The shell default below is
+# kept at `bash` for symmetry with lint-build.yml so any future re-add
+# of `windows-latest` is a one-line matrix entry.
+#
+# See docs/adr/0005-smarter-ci-precommit-lefthook.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+defaults:
+  run:
+    # Bash on every OS (Git Bash ships on windows-latest too) so any
+    # future matrix leg that adds windows-latest doesn't need a per-step
+    # `shell:` block.
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  # Cancel in-flight runs only on PRs; preserve main-push integrity.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Fast Linux smoke test — runs on every PR event, including drafts.
+  test-linux:
+    name: test (ubuntu)
+    runs-on: ubuntu-latest
+    # Cap a hung vitest/pnpm at 15 min so it doesn't tie up the runner for
+    # the GH default (6 h). Cold install + build + test on this repo is
+    # ~1–2 min; 15 min is well above normal and short enough to free the
+    # runner in the bad case.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Workspace packages have `"main": "./dist/index.js"`; tests import
+      # them as `@color-sunset/fil-*`. We must build before test so vitest
+      # can resolve the entries. Same step order the old `ci.yml` used.
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+  # macOS cross-OS smoke. Skipped on draft PRs. Windows is deferred — see
+  # the follow-up issue linked from ADR-0005.
+  test-cross-os:
+    name: test (${{ matrix.os }})
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    # Same cap as test-linux; macOS runners are the slowest of the lot,
+    # so the actual worst-case run is closer to the limit than on Linux.
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # See test-linux for rationale.
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test

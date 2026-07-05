@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   enforcePiEnforcement,
   PROJECT_SKILLS_DIR,
@@ -121,13 +122,17 @@ describe("enforcePiEnforcement — pure logic", () => {
   });
 
   it("keeps context files that exist (project-relative → joined with projectRoot)", () => {
-    const target = join("/x", "src/auth/login.ts");
+    // Use a real absolute project root so production's `resolve(projectRoot, …)`
+    // (Windows treats `/x` as relative-to-CWD without a drive letter) agrees with
+    // the `join` here. tmpdir() gives us a cross-platform absolute anchor.
+    const projectRoot = join(tmpdir(), "fil-pi-enforcement-test");
+    const target = join(projectRoot, "src/auth/login.ts");
     const exists: PiEnforcementDeps["fileExists"] = (p) => p === target;
     const r = enforcePiEnforcement(
       { projection: fixture() },
       {
-        projectRoot: "/x",
-        userFilDir: "/x/.fil",
+        projectRoot,
+        userFilDir: join(projectRoot, ".fil"),
         fileExists: exists,
         realpath: (p) => p, // synthetic FS — no symlinks
       },

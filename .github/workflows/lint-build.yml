@@ -1,0 +1,61 @@
+name: lint-build
+
+# Single-PR guard: lint + lint:md + typecheck + build.
+#
+# Runs once on Ubuntu + Node 26 — these checks are platform-agnostic
+# (ESLint + tsc + tsc -b), so the cross-OS matrix is reserved for tests
+# in test.yml. See docs/adr/0005-smarter-ci-precommit-lefthook.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-build-${{ github.ref }}
+  # Cancel in-flight runs only on PRs; preserve main-push integrity so a
+  # fast-follow hotfix doesn't drop a release-blocking build.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: lint + lint:md + typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        # Version is read from `packageManager` in package.json.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Lint markdown
+        run: pnpm lint:md
+
+      # Build first: `tsc -b` emits the `.d.ts` declarations that the
+      # cross-package typecheck resolves, and type-checks the whole graph.
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck

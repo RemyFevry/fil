@@ -55,6 +55,7 @@ OpenCode) to do the actual coding. Fil does not run models; it governs.
 ```sh
 # 1. Bootstrap (humans, once per machine):
 brew install worktrunk && wt config shell install
+brew install lefthook                                  # git hooks (pre-commit + pre-push)
 
 # 2. Identify yourself on GitHub:
 gh auth switch --user remyf-agent
@@ -68,6 +69,9 @@ pnpm ci                                       # lint + lint:md + build + typeche
 # 5. Submit a PR (sister-step: keep the issue Status current):
 gh pr create --title "feat: …" --body "Closes #N\n\n…" --base main
 ```
+
+> **Windows?** `scoop install lefthook` instead of `brew install lefthook`. Debian / Fedora users
+> download the `.deb`/`.rpm` from the lefthook releases page.
 
 ## 4. Workflow contract (the non-negotiables)
 
@@ -87,27 +91,27 @@ These are the contract every contributor — human or agent — follows.
 
 ## 5. Local gates
 
-`pnpm ci` is the canonical local gate. It mirrors CI exactly:
+There are three layers, each cheaper than the next:
 
-```text
-lint       = pnpm lint          # ESLint
-lint:md    = pnpm lint:md       # markdownlint-cli2 (README only)
-build      = pnpm build         # tsc -b (whole graph)
-typecheck  = pnpm typecheck     # tsc --noEmit, project-wide
-test       = pnpm test          # vitest
-```
+| Layer | Runs on | What | Where configured |
+|---|---|---|---|
+| **pre-commit hook** | Every `git commit` | `eslint --fix` on staged `*.{ts,tsx}` + `pnpm lint:md` | `lefthook.yml` |
+| **pre-push hook** | Every `git push` | `pnpm lint` + `pnpm typecheck` (whole-project, parallel) | `lefthook.yml` |
+| **`pnpm ci`** | Whenever you want full local CI | `lint && lint:md && build && typecheck && test` | `package.json` |
+| **Worktrunk `[pre-merge]`** | `wt merge main` | `typecheck, lint, test` | `.config/wt.toml` |
 
-`[pre-merge]` in `.config/wt.toml` runs `typecheck`, `lint`, `test` —
-that is the subset Worktrunk will block a merge on. **Always run
-`pnpm ci` locally before pushing** so you don't discover build/lint:md
-failures in CI.
+The pre-commit hook is fast (~1–2 s) so it never blocks the inner loop; the pre-push hook is slower
+(~10–30 s) because `tsc` resolves the whole graph. `pnpm ci` is the canonical "before pushing, prove
+locally what CI will prove remotely" command — run it when you've just finished a change and want one
+final check before opening the PR.
 
-For the inner loop while iterating:
+CI itself is split into two workflows (`docs/adr/0005-…`):
 
-```sh
-pnpm test --watch packages/orchestrator         # single package, watch
-pnpm typecheck                                  # fast feedback
-```
+- `.github/workflows/lint-build.yml` — Ubuntu + Node 26, runs lint + lint:md + typecheck + build once.
+- `.github/workflows/test.yml` — Linux always; macOS on non-draft PRs. Windows is deferred (see
+  the follow-up issue referenced from `docs/adr/0005-…`).
+
+Always run `pnpm ci` locally before pushing so you don't discover build or lint:md failures in CI.
 
 ## 6. Available skills
 
