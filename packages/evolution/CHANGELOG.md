@@ -1,5 +1,12 @@
 # @color-sunset/fil-evolution
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [0e2a0c2]
+  - @color-sunset/fil-engine@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil-gate-runner",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "runGate(gateSpec, ctx) -> Receipt. Executes shell / test / human-confirmation gates and captures evidence.",
   "license": "MIT",
   "type": "module",

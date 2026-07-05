@@ -1,5 +1,34 @@
 # @color-sunset/fil-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- 0e2a0c2: A Phase now has multiple named gates (ADR-0004), AND-aggregated.
+
+  - **Breaking:** `PhaseConfig.gate: GateSpec` → `PhaseConfig.gates: NamedGate[]` (names required + unique per Phase). `Receipt` gains `gateName`. `gate-runner.runGate` now takes a `NamedGate` so it can stamp the name onto the Receipt.
+  - `fil next` runs every gate of every active Phase; all must pass (AND) to advance, and every failure is reported (no short-circuit — mirroring parallel-Phase semantics). Each gate produces its own Receipt, giving per-check audit granularity (e.g. lint, typecheck, tests, build as separate gates instead of one opaque shell script).
+  - Built-in `default`/`hotfix` flows, the CLI / inspect-view / pi-adapter renderers, and all tests migrate to `gates[]`.
+  - **Migration:** a Flow still using the old singular `gate:{...}` fails to load with a hint to re-run `fil init` or rename `gate:{...}` → `gates:[{name, type, ...}]`. No backward-compat shim (early project).
+
+### Patch Changes
+
+- 9c4b161: `fil init` now resolves `--scope` once, up front, and exits `2` on an unknown
+  value regardless of whether any adapter install callback is enabled. Previously
+  an invalid `--scope` was silently accepted (exit `0`) when both adapter install
+  callbacks were opted out.
+- Updated dependencies [0e2a0c2]
+  - @color-sunset/fil-contract@0.3.0
+  - @color-sunset/fil-gate-runner@0.3.0
+  - @color-sunset/fil-engine@0.3.0
+  - @color-sunset/fil-orchestrator@0.2.1
+  - @color-sunset/fil-inspect-view@0.2.1
+  - @color-sunset/fil-claude-adapter@0.1.1
+  - @color-sunset/fil-pi-adapter@0.3.1
+  - @color-sunset/fil-flow-loader@0.2.1
+  - @color-sunset/fil-store@0.2.1
+  - @color-sunset/fil-evolution@0.2.1
+
 ## 0.3.0
 
 ### Minor Changes
