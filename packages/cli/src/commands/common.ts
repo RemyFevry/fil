@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import type { FlowDefinition } from "@color-sunset/fil-engine";
@@ -51,20 +52,25 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
             `from "${engineEntryUrl}"`,
           )
         : source;
-      const rewrittenPath = `${path}.${process.pid}.${Date.now()}.resolved.mjs`;
+      // Write to a temp file under `os.tmpdir()` (canonicalized to its
+      // long-name form) rather than beside the source Flow file. On Windows
+      // the GitHub Actions runner's `$USERPROFILE` is the 8.3 short form
+      // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
+      // `%7E`, but Node's ESM loader's URL→path round-trip can't find the
+      // file we just wrote and reports "Failed to load url ... Does the
+      // file exist?". Writing the temp file under a long-name tempdir
+      // (one canonicalized via `realpathSync`) sidesteps the issue.
+      // See packages/evolution/src/index.ts `loadFlowCode` for the same
+      // fix and the canonical explanation.
+      const tmpRoot = realpathSync(tmpdir());
+      const rewrittenPath = join(
+        tmpRoot,
+        `.fil-flow-cache.${process.pid}.${Date.now()}.resolved.mjs`,
+      );
       const { writeFileSync, rmSync } = await import("node:fs");
       writeFileSync(rewrittenPath, rewritten, { encoding: "utf8", flag: "wx" });
       try {
-        // Canonicalize the path before pathToFileURL. On Windows the
-        // GitHub Actions runner's `$USERPROFILE` is the 8.3 short form
-        // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
-        // `%7E`, but Node's ESM loader's URL→path round-trip can't find the
-        // file we just wrote and reports "Failed to load url ... Does the
-        // file exist?". `realpathSync` resolves the short name + any
-        // symlinks so the URL round-trips cleanly. No-op on POSIX. See
-        // packages/evolution/src/index.ts `loadFlowCode` for the same fix.
-        const realPath = realpathSync(rewrittenPath);
-        const mod = (await import(pathToFileURL(realPath).href)) as {
+        const mod = (await import(pathToFileURL(rewrittenPath).href)) as {
           default?: FlowDefinition;
         };
         return mod.default;

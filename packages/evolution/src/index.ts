@@ -96,19 +96,21 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
       )
     : code;
 
-  const dir = await mkdtemp(join(tmpdir(), "fil-evo-"));
+  // On Windows, `os.tmpdir()` returns the 8.3 short-name form
+  // (`C:\Users\RUNNER~1\AppData\Local\Temp\…`) on the GitHub-hosted
+  // runner. `pathToFileURL` URL-encodes the `~` as `%7E`, but Node's
+  // ESM loader can't round-trip the URL back to a path the OS can
+  // open, so dynamic `import()` reports "Failed to load url ... Does
+  // the file exist?" even though the file is on disk. `realpathSync`
+  // on `tmpdir()` itself asks the OS to expand the short name once,
+  // so every subsequent path (dir, file, URL) is a long-name path
+  // with no 8.3 components. No-op on POSIX.
+  const tmpRoot = realpathSync(tmpdir());
+  const dir = await mkdtemp(join(tmpRoot, "fil-evo-"));
   const file = join(dir, "flow.mjs");
   try {
     await writeFile(file, resolvedCode, "utf8");
-    // Canonicalize the path before pathToFileURL. On Windows, the GitHub
-    // Actions runner's `$USERPROFILE` is the 8.3 short form
-    // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
-    // `%7E`, but Node's ESM loader's URL→path round-trip then can't find the
-    // file we just wrote and reports "Failed to load url ... Does the file
-    // exist?". `realpathSync` resolves the short name + any symlinks so the
-    // URL round-trips cleanly. No-op on POSIX.
-    const realFile = realpathSync(file);
-    const mod = (await import(pathToFileURL(realFile).href)) as {
+    const mod = (await import(pathToFileURL(file).href)) as {
       default?: FlowDefinition;
     };
     if (!mod.default) {
