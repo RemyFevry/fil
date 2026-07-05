@@ -393,9 +393,10 @@ passing). Add a `docs/agents/PERMISSIONS.md` listing the hatches:
 #### R14. Git identity belt-and-braces
 
 **What:** Today, CLAUDE.md tells the agent to switch identity before any
-git op. Belt-and-braces: add a `scripts/precommit.sh` (or a Worktrunk
-`[pre-commit]` hook) that refuses the commit if the author identity
-isn't `remyf-agent`. Print the instructions if it is wrong.
+git op. Belt-and-braces: lefthook is now in place (R24) as the hook
+substrate, so add an identity-check step to `lefthook.yml`'s `pre-commit`
+block that refuses the commit if the author identity isn't `remyf-agent`,
+printing the instructions if it is wrong.
 
 **Why:** A long session that forgets to switch identity will commit as
 `larky971` (or whoever), then a human reviewer has to re-author the
@@ -449,6 +450,35 @@ this repo. Future Fil skills (e.g. `fil-flow-author`,
 `fil-ci-diagnose`) will need a known authoring recipe.
 
 ---
+
+## Shipped
+
+These were proposed in earlier revisions and are now in `main`.
+
+#### R19. Smarter CI: lefthook pre-commit/push + split workflows + Windows
+
+**Shipped via PR.** See [`docs/adr/0005-smarter-ci-precommit-lefthook.md`](../adr/0005-smarter-ci-precommit-lefthook.md)
+for the full rationale and trade-offs.
+
+**What landed:**
+- `lefthook.yml` — pre-commit (`eslint --fix` on staged `*.{ts,tsx}` +
+  `pnpm lint:md`) and pre-push (`pnpm lint` + `pnpm typecheck`,
+  whole-project, parallel).
+- `lefthook` devDep + `"prepare": "lefthook install"` in `package.json`
+  so hooks auto-install on `pnpm install`.
+- `.github/workflows/lint-build.yml` — Ubuntu + Node 26, runs
+  lint + lint:md + typecheck + build once.
+- `.github/workflows/test.yml` — Linux always; macOS + Windows on
+  non-draft PRs; Node 26 throughout. Three jobs in steady state.
+- `.github/workflows/ci.yml` removed (replaced by the two new files).
+- Both workflows: `defaults: run: { shell: bash }`,
+  `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
+
+**Why this and not bigger?** Considered path filters (rejected — adds fragility
+without strong benefit for a small monorepo), Node 22/24/26 matrix on tests
+(rejected — pure-TS analysis is Node-version-independent; vitest is too), and
+pre-commit.com with a Python prerequisite (rejected — wrong tool for a Node
+monorepo that runs whole-project tsc, not staged files).
 
 ## Open questions
 
