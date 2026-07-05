@@ -41,6 +41,11 @@ jobs:
   test-linux:
     name: test (ubuntu)
     runs-on: ubuntu-latest
+    # Cap a hung vitest/pnpm at 15 min so it doesn't tie up the runner for
+    # the GH default (6 h). Cold install + build + test on this repo is
+    # ~1–2 min; 15 min is well above normal and short enough to free the
+    # runner in the bad case.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,6 +77,9 @@ jobs:
   test-cross-os:
     name: test (${{ matrix.os }})
     if: github.event_name == 'push' || github.event.pull_request.draft == false
+    # Same cap as test-linux; macOS runners are the slowest of the lot,
+    # so the actual worst-case run is closer to the limit than on Linux.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

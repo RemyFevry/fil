@@ -70,9 +70,12 @@ from `linux` + `macos-latest`.
   in-flight cancellation between them.
 - **Single Node 26** across all jobs drops the 4× Node matrix duplication
   (Node 20 was EOL April 2026; Node 22 is a year+ behind; Node 26 is the
-  current LTS). Pure-TS lint/typecheck/build is Node-version-independent;
-  vitest is too, modulo Node-version-specific stdlib quirks we've never
-  hit. If Node 26 turns out to need a downgrade, it's one line.
+  current release — it becomes Active LTS in October 2026, so within a few
+  months of this ADR it'll be the LTS pick, but it's the current release
+  either way at the time of writing). Pure-TS lint/typecheck/build is
+  Node-version-independent; vitest is too, modulo Node-version-specific
+  stdlib quirks we've never hit. If Node 26 turns out to need a downgrade,
+  it's one line.
 - **`defaults: run: { shell: bash }`** is the smallest possible diff that
   guarantees cross-OS `run:` semantics; future contributors can write
   `if [[ ... ]]; then` or `set -euo pipefail` without OS thinking. Kept
@@ -106,9 +109,12 @@ from `linux` + `macos-latest`.
   handles pre-commit/pre-push cleanly, handles staged-file globs natively
   via `{staged_files}`. `stage_fixed: true` re-stages `--fix`-rewritten
   files for us. We pin `^2.0.0` (the v1 line is no longer maintained).
-  Trade-off: every contributor must `brew install lefthook` / `scoop
-  install lefthook` / `apt install lefthook`. We pay that once per
-  machine; the bootstrap is documented in `CONTRIBUTING.md`.
+  Trade-off: every contributor must install lefthook once per machine
+  (macOS: `brew install lefthook`; Windows: `scoop install lefthook`;
+  Debian/Ubuntu/Fedora: see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) —
+  the bare `apt install lefthook` only works after adding the Lefthook
+  apt repository, so we point at the full setup flow there instead of
+  repeating it inline).
 
 ## Trade-offs accepted
 
