@@ -83,6 +83,7 @@ export async function applyProposal(
  * without Node ESM resolution failures.
  */
 export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
+  const { realpathSync } = await import("node:fs");
   const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -99,7 +100,15 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
   const file = join(dir, "flow.mjs");
   try {
     await writeFile(file, resolvedCode, "utf8");
-    const mod = (await import(pathToFileURL(file).href)) as {
+    // Canonicalize the path before pathToFileURL. On Windows, the GitHub
+    // Actions runner's `$USERPROFILE` is the 8.3 short form
+    // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
+    // `%7E`, but Node's ESM loader's URL→path round-trip then can't find the
+    // file we just wrote and reports "Failed to load url ... Does the file
+    // exist?". `realpathSync` resolves the short name + any symlinks so the
+    // URL round-trips cleanly. No-op on POSIX.
+    const realFile = realpathSync(file);
+    const mod = (await import(pathToFileURL(realFile).href)) as {
       default?: FlowDefinition;
     };
     if (!mod.default) {

@@ -1,18 +1,13 @@
 name: test
 
-# Cross-OS test matrix: Linux always; macOS runs on push-to-main and on
-# non-draft PRs. Two jobs total in steady state.
+# Cross-OS test matrix: Linux always; macOS + Windows run on push-to-main
+# and on non-draft PRs. Three jobs total in steady state.
 #
 # Linux runs on draft PRs as a fast smoke test (vitest is the harness —
 # it works identically on every OS, so cross-OS is mostly about catching
 # path-separator / shell-script bugs in the runner, not vitest bugs).
-# macOS is deferred until the PR is ready for review to save CI minutes
-# on iteration.
-#
-# Windows was originally added in this matrix but is deferred — see
-# docs/adr/0005-… and the follow-up issue. The shell default below is
-# kept at `bash` for symmetry with lint-build.yml so any future re-add
-# of `windows-latest` is a one-line matrix entry.
+# macOS + Windows are deferred until the PR is ready for review to save
+# CI minutes on iteration.
 #
 # See docs/adr/0005-smarter-ci-precommit-lefthook.md.
 
@@ -23,9 +18,8 @@ on:
 
 defaults:
   run:
-    # Bash on every OS (Git Bash ships on windows-latest too) so any
-    # future matrix leg that adds windows-latest doesn't need a per-step
-    # `shell:` block.
+    # Bash on every OS (Git Bash ships on windows-latest too) so a future
+    # matrix entry that adds another OS doesn't need a per-step `shell:` block.
     shell: bash
 
 permissions:
@@ -72,8 +66,7 @@ jobs:
       - name: Test
         run: pnpm test
 
-  # macOS cross-OS smoke. Skipped on draft PRs. Windows is deferred — see
-  # the follow-up issue linked from ADR-0005.
+  # Cross-OS matrix — macOS + Windows. Skipped on draft PRs.
   test-cross-os:
     name: test (${{ matrix.os }})
     if: github.event_name == 'push' || github.event.pull_request.draft == false
@@ -83,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

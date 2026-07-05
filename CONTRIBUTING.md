@@ -92,9 +92,9 @@ If you don't use Worktrunk, a plain git worktree is fine — just make sure you'
 - **Add a changeset** for any user-facing change: `pnpm changeset`. Pick the affected packages, the bump type
   (`patch` / `minor` / `major`), and write a one-line summary. Commit the resulting `.changeset/*.md` file.
 - **Pre-merge gates** (CI): two workflows — `lint-build` (Ubuntu + Node 26: lint, lint:md, build,
-  typecheck) and `test` (Linux always; macOS on non-draft PRs; Node 26 throughout). Required
-  status checks are `lint-build / verify`, `test / test-linux`, `test / test-cross-os (macos-latest)`.
-  Windows is deferred to a follow-up issue — see `docs/adr/0005-…` for context.
+  typecheck) and `test` (Linux always; macOS + Windows on non-draft PRs; Node 26 throughout). Required
+  status checks are `lint-build / verify`, `test / test-linux`, `test / test-cross-os (macos-latest)`,
+  `test / test-cross-os (windows-latest)`.
 
 ## Quick checks
 

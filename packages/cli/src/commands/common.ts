@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import type { FlowDefinition } from "@color-sunset/fil-engine";
@@ -55,7 +55,16 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
       const { writeFileSync, rmSync } = await import("node:fs");
       writeFileSync(rewrittenPath, rewritten, { encoding: "utf8", flag: "wx" });
       try {
-        const mod = (await import(pathToFileURL(rewrittenPath).href)) as {
+        // Canonicalize the path before pathToFileURL. On Windows the
+        // GitHub Actions runner's `$USERPROFILE` is the 8.3 short form
+        // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
+        // `%7E`, but Node's ESM loader's URL→path round-trip can't find the
+        // file we just wrote and reports "Failed to load url ... Does the
+        // file exist?". `realpathSync` resolves the short name + any
+        // symlinks so the URL round-trips cleanly. No-op on POSIX. See
+        // packages/evolution/src/index.ts `loadFlowCode` for the same fix.
+        const realPath = realpathSync(rewrittenPath);
+        const mod = (await import(pathToFileURL(realPath).href)) as {
           default?: FlowDefinition;
         };
         return mod.default;
