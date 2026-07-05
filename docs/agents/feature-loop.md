@@ -25,7 +25,7 @@ follow it verbatim.
 
 ## The loop
 
-```
+```text
                 ┌───────────────────┐
                 │ 1. PLAN           │  issue comment + board: Todo→In Progress
                 │ (read issue, ADR) │
@@ -53,7 +53,7 @@ follow it verbatim.
                          │
                   ┌──────┴──────┐
                   │  still has  │
-                  │  findings?   │
+                  │  findings?  │
                   └──────┬──────┘
                     yes ─┴─ no
                     │       │
@@ -77,7 +77,7 @@ follow it verbatim.
 - Read the issue body and the **acceptance criteria** the reporter
   posted (they should be checkboxes you can tick through).
 - Read every ADR that touches the surface you're about to change
-  ([`docs/adr/`](../../adr/)). If your plan contradicts an ADR,
+  ([`docs/adr/`](../adr/)). If your plan contradicts an ADR,
   surface it on the issue **before** opening the PR — see
   [`domain.md`](./domain.md)'s "Flag ADR conflicts" rule.
 - Work in a Worktrunk worktree, never the primary checkout
