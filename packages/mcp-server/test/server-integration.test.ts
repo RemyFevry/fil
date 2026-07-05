@@ -29,12 +29,19 @@ export default createMachine({
 `;
 
 let workdir: string;
+let originalFilBin: string | undefined;
 
 beforeAll(async () => {
+  originalFilBin = process.env.FIL_BIN;
   process.env.FIL_BIN = FIL_BIN;
   workdir = await mkdtemp(join(tmpdir(), "fil-mcp-integration-"));
 });
 afterAll(async () => {
+  if (originalFilBin === undefined) {
+    delete process.env.FIL_BIN;
+  } else {
+    process.env.FIL_BIN = originalFilBin;
+  }
   await rm(workdir, { recursive: true, force: true });
 });
 beforeEach(async () => {
@@ -44,7 +51,10 @@ beforeEach(async () => {
 async function freshProject(): Promise<string> {
   const proj = join(workdir, "proj");
   await mkdir(join(proj, ".fil", "flows"), { recursive: true });
-  defaultRunner(["init"], { cwd: proj });
+  const initResult = defaultRunner(["init"], { cwd: proj });
+  if (initResult.exitCode !== 0) {
+    throw new Error(`fil init failed: ${initResult.stderr || initResult.stdout}`);
+  }
   await writeFile(join(proj, ".fil", "flows", "demo.js"), DEMO_FLOW, "utf8");
   return proj;
 }
