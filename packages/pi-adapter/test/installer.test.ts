@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   installPiAdapter,
@@ -48,7 +48,9 @@ describe("installPiAdapter", () => {
       piDetected: true,
     });
     expect(result.installed).toBe(true);
-    expect(result.paths.project).toContain(".pi/extensions/fil.ts");
+    // Path-segment check works on every OS; the literal `.pi/extensions/fil.ts`
+    // mangles on Windows where `join` produces backslashes.
+    expect(result.paths.project.split(sep).slice(-3)).toEqual([".pi", "extensions", "fil.ts"]);
     expect(result.piDetected).toBe(true);
     expect(result.reason).toBeUndefined();
   });
@@ -102,7 +104,16 @@ describe("installPiAdapter", () => {
 
   it("installs at user scope too when scope = 'both'", () => {
     const fs = memFs();
+    // Use a synthetic Unix-style home. `path.join` of a single arg normalizes
+    // separators so we get the platform-correct prefix on every OS:
+    //   - macOS / Linux: "/home/pilot"
+    //   - Windows:        "\home\pilot"
+    // Production joins the user dir + ".." + USER_PI_EXT_DIR + filename;
+    // mirroring the same joins with `sep` makes the expected tail match on
+    // every OS without conditional logic.
     const userHome = "/home/pilot";
+    const normalizedHome = join(userHome);
+    const expectedTail = [normalizedHome, ".pi", "agent", "extensions", "fil.ts"].join(sep);
     const result = installPiAdapter({
       projectRoot: workdir,
       fs,
@@ -111,7 +122,7 @@ describe("installPiAdapter", () => {
       scope: "both",
     });
     expect(result.installed).toBe(true);
-    expect(result.paths.user).toContain(`${userHome}/.pi/agent/extensions/fil.ts`);
+    expect(result.paths.user.endsWith(expectedTail)).toBe(true);
   });
 
   it("writes to the real filesystem under .pi/extensions/fil.ts (smoke)", async () => {
@@ -122,7 +133,7 @@ describe("installPiAdapter", () => {
     });
     expect(result.installed).toBe(true);
     // Was it actually written?
-    const contents = await readFileString(join(workdir, ".pi/extensions/fil.ts"));
+    const contents = await readFileString(join(workdir, ".pi", "extensions", "fil.ts"));
     expect(contents).toContain("filPiExtension");
   });
 });
@@ -134,14 +145,19 @@ describe("detectPi", () => {
 
   it("returns true when ~/.pi/agent/extensions exists", () => {
     const fs = memFs();
-    fs.mkdir("/home/pilot/.pi/agent/extensions");
-    expect(detectPi(fs, "/home/pilot")).toBe(true);
+    // Key the memFs with whatever `join` produces on the host — production
+    // calls `join(home, USER_PI_EXT_DIR)` and we must match its exact form
+    // for the synthetic lookup to find this directory.
+    const userHome = "/home/pilot";
+    fs.mkdir(join(userHome, ".pi", "agent", "extensions"));
+    expect(detectPi(fs, userHome)).toBe(true);
   });
 
   it("returns true when ~/.pi exists (parent of extensions dir)", () => {
     const fs = memFs();
-    fs.mkdir("/home/pilot/.pi");
-    expect(detectPi(fs, "/home/pilot")).toBe(true);
+    const userHome = "/home/pilot";
+    fs.mkdir(join(userHome, ".pi"));
+    expect(detectPi(fs, userHome)).toBe(true);
   });
 });
 
