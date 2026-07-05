@@ -455,7 +455,7 @@ this repo. Future Fil skills (e.g. `fil-flow-author`,
 
 These were proposed in earlier revisions and are now in `main`.
 
-#### R19. Smarter CI: lefthook pre-commit/push + split workflows + Windows
+### R19. Smarter CI: lefthook pre-commit/push + split workflows + Windows
 
 **Shipped via PR.** See [`docs/adr/0005-smarter-ci-precommit-lefthook.md`](../adr/0005-smarter-ci-precommit-lefthook.md)
 for the full rationale and trade-offs.

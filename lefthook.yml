@@ -17,6 +17,9 @@ pre-commit:
     eslint-staged:
       glob: "*.{ts,tsx}"
       run: pnpm exec eslint --fix {staged_files}
+      # Restage files that `eslint --fix` rewrote, so the commit records
+      # the fixed content (not the unfixed version still on the index).
+      stage_fixed: true
     lint-md:
       run: pnpm lint:md
 

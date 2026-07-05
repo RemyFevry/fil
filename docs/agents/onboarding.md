@@ -95,7 +95,7 @@ There are three layers, each cheaper than the next:
 
 | Layer | Runs on | What | Where configured |
 |---|---|---|---|
-| **pre-commit hook** | Every `git commit` | `eslint --fix` on staged `*.ts{,x}` + `pnpm lint:md` | `lefthook.yml` |
+| **pre-commit hook** | Every `git commit` | `eslint --fix` on staged `*.{ts,tsx}` + `pnpm lint:md` | `lefthook.yml` |
 | **pre-push hook** | Every `git push` | `pnpm lint` + `pnpm typecheck` (whole-project, parallel) | `lefthook.yml` |
 | **`pnpm ci`** | Whenever you want full local CI | `lint && lint:md && build && typecheck && test` | `package.json` |
 | **Worktrunk `[pre-merge]`** | `wt merge main` | `typecheck, lint, test` | `.config/wt.toml` |

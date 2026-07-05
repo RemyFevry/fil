@@ -44,10 +44,16 @@ the missing precommit-and-prepush story.
      typecheck + test`, useful as a "did I break GH-side lints?" check.
 
 3. **Branch protection unchanged in shape, narrowed in scope**: the same
-   pull-request checks block merge (lint-build, test-linux, test-macos,
-   test-windows on non-draft PRs). Draft PRs are unblocked by their macOS
-   and Windows legs (the only ones with `if: ... draft == false`); they pass
-   once marked `ready_for_review`.
+   pull-request checks block merge (exact GitHub status names — copy these
+   into Branch protection → Required status checks after merge):
+   - `lint-build / verify`
+   - `test / test-linux`
+   - `test / test-cross-os (macos-latest)`
+   - `test / test-cross-os (windows-latest)`
+   The macOS and Windows legs are gated by `if: ... draft == false`, so a
+   draft PR only needs `lint-build / verify` + `test / test-linux` to be
+   non-blocked. Once the PR is marked `ready_for_review`, the two
+   cross-OS legs join the required set.
 
 ## Why
 
