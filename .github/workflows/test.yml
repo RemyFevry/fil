@@ -51,6 +51,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Workspace packages have `"main": "./dist/index.js"`; tests import
+      # them as `@color-sunset/fil-*`. We must build before test so vitest
+      # can resolve the entries. Same step order the old `ci.yml` used.
+      - name: Build
+        run: pnpm build
+
       - name: Test
         run: pnpm test
 
@@ -79,6 +85,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # See test-linux for rationale.
+      - name: Build
+        run: pnpm build
 
       - name: Test
         run: pnpm test
