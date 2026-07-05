@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import readline from "node:readline/promises";
 import { join } from "node:path";
 import { defaultFlowEngine, inspectFlow } from "@color-sunset/fil-engine";
 import type {
@@ -42,6 +43,13 @@ export interface CliContext {
   /** Human-confirmation prompter (defaults to interactive stdin). */
   prompter?: (message: string) => Promise<boolean>;
   /**
+   * Open a line reader for `fil inspect`'s manual-advance loop. Always bound
+   * by `defaultContext` to the real stdin reader; tests inject a fake to
+   * avoid reading stdin.
+   */
+  openInspectReader: () => Promise<() => Promise<string | null>>;
+
+  /**
    * Launch the Stately inspector for a Flow (ADR-0002 visualizer). Optional so
    * tests can stub it; `defaultContext` binds the real engine export, which
    * opens the inspector UI in the browser.
@@ -83,8 +91,13 @@ export function defaultContext(
     userFlowsDir: join(overrides.userFilDir ?? join(homedir(), ".fil"), "flows"),
     userFilDir: overrides.userFilDir ?? join(homedir(), ".fil"),
     out: { log: console.log, error: console.error },
+    openInspectReader: createStdinInspectReader,
   };
   const merged: CliContext = { ...base, ...overrides };
+  if (!("openInspectReader" in overrides)) {
+    merged.openInspectReader = createStdinInspectReader;
+  }
+
   if (!("inspectFlow" in overrides)) {
     merged.inspectFlow = inspectFlow;
   }
@@ -112,4 +125,18 @@ export function defaultContext(
       });
   }
   return merged;
+}
+
+/** The production stdin reader for `fil inspect`'s manual-advance loop. */
+export async function createStdinInspectReader(): Promise<() => Promise<string | null>> {
+  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  const iterator = rl[Symbol.asyncIterator]();
+  return async () => {
+    const { value, done } = await iterator.next();
+    if (done) {
+      rl.close();
+      return null;
+    }
+    return value ?? "";
+  };
 }
