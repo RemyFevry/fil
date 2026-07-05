@@ -78,5 +78,19 @@ const result = spawnSync("bash", [script, command], {
   env: process.env,
 });
 
-if (typeof result.status === "number") process.exit(result.status);
-process.exit(1);
+// Anything but a clean child exit means the guard didn't actually answer.
+// Claude Code treats exit code 1 as a *non-blocking* error, so the only safe
+// fallback here is exit 2 (block) — same policy as the missing-script branch
+// above and the OpenCode/Pi integrations. Surface the underlying cause on
+// stderr so the next reviewer can debug.
+if (typeof result.status === "number") {
+  process.exit(result.status);
+}
+const detail =
+  result.signal != null
+    ? `signal ${result.signal}`
+    : result.error
+      ? result.error.message
+      : `exit code unavailable (status=${String(result.status)})`;
+process.stderr.write(`fil worktree guard: could not invoke gate (${detail}); refusing to proceed.\n`);
+process.exit(2);

@@ -19,7 +19,7 @@ OpenCode) to do the actual coding. Fil does not run models; it governs.
 
 ## 2. The shape of this repo
 
-```
+```text
 /
 ├── AGENTS.md                 ← this onboarding + key conventions
 ├── CLAUDE.md                 ← @AGENTS.md + the GitHub identity rules
@@ -89,7 +89,7 @@ These are the contract every contributor — human or agent — follows.
 
 `pnpm ci` is the canonical local gate. It mirrors CI exactly:
 
-```
+```text
 lint       = pnpm lint          # ESLint
 lint:md    = pnpm lint:md       # markdownlint-cli2 (README only)
 build      = pnpm build         # tsc -b (whole graph)
@@ -178,7 +178,7 @@ gh project item-edit --id "$ITEM_ID" \
 
 Hex IDs by phase:
 
-```
+```text
 Todo        f75ad846
 In Progress 47fc9ee4
 In Review   819b9dfd
@@ -200,7 +200,7 @@ PR titles and squash messages must be Conventional Commits (`feat:`,
 `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, …). LLM-generated
 commits append a trailer automatically via `wt.toml`:
 
-```
+```text
 Generated-by: opencode (M3) (@remyf-agent)
 ```
 

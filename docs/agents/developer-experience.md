@@ -12,7 +12,7 @@ a one-paragraph "what / why / how". Implementation PRs should follow.
 
 ## TL;DR
 
-The repo is in great shape for a young project: the [worktree guard](#cross-cutting-state-of-the-art) and the [sidecar governance model](OVERVIEW.md) are
+The repo is in great shape for a young project: the [worktree guard](#state-of-the-art-agentic-setup-applied-to-fil) and the [sidecar governance model](OVERVIEW.md) are
 the right foundations for agentic work. The biggest leverage points right now
 are around **bootstrap speed** (escape hatches and one-time setup), **agent
 onboarding** (a discoverable skill manifest), and **CI as the agent's

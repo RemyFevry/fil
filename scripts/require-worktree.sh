@@ -39,6 +39,10 @@ fi
 # smuggled through the whitelist.
 cmd="${1:-}"
 if [[ "$cmd" =~ ^wt\ (switch|list|path|which|config|diff|log|step)(\ [a-zA-Z0-9._=/@:+\-]+){0,16}$ ]]; then
+  # (hyphen at end of the bracket class — POSIX ERE doesn't honour a backslash
+  # escape inside [...]; `\-` would silently match a literal backslash too.
+  # Harmless here because backslash isn't valid in `wt` argv, but the
+  # unescaped form is the canonical way to spell "include a literal -".)
   exit 0
 fi
 
