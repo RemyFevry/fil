@@ -24,7 +24,7 @@ export async function nextCommand(ctx: CliContext): Promise<number> {
       ctx.out.log(`Advanced to: ${phase}`);
     }
     for (const receipt of outcome.receipts) {
-      ctx.out.log(`  gate ${receipt.gateName} (${receipt.gateType}): ${receipt.outcome}`);
+      ctx.out.log(`  gate ${receipt.gateName} (${receipt.gateType}) on "${receipt.phase}": ${receipt.outcome}`);
     }
     return 0;
   }

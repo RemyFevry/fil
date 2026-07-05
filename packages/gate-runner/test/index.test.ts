@@ -95,6 +95,17 @@ describe("gate-runner", () => {
     expect(() => JSON.stringify(receipt)).not.toThrow();
   });
 
+  it("returns a fail Receipt for an unknown gate type (defensive fallback)", async () => {
+    const receipt = await runGate(
+      { name: "mystery", type: "magic" } as unknown as Parameters<typeof runGate>[0],
+      { cwd: workdir, phase: "code" },
+    );
+    expect(receipt.outcome).toBe("fail");
+    expect(receipt.gateName).toBe("mystery");
+    expect(receipt.gateType).toBe("none");
+    expect(receipt.evidence.stderr).toContain("Unknown gate type");
+  });
+
   it("artifactExists resolves relative paths against cwd, not process.cwd()", async () => {
     // Place a file only inside `workdir`; the system cwd (whatever vitest uses)
     // must not be allowed to satisfy the lookup for the bare-relative name.

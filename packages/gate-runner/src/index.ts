@@ -41,6 +41,18 @@ export async function runGate(
       return runShell(gate.command ?? "npm test", undefined, gate.name, ctx);
     case "human":
       return runHuman(gate.prompt, gate.name, ctx);
+    default: {
+      // Defensive fallback: an unknown gate.type (e.g. from a hand-edited or
+      // future-engine Flow) must not crash the orchestrator's run-all loop.
+      // Produce a fail receipt so the Phase's other gates still run and the
+      // AND-aggregation surfaces this as a failure (ADR-0004).
+      const name = typeof gate === "object" && gate !== null && "name" in gate && typeof (gate as { name?: unknown }).name === "string"
+        ? (gate as { name: string }).name
+        : "(unknown)";
+      return buildReceipt(ctx, name, "none", "fail", {
+        stderr: `Unknown gate type (${JSON.stringify(gate)})`,
+      });
+    }
   }
 }
 
