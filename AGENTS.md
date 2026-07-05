@@ -4,6 +4,14 @@ An open-source harness for agentic software-development lifecycles. See [`CONTEX
 
 ## Agent skills
 
+### Onboarding
+
+New here? Read [`docs/agents/onboarding.md`](./docs/agents/onboarding.md) first — the 60-second orientation, the workflow contract, and the gotchas that waste context if you don't know them up front.
+
+### Developer & agent experience
+
+State-of-the-art review of the human and agent setup, plus the prioritized recommendations (P0/P1/P2): [`docs/agents/developer-experience.md`](./docs/agents/developer-experience.md).
+
 ### Issue tracker
 
 Issues and PRDs live as GitHub issues on `RemyFevry/fil`, tracked on the **Fil MVP** GitHub Project board (PRD epic: #21). Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
