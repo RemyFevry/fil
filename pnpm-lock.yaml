@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@color-sunset/fil-claude-adapter':
+        specifier: workspace:*
+        version: link:packages/claude-adapter
       '@color-sunset/fil-cli':
         specifier: workspace:*
         version: link:packages/cli
@@ -32,6 +35,9 @@ importers:
       '@color-sunset/fil-orchestrator':
         specifier: workspace:*
         version: link:packages/orchestrator
+      '@color-sunset/fil-pi-adapter':
+        specifier: workspace:*
+        version: link:packages/pi-adapter
       '@color-sunset/fil-store':
         specifier: workspace:*
         version: link:packages/store
