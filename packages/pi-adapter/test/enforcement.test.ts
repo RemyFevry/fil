@@ -26,7 +26,7 @@ function fixture(): RunProjection {
         priorResults: [".fil/runs/run-0/receipts/receipt-1.json"],
       },
       actorMode: "agent",
-      gate: { type: "testsPass", command: "pnpm test" },
+      gates: [{ name: "tests", type: "testsPass", command: "pnpm test" }],
     },
   };
 }
@@ -69,7 +69,7 @@ describe("enforcePiEnforcement — pure logic", () => {
     expect(r.systemPrompt).toContain("Run run-1");
     expect(r.systemPrompt).toContain("change \"add-login\"");
     expect(r.systemPrompt).toContain("Phase Code");
-    expect(r.systemPrompt).toContain("Gate (to advance): test suite");
+    expect(r.systemPrompt).toContain("Gates (to advance, all must pass): tests=test suite");
   });
 
   it("resolves skills through project precedence first, then user", () => {

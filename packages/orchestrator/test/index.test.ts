@@ -37,7 +37,7 @@ function testFlow() {
         skills: [],
         context: { files: [], priorResults: [] },
         actorMode: "agent",
-        gate,
+        gates: [{ name: "g", ...gate }],
         ...extra,
       },
     },
@@ -114,10 +114,10 @@ describe("orchestrator.advance", () => {
     // Make phase a's gate fail.
     const states = flow.states as Record<
       string,
-      { meta: { phase: { gate: { script: string; type: string } } } }
+      { meta: { phase: { gates: { name: string; script: string; type: string }[] } } }
     >;
     const phaseA = states.a;
-    if (phaseA) phaseA.meta.phase.gate = failingShellGate();
+    if (phaseA) phaseA.meta.phase.gates = [{ name: "g", ...failingShellGate() }];
     const deps = makeDeps();
     const start = await startRun(deps, { change: "x", flowName: "test", definition: flow });
     if (!start.ok) return;
@@ -163,6 +163,41 @@ describe("orchestrator.advance", () => {
     const out = await advance(deps, run);
     expect(out.advanced).toBe(false);
     expect(out.error).toContain("already complete");
+  });
+
+  it("runs all gates and blocks when any fails (ADR-0004 AND-aggregation)", async () => {
+    const flow = createMachine({
+      id: "multigate",
+      initial: "a",
+      states: {
+        a: {
+          meta: {
+            phase: {
+              instructions: "x",
+              allowedTools: [],
+              skills: [],
+              context: { files: [], priorResults: [] },
+              actorMode: "agent",
+              gates: [
+                { name: "pass-gate", type: "shell", script: "node -e \"process.exit(0)\"" },
+                { name: "fail-gate", type: "shell", script: "node -e \"process.exit(1)\"" },
+              ],
+            },
+          },
+          on: { NEXT: "b" },
+        },
+        b: { type: "final" },
+      },
+    });
+    const deps = makeDeps();
+    const start = await startRun(deps, { change: "x", flowName: "mg", definition: flow });
+    if (!start.ok) return;
+    const out = await advance(deps, start.run);
+    expect(out.advanced).toBe(false);
+    expect(out.receipts).toHaveLength(2);
+    expect(out.receipts.find((r) => r.gateName === "pass-gate")?.outcome).toBe("pass");
+    expect(out.receipts.find((r) => r.gateName === "fail-gate")?.outcome).toBe("fail");
+    expect(out.error).toContain("Gate failed");
   });
 });
 
@@ -223,7 +258,7 @@ function parallelFlow(rightScript: string) {
           skills: [],
           context: { files: [], priorResults: [] },
           actorMode: "agent",
-          gate,
+          gates: [{ name: "g", ...gate }],
         },
       },
     };

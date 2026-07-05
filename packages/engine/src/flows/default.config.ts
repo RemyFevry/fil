@@ -6,7 +6,7 @@
  * the machine), while this raw form is what `serializeFlowCode` writes back
  * out when `fil init` scaffolds a user Flow file.
  *
- * If you change this file, mirror the change in `default.js`.
+ * If you change this file, mirror the change in default.js.
  */
 export default {
   id: "default",
@@ -26,16 +26,19 @@ export default {
             priorResults: [],
           },
           actorMode: "collaborative",
-          gate: {
-            type: "shell",
-            // Cross-platform: invoke `node` (always on PATH in any Fil setup) and
-            // check the exact artifact path that the receipt will record. No
-            // POSIX-only `find`/`test`, and no `requirements*.md` wildcard that
-            // would let a sibling file satisfy the gate.
-            script:
-              "node -e \"require('node:fs').existsSync('requirements.md') ? process.exit(0) : process.exit(1)\"",
-            artifactPath: "requirements.md",
-          },
+          gates: [
+            {
+              name: "requirements",
+              type: "shell",
+              // Cross-platform: invoke `node` (always on PATH in any Fil setup) and
+              // check the exact artifact path that the receipt will record. No
+              // POSIX-only `find`/`test`, and no `requirements*.md` wildcard that
+              // would let a sibling file satisfy the gate.
+              script:
+                "node -e \"require('node:fs').existsSync('requirements.md') ? process.exit(0) : process.exit(1)\"",
+              artifactPath: "requirements.md",
+            },
+          ],
         },
       },
       on: { NEXT: "design" },
@@ -53,10 +56,13 @@ export default {
             priorResults: ["requirements"],
           },
           actorMode: "collaborative",
-          gate: {
-            type: "human",
-            prompt: "Approve the design and proceed to implementation?",
-          },
+          gates: [
+            {
+              name: "approval",
+              type: "human",
+              prompt: "Approve the design and proceed to implementation?",
+            },
+          ],
         },
       },
       on: { NEXT: "code" },
@@ -74,10 +80,13 @@ export default {
             priorResults: ["requirements", "design"],
           },
           actorMode: "agent",
-          gate: {
-            type: "testsPass",
-            command: "npm test",
-          },
+          gates: [
+            {
+              name: "tests",
+              type: "testsPass",
+              command: "npm test",
+            },
+          ],
         },
       },
       on: { NEXT: "review" },
@@ -95,10 +104,13 @@ export default {
             priorResults: ["requirements", "design", "code"],
           },
           actorMode: "collaborative",
-          gate: {
-            type: "human",
-            prompt: "Approve this Change for merge?",
-          },
+          gates: [
+            {
+              name: "approval",
+              type: "human",
+              prompt: "Approve this Change for merge?",
+            },
+          ],
         },
       },
       on: { NEXT: "done" },
@@ -112,7 +124,7 @@ export default {
           skills: [],
           context: { files: [], priorResults: [] },
           actorMode: "human",
-          gate: { type: "shell", script: "true" },
+          gates: [{ name: "noop", type: "shell", script: "true" }],
         },
       },
     },

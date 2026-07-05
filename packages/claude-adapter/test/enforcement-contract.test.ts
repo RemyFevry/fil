@@ -31,7 +31,7 @@ function contractFixture(): RunProjection {
         priorResults: [".fil/runs/run-0/receipts/receipt-1.json"],
       },
       actorMode: "agent",
-      gate: { type: "testsPass", command: "pnpm test" },
+      gates: [{ name: "tests", type: "testsPass", command: "pnpm test" }],
     },
   };
 }

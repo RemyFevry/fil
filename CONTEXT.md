@@ -36,14 +36,14 @@ A node in a Flow (an XState state node) representing one stage of the lifecycle 
 _Avoid_: state (collides with XState's active-state snapshot), step, stage, task.
 
 **Transition**:
-The directed edge between Phases. Carries one property: a **Gate** (its mandatory condition). Whether a transition is human-gated is expressed *within* the Gate (a human-confirmation check), not as a separate control.
+The directed edge between Phases. Its taking is gated: all of the source **Phase**'s exit **Gates** must pass. Whether a transition is human-gated is expressed *within* a Gate (a human-confirmation check), not as a separate control.
 
 **Gate**:
-The mandatory condition on a Transition. Always present — there are no ungated transitions. A **user-defined executable test**: a shell script, a test file, an API call, an interactive human-confirmation prompt, or anything else Fil can run to yield pass/fail. Fully configured by the user; executed by **Fil itself** on `fil next`, which captures the result as a **verification receipt** (pass/fail + evidence). Maps to XState's guard concept but is richer — it produces a receipt and may bundle human-in-the-loop approval.
+A mandatory executable check on a **Phase**'s exit. A Phase has **one or more** named Gates; **all** must pass for the Run to advance. Always present — there are no ungated Phases. A **user-defined executable test**: a shell script, a test file, an API call, an interactive human-confirmation prompt, or anything else Fil can run to yield pass/fail. Fully configured by the user; executed by **Fil itself** on `fil next`, which captures the result as a **verification receipt** (pass/fail + evidence). Maps to XState's guard concept but is richer — it produces a receipt and may bundle human-in-the-loop approval.
 _Avoid_: check, validation (too generic).
 
 **Receipt** (verification receipt):
-The artifact a Gate produces when `fil next` executes it: pass/fail plus evidence (test output, the artifact path checked, the human's confirmation). Stored per Run for audit and observability — primitive #10 made literal. Never the agent's say-so.
+The artifact a Gate produces when `fil next` executes it: pass/fail plus evidence (test output, the artifact path checked, the human's confirmation). One Receipt per Gate, stored per Run for audit and observability — primitive #10 made literal. Never the agent's say-so.
 _Avoid_: result, log (too generic).
 
 **Trigger** _(folded into Gate)_:

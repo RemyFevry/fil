@@ -57,7 +57,7 @@ describe("evolution.applyProposal", () => {
     const next = structuredClone(flow.rawConfig) as Record<string, unknown>;
     const states = next.states as Record<string, unknown>;
     states.orphan = {
-      meta: { phase: { instructions: "x", gate: { type: "shell", script: "true" } } },
+      meta: { phase: { instructions: "x", gates: [{ name: "noop", type: "shell", script: "true" }] } },
     };
     const patch = createUnifiedPatch(baseCode, code(next));
     const result = await applyProposal(baseCode, patch, deps);
@@ -69,7 +69,7 @@ describe("evolution.applyProposal", () => {
     const next = structuredClone(flow.rawConfig) as Record<string, unknown>;
     const states = next.states as Record<
       string,
-      { meta: { phase: { instructions: string; gate: { type: string } } }; on?: Record<string, string> }
+      { meta: { phase: { instructions: string; gates: { name: string; type: string }[] } }; on?: Record<string, string> }
     >;
     const review = states.review;
     if (review) delete review.on;

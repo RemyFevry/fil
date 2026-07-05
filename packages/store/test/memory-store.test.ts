@@ -17,7 +17,7 @@ const sampleProjection: RunProjection = {
     skills: [],
     context: { files: [], priorResults: [] },
     actorMode: "collaborative",
-    gate: { type: "shell", script: "true" },
+    gates: [{ name: "noop", type: "shell", script: "true" }],
   },
 };
 
