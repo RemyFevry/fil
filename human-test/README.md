@@ -39,8 +39,13 @@ Starting Phase: requirements
 ### 2. Real CLI end-to-end (what users actually run)
 
 ```sh
-sh human-test/run-cli.sh
+./human-test/run-cli.sh        # uses the bash shebang
+# or: bash human-test/run-cli.sh
 ```
+
+Note: the script uses `set -o pipefail` (Bash-only); invoking it as `sh
+human-test/run-cli.sh` will fail on systems where `sh` is not Bash (e.g.
+Debian/Ubuntu, where it is `dash`).
 
 Scaffolds a throwaway project in a temp dir, runs `fil init`, then `fil inspect`
 — the exact production code path. Temp dir is cleaned up on exit.
@@ -48,7 +53,7 @@ Scaffolds a throwaway project in a temp dir, runs `fil init`, then `fil inspect`
 ### With an active Run (resume at the current Phase)
 
 ```sh
-sh human-test/run-cli.sh &                  # just to scaffold, then Ctrl-C
+./human-test/run-cli.sh &                  # just to scaffold, then Ctrl-C
 cd <temp-dir>                               # or use your own .fil/ project
 node <repo>/packages/cli/dist/index.js start "add-login" --flow default
 node <repo>/packages/cli/dist/index.js next   # advance a phase (runs the Gate)

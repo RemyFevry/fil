@@ -124,7 +124,11 @@ async function launchInspector(ctx: CliContext): Promise<number> {
   ctx.out.log(`Starting at: ${target.startPhases.join(", ") || "—"}`);
   ctx.out.log("Inspector open in your browser. Press Enter to advance (NEXT). Ctrl-C to exit.");
 
-  const cleanup = (): void => handle.stop();
+  const reader = await ctx.openInspectReader();
+  const cleanup = (): void => {
+    reader.close();
+    handle.stop();
+  };
   process.once("SIGINT", cleanup);
   try {
     await runInspectLoop({
@@ -132,7 +136,7 @@ async function launchInspector(ctx: CliContext): Promise<number> {
         handle.actor.send({ type: "NEXT" });
       },
       isDone: () => handle.actor.getSnapshot().status === "done",
-      openReader: ctx.openInspectReader,
+      openReader: async () => reader.readLine,
       onAdvance: () => {
         const snapshot = handle.actor.getSnapshot();
         ctx.out.log(`current: ${describeValue(snapshot.value)}`);
@@ -141,6 +145,7 @@ async function launchInspector(ctx: CliContext): Promise<number> {
     });
   } finally {
     process.removeListener("SIGINT", cleanup);
+    reader.close();
     handle.stop();
   }
   return 0;

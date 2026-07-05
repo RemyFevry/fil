@@ -681,9 +681,13 @@ describe("fil inspect — launchInspector wiring", () => {
       stop: () => {},
     };
     const scriptedLines = ["", "", ""];
+    let closeCalls = 0;
     const { ctx, lines } = ctxFor({
       inspectFlow: async () => fakeHandle,
-      openInspectReader: async () => async () => scriptedLines.shift() ?? null,
+      openInspectReader: async () => ({
+        readLine: async () => scriptedLines.shift() ?? null,
+        close: () => { closeCalls += 1; },
+      }),
     });
     initCommand(ctx);
     const code = await inspectCommand(ctx, parseArgs([]));
@@ -693,6 +697,45 @@ describe("fil inspect — launchInspector wiring", () => {
     expect(log).toContain("current: design");
     expect(log).toContain("current: code");
     expect(log).toContain("terminal Phase");
+    expect(closeCalls).toBe(1);
+  });
+
+  it("unblocks the stdin reader and stops the inspector on Ctrl-C (SIGINT)", async () => {
+    let value = "requirements";
+    const fakeHandle: InspectHandle = {
+      actor: {
+        send: () => { value = "design"; },
+        getSnapshot: () => ({ value, status: "active" }),
+        stop: () => {},
+      } as never,
+      stop: () => {},
+    };
+    let pendingReadLine: (() => void) | null = null;
+    let closeCalls = 0;
+    let closed = false;
+    const readPromise = new Promise<string | null>((resolve) => {
+      pendingReadLine = () => resolve(null);
+    });
+    const { ctx } = ctxFor({
+      inspectFlow: async () => fakeHandle,
+      openInspectReader: async () => ({
+        readLine: () => readPromise,
+        close: () => {
+          if (closed) return;
+          closed = true;
+          closeCalls += 1;
+          pendingReadLine?.();
+        },
+      }),
+    });
+    initCommand(ctx);
+    const inspectPromise = inspectCommand(ctx, parseArgs([]));
+    // Let the loop reach readLine(), then simulate Ctrl-C by firing SIGINT.
+    await new Promise((r) => setTimeout(r, 10));
+    process.emit("SIGINT");
+    const code = await inspectPromise;
+    expect(code).toBe(0);
+    expect(closeCalls).toBe(1);
   });
 });
 

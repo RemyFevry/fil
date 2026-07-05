@@ -45,9 +45,10 @@ export interface CliContext {
   /**
    * Open a line reader for `fil inspect`'s manual-advance loop. Always bound
    * by `defaultContext` to the real stdin reader; tests inject a fake to
-   * avoid reading stdin.
+   * avoid reading stdin. The reader exposes a `close()` so the launchInspector
+   * cleanup path can release any pending `readLine()` await on Ctrl-C.
    */
-  openInspectReader: () => Promise<() => Promise<string | null>>;
+  openInspectReader: () => Promise<InspectReader>;
 
   /**
    * Launch the Stately inspector for a Flow (ADR-0002 visualizer). Optional so
@@ -127,16 +128,37 @@ export function defaultContext(
   return merged;
 }
 
+/** A line reader for `fil inspect`'s manual-advance loop. */
+export interface InspectReader {
+  /** Read the next line; returns `null` on EOF. */
+  readLine(): Promise<string | null>;
+  /**
+   * Release the underlying stream/interface so any pending `readLine()` await
+   * resolves. Called from the SIGINT and `finally` paths so the command
+   * terminates immediately on Ctrl-C instead of hanging on stdin.
+   */
+  close(): void;
+}
+
 /** The production stdin reader for `fil inspect`'s manual-advance loop. */
-export async function createStdinInspectReader(): Promise<() => Promise<string | null>> {
+export async function createStdinInspectReader(): Promise<InspectReader> {
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
   const iterator = rl[Symbol.asyncIterator]();
-  return async () => {
+  let closed = false;
+  const readLine = async (): Promise<string | null> => {
+    if (closed) return null;
     const { value, done } = await iterator.next();
     if (done) {
       rl.close();
+      closed = true;
       return null;
     }
     return value ?? "";
   };
+  const close = (): void => {
+    if (closed) return;
+    closed = true;
+    rl.close();
+  };
+  return { readLine, close };
 }

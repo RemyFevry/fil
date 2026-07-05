@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Manual visual test for the REAL `fil inspect` CLI (not the standalone demo).
 #
-# Run:  sh human-test/run-cli.sh
+# Run:  ./human-test/run-cli.sh        # uses the bash shebang above
+# (or:  bash human-test/run-cli.sh)
+#
+# Note: invoke with bash or directly so `set -o pipefail` works — POSIX `sh`
+# (e.g. dash on Debian) doesn't support it and the script will exit on start.
 #
 # Creates a throwaway Fil project in a temp dir, runs `fil init`, then
 # `fil inspect` — which opens the Stately inspector in the browser for the
