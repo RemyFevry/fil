@@ -44,7 +44,7 @@ function projection(allowedTools: string[]): RunProjection {
       skills: [],
       context: { files: [], priorResults: [] },
       actorMode: "agent",
-      gate: { type: "testsPass", command: "pnpm test" },
+      gates: [{ name: "tests", type: "testsPass", command: "pnpm test" }],
     },
   };
 }

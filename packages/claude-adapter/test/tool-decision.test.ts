@@ -17,7 +17,7 @@ function projection(allowedTools: string[], phase = "Code"): RunProjection {
       skills: [],
       context: { files: [], priorResults: [] },
       actorMode: "agent",
-      gate: { type: "shell", script: "true" },
+      gates: [{ name: "noop", type: "shell", script: "true" }],
     },
   };
 }

@@ -5,6 +5,7 @@
 "@color-sunset/fil-orchestrator": patch
 "@color-sunset/fil-inspect-view": patch
 "@color-sunset/fil-cli": minor
+"@color-sunset/fil-claude-adapter": patch
 "@color-sunset/fil-pi-adapter": patch
 "@color-sunset/fil": minor
 ---
