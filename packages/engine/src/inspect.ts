@@ -89,13 +89,28 @@ export async function inspectFlow(
     });
 
   const server = await createServer({ port, url, autoOpen });
-  const inspector = await createInspector({ url: wsUrl });
 
-  const actor = createActor(options.machine as AnyStateMachine, {
-    inspect: inspector.inspect as never,
-    snapshot: options.snapshot as never,
-  });
-  actor.start();
+  // Tear down already-created resources if a later init step throws.
+  let inspector: { inspect: unknown; stop?: () => void };
+  try {
+    inspector = await createInspector({ url: wsUrl });
+  } catch (err) {
+    server.stop();
+    throw err;
+  }
+
+  let actor: AnyActor;
+  try {
+    actor = createActor(options.machine as AnyStateMachine, {
+      inspect: inspector.inspect as never,
+      snapshot: options.snapshot as never,
+    });
+    actor.start();
+  } catch (err) {
+    inspector.stop?.();
+    server.stop();
+    throw err;
+  }
 
   // Idempotent teardown: the CLI may call stop() from both the normal exit
   // path and the SIGINT handler.

@@ -10,7 +10,12 @@ const packagesDir = join(repoRoot, "packages");
 /** Recursively collect .ts source files (excluding tests, dist, defs). */
 function listTsFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
+    if (
+      entry === "node_modules" || entry === "dist" || entry === ".git" ||
+      entry === "test" // tests are not shipped (package.json `files` is `dist`)
+    ) {
+      continue;
+    }
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       listTsFiles(full, acc);

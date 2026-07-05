@@ -1,4 +1,3 @@
-import readline from "node:readline/promises";
 import { renderGraph } from "@color-sunset/fil-inspect-view";
 import { currentPhases } from "@color-sunset/fil-orchestrator";
 import { createMachine } from "@color-sunset/fil-engine";
@@ -133,18 +132,7 @@ async function launchInspector(ctx: CliContext): Promise<number> {
         handle.actor.send({ type: "NEXT" });
       },
       isDone: () => handle.actor.getSnapshot().status === "done",
-      openReader: async () => {
-        const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-        const iterator = rl[Symbol.asyncIterator]();
-        return async () => {
-          const { value, done } = await iterator.next();
-          if (done) {
-            rl.close();
-            return null;
-          }
-          return value ?? "";
-        };
-      },
+      openReader: ctx.openInspectReader,
       onAdvance: () => {
         const snapshot = handle.actor.getSnapshot();
         ctx.out.log(`current: ${describeValue(snapshot.value)}`);
