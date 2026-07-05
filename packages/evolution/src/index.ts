@@ -83,9 +83,7 @@ export async function applyProposal(
  * without Node ESM resolution failures.
  */
 export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
-  const { realpathSync } = await import("node:fs");
   const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { pathToFileURL } = await import("node:url");
 
@@ -96,17 +94,20 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
       )
     : code;
 
-  // On Windows, `os.tmpdir()` returns the 8.3 short-name form
-  // (`C:\Users\RUNNER~1\AppData\Local\Temp\…`) on the GitHub-hosted
-  // runner. `pathToFileURL` URL-encodes the `~` as `%7E`, but Node's
-  // ESM loader can't round-trip the URL back to a path the OS can
-  // open, so dynamic `import()` reports "Failed to load url ... Does
-  // the file exist?" even though the file is on disk. `realpathSync`
-  // on `tmpdir()` itself asks the OS to expand the short name once,
-  // so every subsequent path (dir, file, URL) is a long-name path
-  // with no 8.3 components. No-op on POSIX.
-  const tmpRoot = realpathSync(tmpdir());
-  const dir = await mkdtemp(join(tmpRoot, "fil-evo-"));
+  // On Windows, the GitHub-hosted runner's `os.tmpdir()` resolves to
+  // the 8.3 short-name form (`C:\Users\RUNNER~1\AppData\Local\Temp\…`).
+  // `pathToFileURL` URL-encodes the `~` as `%7E`, but Node's ESM
+  // loader's URL→path round-trip can't find the file we just wrote
+  // and reports "Failed to load url ... Does the file exist?" even
+  // though the file is on disk. We've found that `realpathSync` does
+  // not expand the short-name alias on this Node 26 / Windows build,
+  // so we sidestep the issue by writing the temp file under
+  // `process.cwd()` — which is always a long-name canonical path on
+  // Windows. Cleanup removes the file in `finally`, so no on-disk
+  // trace is left after the call. No-op on POSIX (process.cwd() and
+  // os.tmpdir() are typically equivalent there).
+  const tmpRoot = process.cwd();
+  const dir = await mkdtemp(join(tmpRoot, ".fil-evo-"));
   const file = join(dir, "flow.mjs");
   try {
     await writeFile(file, resolvedCode, "utf8");

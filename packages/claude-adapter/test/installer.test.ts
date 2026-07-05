@@ -126,7 +126,14 @@ describe("installClaudeAdapter", () => {
     // User-scope references the absolute path (no placeholder).
     const settings = fs.read(result.paths.user.settings) ?? "";
     expect(settings).toContain(
-      [normalizedHome, ".claude", "fil", "pretooluse-hook.js"].join(sep),
+      // settings.json is a JSON string, so backslashes are JSON-escaped
+      // (Windows separator `\` is emitted as `\\` in the source string).
+      // Wrap the expected value in JSON.stringify and slice off the
+      // surrounding quotes so the substring matches the in-document
+      // escape form on every OS.
+      JSON.stringify(
+        [normalizedHome, ".claude", "fil", "pretooluse-hook.js"].join(sep),
+      ).slice(1, -1),
     );
     expect(settings).not.toContain("${CLAUDE_PROJECT_DIR}");
   });

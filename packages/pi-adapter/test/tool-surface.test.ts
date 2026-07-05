@@ -1,5 +1,4 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -33,7 +32,15 @@ let workdir: string;
 let moduleFile: string;
 
 beforeAll(async () => {
-  workdir = await mkdtemp(join(tmpdir(), "fil-pi-tool-surface-"));
+  // Use process.cwd() as the temp root, not os.tmpdir(). On Windows the
+  // GitHub-hosted runner's `$USERPROFILE` is the 8.3 short-name form
+  // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
+  // `%7E`, but Node's ESM loader's URL→path round-trip can't find the file
+  // we just wrote and reports "Failed to load url ... Does the file exist?".
+  // `process.cwd()` is always a canonical long-name path on Windows.
+  // No-op on POSIX. See packages/evolution/src/index.ts `loadFlowCode`
+  // for the canonical explanation.
+  workdir = await mkdtemp(join(process.cwd(), ".fil-pi-tool-surface-"));
   moduleFile = join(workdir, "fil-tools.mjs");
 });
 afterAll(async () => {

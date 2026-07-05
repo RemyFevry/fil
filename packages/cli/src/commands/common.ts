@@ -1,5 +1,4 @@
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import type { FlowDefinition } from "@color-sunset/fil-engine";
@@ -52,19 +51,22 @@ function realFlowLoaderDeps(ctx: CliContext): FlowLoaderDeps {
             `from "${engineEntryUrl}"`,
           )
         : source;
-      // Write to a temp file under `os.tmpdir()` (canonicalized to its
-      // long-name form) rather than beside the source Flow file. On Windows
-      // the GitHub Actions runner's `$USERPROFILE` is the 8.3 short form
-      // (`C:\Users\RUNNER~1\...`); `pathToFileURL` URL-encodes the `~` as
-      // `%7E`, but Node's ESM loader's URL→path round-trip can't find the
-      // file we just wrote and reports "Failed to load url ... Does the
-      // file exist?". Writing the temp file under a long-name tempdir
-      // (one canonicalized via `realpathSync`) sidesteps the issue.
-      // See packages/evolution/src/index.ts `loadFlowCode` for the same
-      // fix and the canonical explanation.
-      const tmpRoot = realpathSync(tmpdir());
+      // Write to a temp file under `process.cwd()` rather than beside
+      // the source Flow file. On Windows the GitHub Actions runner's
+      // `$USERPROFILE` is the 8.3 short form (`C:\Users\RUNNER~1\...`);
+      // `pathToFileURL` URL-encodes the `~` as `%7E`, but Node's ESM
+      // loader's URL→path round-trip can't find the file we just wrote
+      // and reports "Failed to load url ... Does the file exist?".
+      // `realpathSync(tmpdir())` does NOT expand the short-name alias on
+      // this Node 26 / Windows build, so we sidestep it entirely by
+      // writing the temp file under `process.cwd()` (which is always a
+      // canonical long-name path on Windows). Cleanup removes the file in
+      // `finally`, so no on-disk trace is left after the call. No-op on
+      // POSIX (process.cwd() and os.tmpdir() are typically equivalent).
+      // See packages/evolution/src/index.ts `loadFlowCode` for the
+      // canonical explanation.
       const rewrittenPath = join(
-        tmpRoot,
+        process.cwd(),
         `.fil-flow-cache.${process.pid}.${Date.now()}.resolved.mjs`,
       );
       const { writeFileSync, rmSync } = await import("node:fs");
