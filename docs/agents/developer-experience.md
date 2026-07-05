@@ -350,6 +350,30 @@ agent shouldn't read all ADRs to find which ones to read.
 **How:** A short index file with a `| # | File | Topic |` table,
 generated or hand-maintained.
 
+#### R12b. Document + enforce the canonical Plan → PR → Implement → Wait → Iterate loop
+
+**What:** Codify the per-Change loop (1. Plan → 2. PR (draft) → 3. Implement
+→ 4. Wait (Sonar + CodeRabbit reply) → 5. Address feedback → 6. Ready + Merge)
+into a single doc that every agent reads. Implement one already; see
+[`docs/agents/feature-loop.md`](./feature-loop.md).
+
+**Why:** Without an explicit loop, agents improvise — open the PR after
+implementation, merge before Sonar/Coderabbit reply, set the board Status
+from memory. The hand-improvised loop loses state between the agent, the
+reviewers, and the human coordinator, which is what breaks `grab any
+ready-for-agent issue and go` at multi-agent scale.
+
+**How:** Six steps each mapped to a GitHub event (issue comment, draft
+PR, push, automated review, threaded reply, squash merge) plus a board
+Status update. Anti-patterns section (no PR before code, no merge with
+open CodeRabbit threads, no skipping `pnpm ci`) and a "Quick-start
+checklist" agents can paste into their working context. Add a status-
+sync check (R08) so the board cannot drift from the loop's actual state.
+
+Cross-references it from `onboarding.md` (the agent's first-step
+table), `issue-workflow.md` (board transitions), and `AGENTS.md`
+(top-level skills index).
+
 ---
 
 ### P1 — Agent identity & permissions

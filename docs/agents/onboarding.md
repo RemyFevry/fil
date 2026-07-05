@@ -230,9 +230,14 @@ config. (See ADR-0002.)
 
 | You're an… | Do this first |
 |---|---|
-| AFK agent dispatched onto an issue | 1. Read the issue body + acceptance criteria. 2. `wt switch -x opencode -c fix/<n>`. 3. Move Status to In Progress. 4. Comment the plan. 5. Run `pnpm ci` before `gh pr create`. |
+| AFK agent dispatched onto an issue | Follow [`feature-loop.md`](./feature-loop.md): 1. Plan on the issue (move Status → In Progress, post the plan). 2. Open a **draft PR** with `Closes #N` BEFORE implementing. 3. Implement + `pnpm ci`. 4. Wait for CodeRabbit + Sonar replies. 5. Address every thread. 6. `gh pr ready` and merge. |
 | Human reading code | 1. Skim `CONTEXT.md`. 2. Read the ADR for your area. 3. `pnpm ci` works as a baseline — if it doesn't, the env is broken. |
-| Reviewer | 1. PR description has `Closes #N`. 2. `[pre-merge]` was green. 3. Coderabbit + Sonar are comments, not gates — read them, but you decide. |
+| Reviewer | 1. PR description has `Closes #N`. 2. `[pre-merge]` was green. 3. Coderabbit + Sonar threads are addressed, not just resolved. |
+
+The full loop (anti-patterns, time budgets, "what if my PR isn't
+like this?" variations) lives in [`feature-loop.md`](./feature-loop.md).
+Read it once before your first dispatch — it's the operationally
+critical doc on this repo.
 
 ## 9. When in doubt
 
