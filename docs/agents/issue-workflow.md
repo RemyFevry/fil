@@ -102,3 +102,7 @@ It authenticates with the **`PROJECT_TOKEN`** secret (a fine-grained PAT with pr
 ## Why this matters
 
 Issues that lie (Status says "In Progress" but nobody's touched them in a week) break coordination between humans and AFK agents. Keeping Status and comments current is the contract that makes "grab any `ready-for-agent` issue and go" safe.
+
+## How this fits the per-Change loop
+
+The board transitions above are only the **status** axis of the per-Change workflow. The end-to-end loop — picking the issue, planning, opening the PR, implementing, waiting for CodeRabbit + Sonar, addressing feedback, merging — is documented in [`feature-loop.md`](./feature-loop.md). Skim that doc once; this one is the reference for board-state mechanics only.
