@@ -579,3 +579,31 @@ describe("describeValue", () => {
     expect(typeof describeValue(cyclic)).toBe("string");
   });
 });
+
+describe("fil inspect — error branches", () => {
+  it("returns 1 and logs an error when the target Flow cannot be resolved", async () => {
+    const isolated = await mkdtemp(join(tmpdir(), "color-sunset-fil-iso-"));
+    const errs: string[] = [];
+    try {
+      const ctx = defaultContext(isolated, {
+        out: { log: () => {}, error: (l) => errs.push(l) },
+        inspectFlow: async () => {
+          throw new Error("should not be called");
+        },
+      });
+      const code = await inspectCommand(ctx, parseArgs([]));
+      expect(code).toBe(1);
+      expect(errs.join("\n")).toMatch(/not found|default/);
+    } finally {
+      await rm(isolated, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 1 and logs an error when ctx.inspectFlow is not bound", async () => {
+    const { ctx, errors } = ctxFor({ inspectFlow: undefined });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("Inspector is not available");
+  });
+});
