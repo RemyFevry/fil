@@ -39,7 +39,7 @@ function demoFlow() {
         skills: [],
         context: { files: [], priorResults: [] },
         actorMode: "agent",
-        gate,
+        gates: [{ name: "g", ...gate }],
         ...extra,
       },
     },
@@ -130,7 +130,7 @@ describe("fil CLI — end to end", () => {
     statusCommand(ctx);
     const out = lines.join("\n");
     expect(out).toContain("Phase   a");
-    expect(out).toContain("Gate    shell command");
+    expect(out).toContain("Gates   g (shell command)");
     expect(out).toContain("Actor   agent");
   });
 
@@ -407,5 +407,102 @@ describe("Pi enforcement — through the contract", () => {
     expect(enforced.phases).toEqual(projection.phases);
     expect(enforced.systemPrompt).toContain(projection.phaseConfig.instructions);
     expect(enforced.systemPrompt).toContain(projection.runId);
+  });
+});
+
+describe("fil init — adapter installs (Claude + Pi, stubbed)", () => {
+  beforeEach(async () => {
+    await rm(join(workdir, ".fil"), { recursive: true, force: true });
+    await rm(join(workdir, ".gitignore"), { force: true });
+  });
+
+  /** A stub Claude result with the two-scope paths shape the CLI formats. */
+  function claudeResult(installed: boolean, detected = true) {
+    return {
+      installed,
+      claudeDetected: detected,
+      paths: {
+        project: { hook: "/p/.claude/fil/pretooluse-hook.js", settings: "/p/.claude/settings.json" },
+        user: { hook: "/u/.claude/fil/pretooluse-hook.js", settings: "/u/.claude/settings.json" },
+      },
+      reason: installed ? undefined : "already installed (idempotent).",
+    };
+  }
+
+  it("installs the Claude adapter and logs it when detected", () => {
+    let scope: string | undefined;
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: () => ({ installed: false, paths: { project: "p", user: "u" }, piDetected: false, reason: "stub" }),
+      installClaudeAdapter: (opts) => {
+        scope = opts.scope;
+        return claudeResult(true);
+      },
+    });
+    expect(initCommand(ctx)).toBe(0);
+    expect(scope).toBe("project");
+    const out = lines.join("\n");
+    expect(out).toContain("claude adapter: installed (scope=project)");
+    expect(out).toContain("pi adapter:"); // the stubbed Pi step reports its reason
+  });
+
+  it("honors --scope both for the Claude adapter too", () => {
+    let scope: string | undefined;
+    const { ctx } = ctxFor({
+      installPiAdapter: () => ({ installed: false, paths: { project: "p", user: "u" }, piDetected: false, reason: "stub" }),
+      installClaudeAdapter: (opts) => {
+        scope = opts.scope;
+        return claudeResult(true);
+      },
+    });
+    expect(initCommand(ctx, parseArgs(["--scope", "both"]))).toBe(0);
+    expect(scope).toBe("both");
+  });
+
+  it("skips both adapters when their callbacks are absent (opt-out)", () => {
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: undefined,
+      installClaudeAdapter: undefined,
+    });
+    expect(initCommand(ctx)).toBe(0);
+    const out = lines.join("\n");
+    expect(out).not.toContain("claude adapter");
+    expect(out).not.toContain("pi adapter");
+  });
+
+  it("rejects an unknown --scope even when both adapter callbacks are absent", () => {
+    const { ctx, errors } = ctxFor({
+      installPiAdapter: undefined,
+      installClaudeAdapter: undefined,
+    });
+    const code = initCommand(ctx, parseArgs(["--scope", "nope"]));
+    expect(code).toBe(2);
+    expect(errors.join("\n")).toContain("Invalid --scope");
+    expect(errors.join("\n")).toContain("nope");
+  });
+
+  it("logs 'not detected' for Claude when it is absent on the host", () => {
+    const { ctx, lines } = ctxFor({
+      installPiAdapter: () => ({ installed: false, paths: { project: "p", user: "u" }, piDetected: false, reason: "stub" }),
+      installClaudeAdapter: () => ({ ...claudeResult(false, false), reason: "Claude Code not detected on this machine; skipping Claude Adapter install." }),
+    });
+    expect(initCommand(ctx)).toBe(0);
+    expect(lines.join("\n")).toContain("claude adapter:");
+    expect(lines.join("\n")).toContain("not detected");
+  });
+
+  it("fails fast with exit 2 on an unknown --scope before either adapter runs", () => {
+    const calls: string[] = [];
+    const { ctx } = ctxFor({
+      installPiAdapter: () => {
+        calls.push("pi");
+        return { installed: false, paths: { project: "p", user: "u" }, piDetected: true };
+      },
+      installClaudeAdapter: () => {
+        calls.push("claude");
+        return claudeResult(true);
+      },
+    });
+    expect(initCommand(ctx, parseArgs(["--scope", "nope"]))).toBe(2);
+    expect(calls).toEqual([]);
   });
 });

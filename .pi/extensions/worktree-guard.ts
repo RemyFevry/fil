@@ -10,13 +10,41 @@
 // the canonical scripts/require-worktree.sh — single source of truth — which
 // also owns the FIL_ALLOW_MAIN_WORKTREE escape hatch and the "not a repo →
 // allow" fallback, so this file never reimplements the gate.
+//
+// For `bash` tool calls we extract the command (best-effort: from
+// `event.input`/`event.args`/stringifying the event) and pass it to the
+// script as $1, so `wt switch …` and other bootstrap subcommands can be
+// whitelisted as an escape hatch from the primary worktree.
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 const MUTATING = new Set(["edit", "write", "bash"]);
 
+/** Best-effort extraction of the bash command from a Pi tool_call event. */
+function bashCommandFrom(event: unknown): string {
+  if (!event || typeof event !== "object") return "";
+  const e = event as Record<string, unknown>;
+  // Pi's tool_call event shape: { toolName, input: { command: "..." } } (most
+  // versions), with some variants exposing `args` or `input` directly. We try
+  // each in order and fall back to a stringify-and-truncate for diagnostics.
+  const candidates: unknown[] = [
+    (e.input as Record<string, unknown> | undefined)?.command,
+    (e.input as Record<string, unknown> | undefined)?.args,
+    (e.args as Record<string, unknown> | undefined)?.command,
+    (e as Record<string, unknown>).command,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string") return c;
+    if (c && typeof c === "object") {
+      const cmd = (c as Record<string, unknown>).command;
+      if (typeof cmd === "string") return cmd;
+    }
+  }
+  return "";
+}
+
 /** Run the canonical gate; returns its exit code (0 = allow, 2 = block). */
-function gateExitCode(): number {
+function gateExitCode(command: string): number {
   // Resolve the repo root from the cwd so the shared script is found no matter
   // how Pi located this extension file.
   let top: string;
@@ -29,7 +57,7 @@ function gateExitCode(): number {
     return 0; // not a git repo → allow (mirrors the script's own behavior)
   }
   try {
-    execFileSync("bash", [join(top, "scripts", "require-worktree.sh")], {
+    execFileSync("bash", [join(top, "scripts", "require-worktree.sh"), command], {
       stdio: "ignore",
     });
     return 0;
@@ -44,13 +72,15 @@ export default function worktreeGuard(pi) {
   pi.on("tool_call", async (event) => {
     const name = event?.toolName;
     if (!MUTATING.has(name)) return undefined;
-    const code = gateExitCode();
-    if (code === 0) return undefined; // allowed
+    const command = name === "bash" ? bashCommandFrom(event) : "";
+    const code = gateExitCode(command);
+    if (code === 0) return undefined; // allowed (worktree or whitelisted cmd)
     if (code === 2) {
       return {
         block: true,
         reason:
           "fil: blocked — mutating tools are not allowed in the primary worktree. " +
+          (command ? `You ran: \`${command}\`. ` : "") +
           "Work inside a Worktrunk worktree: `wt switch -c <branch>` and launch Pi there " +
           "(e.g. `wt switch -x pi -c <branch>`). " +
           "Trunk maintenance? set FIL_ALLOW_MAIN_WORKTREE=1.",

@@ -76,7 +76,7 @@ function formatNodeLine(node: FlowGraphNode, active: Set<string>, color: boolean
   const tags: string[] = [];
   if (node.parallel) tags.push("parallel");
   if (phase) tags.push(`[${phase.actorMode}]`);
-  if (phase) tags.push(`gate: ${gateLabel(phase.gate.type)}`);
+  if (phase) tags.push(`gates: ${phase.gates.map((g) => `${g.name}(${gateLabel(g.type)})`).join(", ")}`);
   if (node.final) tags.push("(final)");
   return `  ${marker} ${node.id.padEnd(26)} ${tags.join("  ")}`;
 }

@@ -6,9 +6,15 @@ import {
   detectPi,
   defaultFs as defaultPiFs,
   installPiAdapter as installPiAdapterReal,
-  type InstallResult,
+  type InstallResult as PiInstallResult,
   type InstallScope,
 } from "@color-sunset/fil-pi-adapter";
+import {
+  detectClaude,
+  defaultFs as defaultClaudeFs,
+  installClaudeAdapter as installClaudeAdapterReal,
+  type InstallResult as ClaudeInstallResult,
+} from "@color-sunset/fil-claude-adapter";
 import { FilStore, type Store } from "@color-sunset/fil-store";
 
 /** Runtime context shared by every CLI command. */
@@ -35,7 +41,13 @@ export interface CliContext {
    * `defaultContext` binds a real one that respects the working directory
    * and detects Pi via the host filesystem.
    */
-  installPiAdapter?: (opts: { scope: InstallScope }) => InstallResult;
+  installPiAdapter?: (opts: { scope: InstallScope }) => PiInstallResult;
+  /**
+   * Installs the Claude Code adapter for the project. Optional so tests can
+   * stub it; `defaultContext` binds a real one that detects Claude Code via
+   * the host filesystem and registers the PreToolUse hook in settings.json.
+   */
+  installClaudeAdapter?: (opts: { scope: InstallScope }) => ClaudeInstallResult;
 }
 
 /** Options for {@link defaultContext}. `cwd` is always required. */
@@ -70,6 +82,16 @@ export function defaultContext(
         scope,
         fs: defaultPiFs(),
         piDetected: detectPi(),
+      });
+  }
+  if (!("installClaudeAdapter" in overrides)) {
+    merged.installClaudeAdapter = ({ scope }) =>
+      installClaudeAdapterReal({
+        projectRoot: merged.cwd,
+        userFilDir: merged.userFilDir,
+        scope,
+        fs: defaultClaudeFs(),
+        claudeDetected: detectClaude(),
       });
   }
   return merged;

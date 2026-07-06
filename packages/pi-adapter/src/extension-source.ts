@@ -131,7 +131,7 @@ function composeSystemPrompt(projection) {
       " · actor " +
       projection.actorMode,
   );
-  lines.push("Gate (to advance): " + describeGate(cfg.gate && cfg.gate.type));
+  lines.push("Gates (to advance, all must pass): " + (cfg.gates || []).map(function (g) { return g.name + "=" + describeGate(g.type); }).join(", "));
   lines.push("Advance via \`fil next\` — the gate runs an external test, not the agent's say-so.");
   return lines.join("\\n");
 }

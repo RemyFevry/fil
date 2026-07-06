@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILT_IN_FLOWS, serializeFlowCode } from "@color-sunset/fil-engine";
 import type { InstallScope, InstallResult } from "@color-sunset/fil-pi-adapter";
+import type { InstallResult as ClaudeInstallResult } from "@color-sunset/fil-claude-adapter";
 import type { ParsedArgs } from "../args.js";
 import { flag } from "../args.js";
 import type { CliContext } from "../context.js";
@@ -17,11 +18,20 @@ const GITIGNORE_HEADER = "# Fil — durable local state (Runs/proposals are not 
 
 /** `fil init` — scaffold the durable `.fil/` layout (idempotent). */
 export function initCommand(ctx: CliContext, args?: ParsedArgs): number {
+  // Resolve --scope once, up front, and fail fast (exit 2) on an unknown
+  // value — independent of which adapter callbacks happen to be enabled.
+  const scope = parseScope(flag(args ?? EMPTY_ARGS, "scope"));
+  if (!scope.ok) {
+    ctx.out.error(scope.error);
+    return 2;
+  }
   ensureFilLayout(ctx);
   updateGitignore(ctx.cwd);
   const scaffolded = scaffoldBuiltInFlows(ctx);
   logInitSummary(ctx, scaffolded);
-  return installPiAdapterStep(ctx, args ?? EMPTY_ARGS);
+  installPiAdapterStep(ctx, scope.value);
+  installClaudeAdapterStep(ctx, scope.value);
+  return 0;
 }
 
 /** Ensure `.fil/flows/`, `.fil/runs/`, `.fil/proposals/`, and config.json exist. */
@@ -65,23 +75,15 @@ function logInitSummary(ctx: CliContext, scaffolded: readonly string[]): void {
 }
 
 /**
- * Optional adapter install: tolerant of an uninstalled Pi, idempotent
- * across re-runs, and opt-out via `ctx.installPiAdapter === undefined`
- * (the unit tests use this to exercise the layout path in isolation).
- * Default scope is `project`; the user can widen with `--scope user`
- * or `--scope both`. Returns 2 on an unknown `--scope` (the only
- * non-zero exit the command produces).
+ * Optional adapter install: tolerant of an uninstalled Pi and idempotent
+ * across re-runs. Opt out via `ctx.installPiAdapter === undefined` (the
+ * unit tests use this to exercise the layout path in isolation). `--scope`
+ * is resolved once up front in `initCommand` and passed in here.
  */
-function installPiAdapterStep(ctx: CliContext, args: ParsedArgs): number {
-  if (!ctx.installPiAdapter) return 0;
-  const scope = parseScope(flag(args, "scope"));
-  if (!scope.ok) {
-    ctx.out.error(scope.error);
-    return 2;
-  }
-  const result = ctx.installPiAdapter({ scope: scope.value });
-  ctx.out.log(formatAdapterLog(scope.value, result));
-  return 0;
+function installPiAdapterStep(ctx: CliContext, scope: InstallScope): void {
+  if (!ctx.installPiAdapter) return;
+  const result = ctx.installPiAdapter({ scope });
+  ctx.out.log(formatAdapterLog(scope, result));
 }
 
 function formatAdapterLog(scope: InstallScope, result: InstallResult): string {
@@ -115,4 +117,36 @@ function formatTargets(
 ): string {
   if (scope === "both") return `${paths.project} and ${paths.user}`;
   return paths[scope];
+}
+
+/**
+ * Optional Claude Code adapter install: tolerant of an uninstalled Claude
+ * Code and idempotent across re-runs. Opt out via
+ * `ctx.installClaudeAdapter === undefined`. `--scope` is resolved once up
+ * front in `initCommand` (shared with the Pi step) and passed in here.
+ */
+function installClaudeAdapterStep(ctx: CliContext, scope: InstallScope): void {
+  if (!ctx.installClaudeAdapter) return;
+  const result = ctx.installClaudeAdapter({ scope });
+  ctx.out.log(formatClaudeLog(scope, result));
+}
+
+function formatClaudeLog(scope: InstallScope, result: ClaudeInstallResult): string {
+  if (!result.claudeDetected) {
+    return `  claude adapter: ${result.reason ?? "skipped (Claude Code not detected)"}`;
+  }
+  const targets = formatClaudeTargets(scope, result.paths);
+  const action = result.installed
+    ? `installed (scope=${scope})`
+    : (result.reason ?? "already installed");
+  return `  claude adapter: ${action} at ${targets}`;
+}
+
+function formatClaudeTargets(
+  scope: InstallScope,
+  paths: { project: { hook: string; settings: string }; user: { hook: string; settings: string } },
+): string {
+  const fmt = (p: { hook: string; settings: string }) => `${p.hook} (+ ${p.settings})`;
+  if (scope === "both") return `${fmt(paths.project)} and ${fmt(paths.user)}`;
+  return fmt(paths[scope]);
 }

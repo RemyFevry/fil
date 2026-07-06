@@ -11,6 +11,7 @@
     { "path": "packages/inspect-view" },
     { "path": "packages/cli" },
     { "path": "packages/pi-adapter" },
+    { "path": "packages/claude-adapter" },
     { "path": "packages/mcp-server" }
   ]
 }

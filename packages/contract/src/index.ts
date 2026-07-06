@@ -56,6 +56,23 @@ export const GateTypeSchema = z.enum(["shell", "human", "testsPass", "none"]);
 export type GateType = z.infer<typeof GateTypeSchema>;
 
 // ---------------------------------------------------------------------------
+// Named gate — a GateSpec carrying a stable name (ADR-0004).
+// A Phase holds one or more of these; names are unique within a Phase so the
+// CLI gate verbs (`add-gate`/`remove-gate`/`set-gate`) and Receipts can address
+// a single gate. The gate-runner still consumes a plain GateSpec (name is a
+// PhaseConfig concern, not a gate-execution concern).
+// ---------------------------------------------------------------------------
+const NamedShellGateSchema = ShellGateSchema.extend({ name: z.string().min(1) });
+const NamedHumanGateSchema = HumanGateSchema.extend({ name: z.string().min(1) });
+const NamedTestsPassGateSchema = TestsPassGateSchema.extend({ name: z.string().min(1) });
+export const NamedGateSchema = z.discriminatedUnion("type", [
+  NamedShellGateSchema,
+  NamedHumanGateSchema,
+  NamedTestsPassGateSchema,
+]);
+export type NamedGate = z.infer<typeof NamedGateSchema>;
+
+// ---------------------------------------------------------------------------
 // Phase configuration — the harness primitives an Adapter enforces.
 // ---------------------------------------------------------------------------
 export const PhaseContextSchema = z.object({
@@ -65,14 +82,29 @@ export const PhaseContextSchema = z.object({
 });
 export type PhaseContext = z.infer<typeof PhaseContextSchema>;
 
-export const PhaseConfigSchema = z.object({
-  instructions: z.string(),
-  allowedTools: z.array(z.string()).default([]),
-  skills: z.array(z.string()).default([]),
-  context: PhaseContextSchema.default({ files: [], priorResults: [] }),
-  actorMode: ActorModeSchema.default("agent"),
-  gate: GateSpecSchema,
-});
+export const PhaseConfigSchema = z
+  .object({
+    instructions: z.string(),
+    allowedTools: z.array(z.string()).default([]),
+    skills: z.array(z.string()).default([]),
+    context: PhaseContextSchema.default({ files: [], priorResults: [] }),
+    actorMode: ActorModeSchema.default("agent"),
+    /** One or more named gates; ALL must pass to advance (ADR-0004). */
+    gates: z.array(NamedGateSchema).min(1),
+  })
+  .superRefine((cfg, ctx) => {
+    const seen = new Set<string>();
+    for (const g of cfg.gates) {
+      if (seen.has(g.name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["gates"],
+          message: `gate names must be unique within a Phase (duplicate: "${g.name}").`,
+        });
+      }
+      seen.add(g.name);
+    }
+  });
 export type PhaseConfig = z.infer<typeof PhaseConfigSchema>;
 
 // ---------------------------------------------------------------------------
@@ -93,6 +125,8 @@ export type ReceiptEvidence = z.infer<typeof ReceiptEvidenceSchema>;
 export const ReceiptSchema = z.object({
   /** Phase whose exit Gate produced this receipt. */
   phase: z.string(),
+  /** Name of the gate within the Phase (ADR-0004). */
+  gateName: z.string(),
   gateType: GateTypeSchema,
   outcome: ReceiptOutcomeSchema,
   evidence: ReceiptEvidenceSchema.default({}),

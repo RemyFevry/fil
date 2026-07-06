@@ -41,7 +41,7 @@ export async function startCommand(ctx: CliContext, args: ParsedArgs): Promise<n
   ctx.out.log(`  change: ${result.run.change}`);
   ctx.out.log(`  flow:   ${result.run.flowName} (${resolved.source}-level)`);
   ctx.out.log(`  phase:  ${result.projection.phase}`);
-  ctx.out.log(`  gate:   ${gateLabel(result.projection.phaseConfig.gate.type)}`);
+  ctx.out.log(`  gates:  ${result.projection.phaseConfig.gates.map((g) => `${g.name}(${gateLabel(g.type)})`).join(", ")}`);
   ctx.out.log(`  actor:  ${result.projection.actorMode}`);
   ctx.out.log("Run `fil status` for details, `fil next` to advance.");
   return 0;

@@ -50,7 +50,8 @@ describe("XStateFlowEngine — built-in default Flow", () => {
     const engine = loadDefault();
     const code = engine.getPhaseConfig("code");
     expect(code?.actorMode).toBe("agent");
-    expect(code?.gate.type).toBe("testsPass");
+    expect(code?.gates[0]?.type).toBe("testsPass");
+    expect(code?.gates[0]?.name).toBe("tests");
     expect(code?.allowedTools).toContain("bash");
     expect(code?.skills).toContain("tdd");
   });
@@ -90,6 +91,26 @@ describe("XStateFlowEngine — built-in default Flow", () => {
     const broken: FlowDefinition = createMachine({ initial: "missing", states: {} });
     const result = defaultFlowEngine.load("broken", broken);
     expect(result.ok).toBe(false);
+  });
+
+  it("rejects a Flow using the old singular gate shape with a migration hint (ADR-0004)", () => {
+    const legacyGate: FlowDefinition = createMachine({
+      id: "legacy-gate",
+      initial: "a",
+      states: {
+        a: {
+          meta: { phase: { instructions: "x", gate: { type: "shell", script: "true" } } },
+          on: { NEXT: "b" },
+        },
+        b: { type: "final" },
+      },
+    });
+    const res = defaultFlowEngine.load("legacy", legacyGate);
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toContain("old single-gate shape");
+      expect(res.error).toContain("gates");
+    }
   });
 });
 
@@ -176,7 +197,7 @@ describe("XStateFlowEngine — parallel Phases", () => {
                 skills: [],
                 context: { files: [], priorResults: [] },
                 actorMode: "agent",
-                gate: { type: "shell", script: "true" },
+                gates: [{ name: "noop", type: "shell", script: "true" }],
               },
             },
             on: { NEXT: "l2" },
@@ -190,7 +211,7 @@ describe("XStateFlowEngine — parallel Phases", () => {
                 skills: [],
                 context: { files: [], priorResults: [] },
                 actorMode: "human",
-                gate: { type: "shell", script: "true" },
+                gates: [{ name: "noop", type: "shell", script: "true" }],
               },
             },
           },
@@ -207,7 +228,7 @@ describe("XStateFlowEngine — parallel Phases", () => {
                 skills: [],
                 context: { files: [], priorResults: [] },
                 actorMode: "agent",
-                gate: { type: "shell", script: "true" },
+                gates: [{ name: "noop", type: "shell", script: "true" }],
               },
             },
             on: { NEXT: "r2" },
@@ -221,7 +242,7 @@ describe("XStateFlowEngine — parallel Phases", () => {
                 skills: [],
                 context: { files: [], priorResults: [] },
                 actorMode: "human",
-                gate: { type: "shell", script: "true" },
+                gates: [{ name: "noop", type: "shell", script: "true" }],
               },
             },
           },

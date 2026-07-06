@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil-cli",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "The `fil` CLI: a thin wiring over the Fil modules.",
   "license": "MIT",
   "type": "module",
@@ -46,6 +46,7 @@
     "@color-sunset/fil-inspect-view": "workspace:*",
     "@color-sunset/fil-orchestrator": "workspace:*",
     "@color-sunset/fil-pi-adapter": "workspace:*",
+    "@color-sunset/fil-claude-adapter": "workspace:*",
     "@color-sunset/fil-store": "workspace:*"
   }
 }

@@ -22,8 +22,8 @@ const DEMO_FLOW = `import { createMachine } from "@color-sunset/fil-engine";
 export default createMachine({
   id: "demo", initial: "a", context: {},
   states: {
-    a: { meta: { phase: { instructions: "Phase A", allowedTools: [], skills: [], context: { files: [], priorResults: [] }, actorMode: "agent", gate: { type: "shell", script: "true" } } }, on: { NEXT: "done" } },
-    done: { type: "final", meta: { phase: { instructions: "Done", allowedTools: [], skills: [], context: { files: [], priorResults: [] }, actorMode: "human", gate: { type: "shell", script: "true" } } } },
+    a: { meta: { phase: { instructions: "Phase A", allowedTools: [], skills: [], context: { files: [], priorResults: [] }, actorMode: "agent", gates: [{ name: "noop", type: "shell", script: "true" }] } }, on: { NEXT: "done" } },
+    done: { type: "final", meta: { phase: { instructions: "Done", allowedTools: [], skills: [], context: { files: [], priorResults: [] }, actorMode: "human", gates: [{ name: "noop", type: "shell", script: "true" }] } } },
   },
 });
 `;

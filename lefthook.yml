@@ -1,0 +1,32 @@
+# lefthook — git hooks for Fil.
+#
+# pre-commit: fast, staged-files-only
+#   - eslint --fix on staged .ts/.tsx (auto-fixes trivial issues)
+#   - markdownlint-cli2 on README.md
+#
+# pre-push: slow, whole-project
+#   - pnpm lint      (full ESLint pass)
+#   - pnpm typecheck (tsc --noEmit, whole graph)
+#
+# Why lefthook (not husky / simple-git-hooks / pre-commit.com)?
+# See docs/adr/0005-smarter-ci-precommit-lefthook.md.
+
+pre-commit:
+  parallel: true
+  commands:
+    eslint-staged:
+      glob: "*.{ts,tsx}"
+      run: pnpm exec eslint --fix {staged_files}
+      # Restage files that `eslint --fix` rewrote, so the commit records
+      # the fixed content (not the unfixed version still on the index).
+      stage_fixed: true
+    lint-md:
+      run: pnpm lint:md
+
+pre-push:
+  parallel: true
+  commands:
+    lint:
+      run: pnpm lint
+    typecheck:
+      run: pnpm typecheck

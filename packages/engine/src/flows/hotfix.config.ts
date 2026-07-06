@@ -20,10 +20,13 @@ export default {
             priorResults: [],
           },
           actorMode: "collaborative",
-          gate: {
-            type: "human",
-            prompt: "Confirm the root cause and proceed to patch?",
-          },
+          gates: [
+            {
+              name: "approval",
+              type: "human",
+              prompt: "Confirm the root cause and proceed to patch?",
+            },
+          ],
         },
       },
       on: { NEXT: "patch" },
@@ -41,10 +44,13 @@ export default {
             priorResults: ["triage"],
           },
           actorMode: "agent",
-          gate: {
-            type: "testsPass",
-            command: "npm test",
-          },
+          gates: [
+            {
+              name: "tests",
+              type: "testsPass",
+              command: "npm test",
+            },
+          ],
         },
       },
       on: { NEXT: "done" },
@@ -58,7 +64,7 @@ export default {
           skills: [],
           context: { files: [], priorResults: [] },
           actorMode: "human",
-          gate: { type: "shell", script: "true" },
+          gates: [{ name: "noop", type: "shell", script: "true" }],
         },
       },
     },
