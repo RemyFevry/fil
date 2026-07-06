@@ -120,7 +120,6 @@ describe("flow-loader", () => {
     // identically to the in-memory machine. Rewrite the @color-sunset/fil-engine specifier
     // to the engine's absolute URL so the temp file can live anywhere.
     const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
-    const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
     const { pathToFileURL } = await import("node:url");
     const code = serializeFlowCode(defaultFlow.rawConfig).replace(
@@ -129,7 +128,7 @@ describe("flow-loader", () => {
     );
     expect(code).toContain("export default");
     expect(code).toContain("createMachine");
-    const dir = await mkdtemp(join(tmpdir(), "fil-fl-"));
+    const dir = await mkdtemp(join(process.cwd(), ".fil-fl-test-"));
     const file = join(dir, "flow.mjs");
     try {
       await writeFile(file, code, "utf8");

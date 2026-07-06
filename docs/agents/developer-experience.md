@@ -468,16 +468,19 @@ for the full rationale and trade-offs.
   so hooks auto-install on `pnpm install`.
 - `.github/workflows/lint-build.yml` — Ubuntu + Node 26, runs
   lint + lint:md + typecheck + build once.
-- `.github/workflows/test.yml` — Linux always; macOS on non-draft PRs;
-  Node 26 throughout. Two jobs in steady state.
+- `.github/workflows/test.yml` — Linux always; macOS + Windows on non-draft PRs;
+  Node 26 throughout. Three jobs in steady state.
 - `.github/workflows/ci.yml` removed (replaced by the two new files).
 - Both workflows: `defaults: run: { shell: bash }`,
   `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
 
-**Windows is deferred** — see the follow-up issue. Re-adding
-`windows-latest` is a one-line matrix change once the underlying test
-fixes land; the `bash` shell default is kept in place so the re-add is
-no-op.
+**Windows**: enabled by `fs.realpathSync` before `pathToFileURL` in the
+two dynamic-`import()` sites (`packages/evolution/src/index.ts` and
+`packages/cli/src/commands/common.ts`) — see ADR-0005's "Windows URL
+normalization" subsection. Without that 2-line fix, the GitHub Actions
+Windows runner's 8.3 short-name home dir (`RUNNER~1`) breaks the URL→path
+round-trip and Node reports "Failed to load url … Does the file exist?" for
+a real, on-disk file.
 
 **Why this and not bigger?** Considered path filters (rejected — adds fragility
 without strong benefit for a small monorepo), Node 22/24/26 matrix on tests

@@ -11,6 +11,19 @@ coverage/
 # Test scratch directories (CLI tests put their .fil/ trees under here)
 .tmp/
 
+# Temp dirs created by the dynamic-`import()` flow loader. They live under
+# `process.cwd()` (see ADR-0005 §Windows URL normalization — required to
+# sidestep the Windows 8.3 short-name alias on `os.tmpdir()`), so the
+# cleanup-in-finally path can occasionally leave them behind on a hard kill.
+# Both `pkgs/evolution/src/index.ts` `loadFlowCode` and
+# `pkgs/cli/src/commands/common.ts` `importFlowFile` use these prefixes;
+# the tests `flow-loader/test/index.test.ts` and
+# `pi-adapter/test/tool-surface.test.ts` mirror the pattern.
+.fil-evo-*/
+.fil-flow-cache.*
+.fil-fl-test-*/
+.fil-pi-tool-surface-*/
+
 # Fil local work-in-progress (durable state — never committed)
 .fil/runs/
 .fil/run.json

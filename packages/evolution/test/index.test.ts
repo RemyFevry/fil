@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { tmpdir } from "node:os";
 import { builtInFlow, defaultFlowEngine, serializeFlowCode } from "@color-sunset/fil-engine";
 import {
   applyProposal,
   applyUnifiedDiff,
   createUnifiedPatch,
   loadFlowCode,
+  pickTempRoot,
 } from "../src/index.js";
 
 const flow = builtInFlow("default")!;
@@ -98,5 +100,26 @@ describe("evolution diff round-trip", () => {
 
   it("an empty patch string means no change", () => {
     expect(createUnifiedPatch(baseCode, baseCode)).toBe("");
+  });
+});
+
+describe("pickTempRoot", () => {
+  it("returns the cwd candidate when it is writable", async () => {
+    const root = await pickTempRoot();
+    expect(root).toBe(process.cwd());
+  });
+
+  it("falls back to the next candidate when the first is unwritable", async () => {
+    // A path under a non-existent directory root cannot be created; `mkdtemp`
+    // throws, the loop falls through to the next candidate, and the test
+    // confirms `os.tmpdir()` is reachable from there.
+    const root = await pickTempRoot(["/__nonexistent_root__", tmpdir()]);
+    expect(root).toBe(tmpdir());
+  });
+
+  it("throws when no candidate is writable", async () => {
+    await expect(
+      pickTempRoot(["/__nonexistent_a__", "__/nonexistent_b__"]),
+    ).rejects.toThrow(/writable temp directory/);
   });
 });

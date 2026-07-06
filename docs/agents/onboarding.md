@@ -108,8 +108,8 @@ final check before opening the PR.
 CI itself is split into two workflows (`docs/adr/0005-…`):
 
 - `.github/workflows/lint-build.yml` — Ubuntu + Node 26, runs lint + lint:md + typecheck + build once.
-- `.github/workflows/test.yml` — Linux always; macOS on non-draft PRs. Windows is deferred (see
-  the follow-up issue referenced from `docs/adr/0005-…`).
+- `.github/workflows/test.yml` — Linux always; macOS + Windows on non-draft PRs. (Both run as the
+  cross-OS matrix in `.github/workflows/test.yml`.)
 
 Always run `pnpm ci` locally before pushing so you don't discover build or lint:md failures in CI.
 
