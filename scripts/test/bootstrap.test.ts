@@ -13,17 +13,21 @@
 //      wt, gh) because CI runners don't always have `wt`, and the test's
 //      job is to prove *idempotency*, not tool availability.
 //   3. Snapshot the file set + mtimes via fs.statSync (cross-platform).
-//   4. Run scripts/bootstrap.sh twice with the skip flag.
+//   4. Run scripts/bootstrap.sh twice with the skip flag. Both runs hit
+//      the COPY in `workdir`, never the source — running REPO_SCRIPT here
+//      would silently make the test meaningless because the snapshots are
+//      taken on `workdir`, not REPO_ROOT.
 //   5. Re-snapshot; assert the sets match exactly (no file added, removed,
 //      or changed).
 //
-// The script's real prerequisite checks are exercised in the bash smoke
-// test in step (2) below — `bash -n` proves syntax; the executable-bit
+// The script's real prerequisite checks are exercised by running the
+// repo-root script under `bash -n` (syntax-only) below; the executable-bit
 // check is only meaningful on POSIX, so it's gated to skip on win32.
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { execFileSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   statSync,
   readdirSync,
@@ -34,8 +38,19 @@ import {
 import { join, dirname, relative, sep } from "node:path";
 import { tmpdir } from "node:os";
 
+// Skip-list used by both `walk()` (mtime snapshot) and `copyRepoInto()`
+// (fixture setup). Centralized here so the two can't drift — if you add
+// a new ignored directory, both behaviours pick it up automatically.
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "coverage"]);
+const SKIP_PREFIXES = ["packages/", "wt/"]; // sibling worktrees
+
 const REPO_ROOT = join(__dirname, "..", "..");
-const SCRIPT = join(REPO_ROOT, "scripts", "bootstrap.sh");
+// `REPO_SCRIPT` is the bootstrap script at its committed location — used
+// only for syntax/exec-bit checks. The idempotency test itself runs the
+// COPY inside `workdir`, never this source path (see CR round 2 review:
+// running the repo-root script against a tmpdir snapshot makes the
+// idempotency check meaningless).
+const REPO_SCRIPT = join(REPO_ROOT, "scripts", "bootstrap.sh");
 
 interface FileSnapshot {
   // Map<relativePosixPath, mtimeMs>. We use POSIX paths because the test
@@ -46,12 +61,9 @@ interface FileSnapshot {
 
 function walk(root: string): string[] {
   // Walk every non-ignored file under `root`, returning POSIX-style
-  // relative paths. Stops at .git / node_modules / dist / coverage /
-  // sibling worktrees so the snapshot reflects the *source tree* the
-  // bootstrap script will actually touch.
+  // relative paths. Uses the shared SKIP_DIRS / SKIP_PREFIXES so the
+  // snapshot reflects the same files `copyRepoInto()` produced.
   const out: string[] = [];
-  const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "coverage"]);
-  const SKIP_PREFIXES = ["packages/", "wt/"]; // sibling worktrees
   function recurse(absDir: string): void {
     for (const entry of readdirSync(absDir, { withFileTypes: true })) {
       const abs = join(absDir, entry.name);
@@ -106,8 +118,6 @@ function diff(a: FileSnapshot, b: FileSnapshot): {
 }
 
 function copyRepoInto(dst: string): void {
-  const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "coverage"]);
-  const SKIP_PREFIXES = ["packages/", "wt/"];
   function walkCopy(src: string): void {
     for (const entry of readdirSync(src, { withFileTypes: true })) {
       const sp = join(src, entry.name);
@@ -131,16 +141,26 @@ function copyRepoInto(dst: string): void {
 describe("scripts/bootstrap.sh idempotency", () => {
   let workdir: string;
   let before: FileSnapshot;
+  let workdirScript: string;
 
   beforeAll(() => {
     workdir = mkdtempSync(join(tmpdir(), "fil-bootstrap-"));
     copyRepoInto(workdir);
+    // The script copy lives under workdir — this is what gets executed
+    // and measured against. Keep +x on POSIX so the test exercises the
+    // same invocation path as a real contributor.
+    workdirScript = join(workdir, "scripts", "bootstrap.sh");
+    if (existsSync(workdirScript) && process.platform !== "win32") {
+      // copyFileSync preserves the mode-bit, but the platform default can
+      // still mask +x on some systems. chmod is belt-and-braces.
+      chmodSync(workdirScript, 0o755);
+    }
     before = snapshotFiles(workdir);
   }, 60_000);
 
   it("runs the script twice with FIL_BOOTSTRAP_SKIP_INSTALL=1", () => {
-    if (!existsSync(SCRIPT)) {
-      throw new Error(`bootstrap script missing at ${SCRIPT}`);
+    if (!existsSync(workdirScript)) {
+      throw new Error(`bootstrap script missing in workdir at ${workdirScript}`);
     }
     // FIL_BOOTSTRAP_SKIP_INSTALL=1 makes the script:
     //   - skip the prerequisite tool checks (Node ≥ 20, pnpm ≥ 10, wt, gh)
@@ -157,9 +177,9 @@ describe("scripts/bootstrap.sh idempotency", () => {
     };
 
     // Invocation 1 — should exit 0 (skip-install fast path).
-    execFileSync("bash", [SCRIPT], { cwd: workdir, env, stdio: "pipe" });
+    execFileSync("bash", [workdirScript], { cwd: workdir, env, stdio: "pipe" });
     // Invocation 2 — also exit 0.
-    execFileSync("bash", [SCRIPT], { cwd: workdir, env, stdio: "pipe" });
+    execFileSync("bash", [workdirScript], { cwd: workdir, env, stdio: "pipe" });
 
     const after = snapshotFiles(workdir);
     const d = diff(before, after);
@@ -173,14 +193,14 @@ describe("scripts/bootstrap.sh idempotency", () => {
   it("is syntactically valid bash", () => {
     // bash -n is portable across POSIX shells; on Windows it's available
     // via Git Bash which the CI runner already uses for `bash`.
-    execFileSync("bash", ["-n", SCRIPT], { stdio: "pipe" });
+    execFileSync("bash", ["-n", REPO_SCRIPT], { stdio: "pipe" });
   });
 
   // POSIX-only: Windows git checkout doesn't preserve the +x bit, so this
   // assertion is meaningless there. Skip on win32.
   const isPosix = process.platform !== "win32";
   it.skipIf(!isPosix)("is executable (chmod +x) on POSIX", () => {
-    const s = statSync(SCRIPT);
+    const s = statSync(REPO_SCRIPT);
     // Owner-execute bit must be set so the script can be invoked directly
     // as `./scripts/bootstrap.sh`, not just via `bash scripts/bootstrap.sh`.
     expect(s.mode & 0o100).toBeGreaterThan(0);
