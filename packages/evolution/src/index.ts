@@ -136,12 +136,17 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
  * restrictive containers). Both candidates are typically equivalent on
  * POSIX. Each candidate is probed with a real `mkdtemp` + `rm` cycle so
  * we never silently pick an unusable root.
+ *
+ * `candidates` is exported for testing; defaults to the production pair.
  */
-async function pickTempRoot(): Promise<string> {
+export async function pickTempRoot(
+  candidates?: readonly string[],
+): Promise<string> {
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
-  for (const root of [process.cwd(), tmpdir()]) {
+  const roots = candidates ?? [process.cwd(), tmpdir()];
+  for (const root of roots) {
     try {
       const probe = await mkdtemp(join(root, ".fil-evo-probe-"));
       await rm(probe, { recursive: true, force: true }).catch(() => {});

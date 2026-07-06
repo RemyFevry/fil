@@ -40,13 +40,10 @@ export function readFlowText(ctx: CliContext, name: string): string | null {
  * silently pick an unusable root. Mirrors the helper of the same name
  * in `packages/evolution/src/index.ts`; kept in lockstep — see the
  * rationale there for why we prefer cwd on Windows.
+ *
+ * `candidates` is exported for testing; defaults to the production pair.
  */
-function pickTempRoot(): string {
-  // The synchronous probe (existsSync + writeFileSync to a temp filename)
-  // is enough for the static-only check we need here; this helper is only
-  // called inside the synchronous `importFlowFile` flow, which is a
-  // setup step that runs once per resolve.
-  const candidates = [process.cwd(), tmpdir()];
+export function pickTempRoot(candidates: readonly string[] = [process.cwd(), tmpdir()]): string {
   for (const root of candidates) {
     try {
       const probe = `${root}/.fil-flow-cache-probe-${process.pid}-${Date.now()}`;
