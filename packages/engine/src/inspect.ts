@@ -1,5 +1,4 @@
-import { createActor, type AnyActor } from "xstate";
-import type { AnyStateMachine } from "xstate";
+import { createActor, type AnyActor, type AnyStateMachine } from "xstate";
 import type { EngineSnapshot, FlowDefinition } from "./seam.js";
 
 /**

@@ -6,6 +6,9 @@ import type { CliContext } from "../context.js";
 import type { ParsedArgs } from "../args.js";
 import { activeRun, resolveFlowDefinition } from "./common.js";
 
+/** Empty parsed-args — the default when `fil inspect` is called with no flags. */
+const EMPTY_ARGS: ParsedArgs = { positional: [], flags: {} };
+
 /**
  * `fil inspect` — visualizer over the active Flow.
  *
@@ -16,7 +19,7 @@ import { activeRun, resolveFlowDefinition } from "./common.js";
  */
 export async function inspectCommand(
   ctx: CliContext,
-  args: ParsedArgs = { positional: [], flags: {} },
+  args: ParsedArgs = EMPTY_ARGS,
 ): Promise<number> {
   if (args.flags["text"] !== undefined) {
     return renderText(ctx);
@@ -196,7 +199,11 @@ export function describeValue(value: unknown): string {
   try {
     return JSON.stringify(value);
   } catch {
-    return String(value);
+    // JSON.stringify throws on circular refs; fall back to the explicit
+    // `Object.prototype.toString` form so the result is predictable (e.g.
+    // "[object Object]") rather than triggering the implicit toString() of
+    // a host object that might be confusing.
+    return Object.prototype.toString.call(value);
   }
 }
 
