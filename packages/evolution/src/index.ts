@@ -104,9 +104,11 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
   // so we sidestep the issue by writing the temp file under
   // `process.cwd()` — which is always a long-name canonical path on
   // Windows. Cleanup removes the file in `finally`, so no on-disk
-  // trace is left after the call. No-op on POSIX (process.cwd() and
-  // os.tmpdir() are typically equivalent there).
-  const tmpRoot = process.cwd();
+  // trace is left after the call. `pickTempRoot` prefers cwd but
+  // falls back to `os.tmpdir()` if cwd is unwritable (read-only
+  // checkouts, restrictive containers). No-op on POSIX — both
+  // candidates are typically equivalent there.
+  const tmpRoot = await pickTempRoot();
   const dir = await mkdtemp(join(tmpRoot, ".fil-evo-"));
   const file = join(dir, "flow.mjs");
   try {
@@ -123,6 +125,34 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+/**
+ * Pick a writable temp root for the dynamic-`import()` flow loader.
+ *
+ * Prefers `process.cwd()` so Windows runners avoid the 8.3 short-name
+ * alias on `os.tmpdir()` (see ADR-0005 §Windows URL normalization); falls
+ * back to `os.tmpdir()` when cwd is unwritable (read-only checkouts,
+ * restrictive containers). Both candidates are typically equivalent on
+ * POSIX. Each candidate is probed with a real `mkdtemp` + `rm` cycle so
+ * we never silently pick an unusable root.
+ */
+async function pickTempRoot(): Promise<string> {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  for (const root of [process.cwd(), tmpdir()]) {
+    try {
+      const probe = await mkdtemp(join(root, ".fil-evo-probe-"));
+      await rm(probe, { recursive: true, force: true }).catch(() => {});
+      return root;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  throw new Error(
+    "Could not create a writable temp directory under process.cwd() or os.tmpdir().",
+  );
 }
 
 
