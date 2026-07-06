@@ -77,6 +77,22 @@ describe("toArgv — arg↔CLI argv mapping (pure)", () => {
     expect(() => toArgv(t("fil_start"), { change: { nope: true } })).toThrow(/primitive/);
     expect(() => toArgv(t("fil_propose"), { flow: "demo", file: ["a", "b"] })).toThrow(/primitive/);
   });
+
+  it("accepts false as a positional value and stringifies it (CodeRabbit on #79)", () => {
+    // resolveArgValue only treats false as missing for kind="flag"; positionals
+    // accept false and stringify to "false". The rendered filToArgv in
+    // extension-source.ts must mirror this — covered in extension-source.test.ts.
+    expect(toArgv(t("fil_start"), { change: false })).toEqual(["false"]);
+    expect(toArgv(t("fil_propose"), { flow: "demo", file: false })).toEqual(["demo", "false"]);
+  });
+
+  it("treats false as missing for flag params (so a bare --flag is omitted)", () => {
+    // fil_approve(id, flow?) — passing flow:false must omit the --flow flag
+    // rather than emit "--flow false". The CLI's args parser would otherwise
+    // read it as a value.
+    expect(toArgv(t("fil_approve"), { id: "abc", flow: false })).toEqual(["abc"]);
+    expect(toArgv(t("fil_start"), { change: "x", flow: false })).toEqual(["x"]);
+  });
 });
 
 describe("runFilVerb — thin caller over an injectable runner", () => {

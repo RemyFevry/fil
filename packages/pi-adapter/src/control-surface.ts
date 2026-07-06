@@ -230,7 +230,12 @@ function filToArgv(params, spec) {
   const flags = [];
   for (const [name, kind, required] of spec) {
     const v = params ? params[name] : undefined;
-    if (v === undefined || v === null || v === false) {
+    // Mirror resolveArgValue: flag params treat false as absent; positional
+    // params accept false and stringify it. Keeps the rendered extension in
+    // lockstep with toArgv() in the unit-testable source of truth.
+    const missing =
+      kind === "flag" ? v === undefined || v === null || v === false : v === undefined || v === null;
+    if (missing) {
       if (required) throw new Error("Missing required argument '" + name + "'.");
       continue;
     }

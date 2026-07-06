@@ -1,5 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { spawnSync as SpawnSyncFn } from "node:child_process";
+import { defaultRunner } from "../src/control-surface.js";
 import { renderPiExtensionSource } from "../src/extension-source.js";
+
+vi.mock("node:child_process", async () => {
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  return {
+    ...actual,
+    spawnSync: ((cmd: string, args: readonly string[], opts: { cwd: string; encoding: string }) => {
+      (globalThis as Record<string, unknown>).__filSpawnCalls ??= [];
+      ((globalThis as Record<string, unknown>).__filSpawnCalls as Array<[string, readonly string[], { cwd: string; encoding: string }]>).push([cmd, args, opts]);
+      return { status: 0, stdout: "", stderr: "" };
+    }) as unknown as typeof actual.spawnSync,
+  };
+});
 
 describe("Pi extension source (rendered string)", () => {
   it("ships a TypeScript ESM module with a default-exported factory", () => {
@@ -96,5 +110,91 @@ describe("Pi extension source — control surface (#15)", () => {
     const src = renderPiExtensionSource();
     expect(src).not.toContain("__filRunForTests__");
   });
+
+  it("rendered filToArgv aligns with resolveArgValue for false-valued positionals (CodeRabbit on #79)", () => {
+    // The extension ships its own copy of filToArgv (no @fil imports); drift
+    // here means Pi tools diverge from the CLI. Extract the function from the
+    // rendered source and assert it matches the unit-tested resolveArgValue
+    // semantics: positionals accept false, flags treat false as missing.
+    const src = renderPiExtensionSource();
+    const m = src.match(/function filToArgv\([^)]*\)\s*\{[\s\S]*?\n\}/);
+    if (!m) throw new Error("filToArgv not found in rendered extension source");
+    const filToArgv = new Function(`${m[0]}; return filToArgv;`)();
+
+    const startSpec: Array<[string, "positional" | "flag", boolean]> = [
+      ["change", "positional", true],
+      ["flow", "flag", false],
+    ];
+    expect(filToArgv({ change: false }, startSpec)).toEqual(["false"]);
+    expect(filToArgv({ change: false, flow: false }, startSpec)).toEqual(["false"]);
+    expect(filToArgv({ change: "x", flow: false }, startSpec)).toEqual(["x"]);
+    expect(() => filToArgv({}, startSpec)).toThrow(/change/);
+  });
+
+  describe("rendered filRun / defaultRunner lockstep (CodeRabbit on #79)", () => {
+  // vi.mock at the top of the file replaces spawnSync for both defaultRunner
+  // (control-surface) and the rendered (in-extension) filRun. Drift shows up
+  // as a non-equal captured argv between the two paths.
+  type Call = [string, readonly string[], { cwd: string; encoding: string }];
+  const calls = (): Call[] =>
+    ((globalThis as Record<string, unknown>).__filSpawnCalls as Call[] | undefined) ?? [];
+
+  beforeEach(() => {
+    (globalThis as Record<string, unknown>).__filSpawnCalls = [];
+  });
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>).__filSpawnCalls;
+  });
+
+  it("defaultRunner and the rendered filRun spawn identical argv in both FIL_BIN states", () => {
+    const src = renderPiExtensionSource();
+    const m = src.match(/function filRun\([^)]*\)\s*\{[\s\S]*?\n\}/);
+    if (!m) throw new Error("filRun not found in rendered extension source");
+    // The rendered filRun references `spawnSync` as a free variable (the
+    // import is at the module top level); passing it as a Function parameter
+    // makes it visible inside the body and lets us inject our mock.
+    const renderedFilRun = new Function("spawnSync", `${m[0]}; return filRun;`);
+
+    const argv = ["next", "x", "--flow", "demo"] as const;
+    const cwd = "/tmp/proj";
+    const originalBin = process.env.FIL_BIN;
+    try {
+      // The rendered filRun uses an injected spawnSync — push to the same
+      // global so the captured argv can be compared directly.
+      const injection: typeof SpawnSyncFn = ((cmd: string, args: readonly string[], opts: { cwd: string; encoding: string }) => {
+        calls().push([cmd, args, opts]);
+        return { status: 0, stdout: "", stderr: "" };
+      }) as unknown as typeof SpawnSyncFn;
+
+      // Case A: FIL_BIN set -> both must spawn `node <FIL_BIN>` with the verb argv.
+      process.env.FIL_BIN = "/abs/path/to/cli/dist/index.js";
+      // defaultRunner uses the vi.mock'd spawnSync (pushes to global __filSpawnCalls).
+      calls().length = 0;
+      defaultRunner([...argv], { cwd });
+      const capturedDefault = calls().slice();
+      calls().length = 0;
+      renderedFilRun(injection)([...argv], cwd);
+      const capturedRendered = calls().slice();
+      expect(capturedRendered).toEqual(capturedDefault);
+      expect(capturedRendered[0]?.[0]).toBe(process.execPath);
+      expect(capturedRendered[0]?.[1]).toEqual(["/abs/path/to/cli/dist/index.js", ...argv]);
+
+      // Case B: FIL_BIN unset -> both must spawn `fil` on PATH with the verb argv.
+      delete process.env.FIL_BIN;
+      calls().length = 0;
+      defaultRunner([...argv], { cwd });
+      const capturedDefault2 = calls().slice();
+      calls().length = 0;
+      renderedFilRun(injection)([...argv], cwd);
+      const capturedRendered2 = calls().slice();
+      expect(capturedRendered2).toEqual(capturedDefault2);
+      expect(capturedRendered2[0]?.[0]).toBe("fil");
+      expect(capturedRendered2[0]?.[1]).toEqual([...argv]);
+    } finally {
+      if (originalBin === undefined) delete process.env.FIL_BIN;
+      else process.env.FIL_BIN = originalBin;
+    }
+  });
+});
 });
 
