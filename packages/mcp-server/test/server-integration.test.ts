@@ -76,33 +76,38 @@ describe("Fil MCP server — verbs over MCP behave as the CLI (real fil)", () =>
   it.skipIf(!CLI_BUILT)("fil_start then fil_next over MCP advance the Run (acceptance: fil next over MCP)", async () => {
     const proj = await freshProject();
     const client = await link(createServer({ cwd: proj }));
+    try {
+      const start = (await client.callTool({
+        name: "fil_start",
+        arguments: { change: "add-login", flow: "demo" },
+      })) as { isError?: boolean };
+      expect(start.isError).toBeFalsy();
+      expect(await readPhase(proj)).toBe("a");
 
-    const start = (await client.callTool({
-      name: "fil_start",
-      arguments: { change: "add-login", flow: "demo" },
-    })) as { isError?: boolean };
-    expect(start.isError).toBeFalsy();
-    expect(await readPhase(proj)).toBe("a");
-
-    const next = (await client.callTool({ name: "fil_next", arguments: {} })) as {
-      content?: { text: string }[];
-      isError?: boolean;
-    };
-    expect(next.isError).toBeFalsy();
-    expect(next.content?.[0]?.text).toContain("complete");
-    expect(await readPhase(proj)).toBe("done");
-    await client.close();
+      const next = (await client.callTool({ name: "fil_next", arguments: {} })) as {
+        content?: { text: string }[];
+        isError?: boolean;
+      };
+      expect(next.isError).toBeFalsy();
+      expect(next.content?.[0]?.text).toContain("complete");
+      expect(await readPhase(proj)).toBe("done");
+    } finally {
+      await client.close();
+    }
   });
 
   it.skipIf(!CLI_BUILT)("fil_status over MCP reports the active Phase", async () => {
     const proj = await freshProject();
     const client = await link(createServer({ cwd: proj }));
-    await client.callTool({ name: "fil_start", arguments: { change: "add-login", flow: "demo" } });
-    const res = (await client.callTool({ name: "fil_status", arguments: {} })) as {
-      content?: { text: string }[];
-    };
-    expect(res.content?.[0]?.text).toContain("Phase");
-    expect(res.content?.[0]?.text).toContain("a");
-    await client.close();
+    try {
+      await client.callTool({ name: "fil_start", arguments: { change: "add-login", flow: "demo" } });
+      const res = (await client.callTool({ name: "fil_status", arguments: {} })) as {
+        content?: { text: string }[];
+      };
+      expect(res.content?.[0]?.text).toContain("Phase");
+      expect(res.content?.[0]?.text).toContain("a");
+    } finally {
+      await client.close();
+    }
   });
 });
