@@ -51,6 +51,16 @@ REQUIRED_PNPM_VERSION="$(node -e 'const p=require("./package.json");const m=p.pa
 # only widens the search when they don't.
 export PATH="${HOME}/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
+# FIL_BOOTSTRAP_SKIP_INSTALL=1 bypasses both the prerequisite check AND
+# the install/build — used by the idempotency vitest, which runs in CI
+# runners that don't always have `wt` and don't need a real install to
+# prove the no-op branch. Documented in the script header.
+if [[ "${FIL_BOOTSTRAP_SKIP_INSTALL:-0}" == "1" ]]; then
+  log "FIL_BOOTSTRAP_SKIP_INSTALL=1 — skipping prereq check, gh switch, install, and build"
+  log "done."
+  exit 0
+fi
+
 need_tool() {
   local tool="$1" install_hint="$2"
   if ! command -v "$tool" >/dev/null 2>&1; then
