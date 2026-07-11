@@ -12,6 +12,8 @@
 #
 # Herdr is non-mandatory. The Workspace creation step runs only if
 # `herdr` is on PATH; otherwise wt switch is the complete workflow.
+# Herdr failures are logged and ignored — the canonical Worktrunk
+# operation must not fail because of an optional herdr step.
 set -euo pipefail
 
 if [ "$#" -lt 1 ]; then
@@ -24,12 +26,24 @@ fi
 branch="feat/${1#feat/}"   # accept "46" or "fix/foo" or "feat/foo"
 shift
 
+# Capture the path BEFORE delegating to wt, since the subsequent
+# subprocess may or may not be inside the new worktree depending on
+# whether `wt config shell install` integration is active.
+worktree_path="$(pwd)"
+herdr_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
 # Always: open the Worktrunk worktree. This is the canonical Fil primitive
 # (see scripts/require-worktree.sh and .config/wt.toml).
 wt switch -c "$branch" "$@"
 
 # Conditional: anchor a herdr Workspace to this worktree. Fil does not own
 # herdr; the dev who uses herdr gets a sidebar-friendly slot per Change.
+# Non-fatal: a herdr failure must not break the Worktrunk side.
 if command -v herdr >/dev/null 2>&1; then
-  herdr workspace create --cwd "$(pwd)" --label "$branch" --no-focus
+  target="$herdr_root"
+  [ -z "$target" ] && target="$worktree_path"
+  if ! herdr workspace create --cwd "$target" --label "$branch" --no-focus; then
+    echo "warning: herdr workspace create failed; the Worktrunk worktree is created, but the herdr Workspace is not." >&2
+    echo "         Re-run \`herdr workspace create --cwd '$target' --label '$branch'\` later." >&2
+  fi
 fi

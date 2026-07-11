@@ -38,7 +38,10 @@ npx --yes skills add ogulcancelik/herdr --skill herdr -g
 
 # 4. First-run config: symlink the Fil-tuned template, never overwrite.
 mkdir -p ~/.config/herdr
-if [ ! -e ~/.config/herdr/config.toml ]; then
+# Check both absence AND lack of any symlink (incl. dangling). A regular
+# `[ ! -e ... ]` is true for a dangling symlink, which would lead us to
+# `ln -s` on top of an existing path and fail with "File exists".
+if [ ! -e ~/.config/herdr/config.toml ] && [ ! -L ~/.config/herdr/config.toml ]; then
   ln -s "$REPO_ROOT/docs/agents/herdr-config.toml" ~/.config/herdr/config.toml
   echo "✓ linked ~/.config/herdr/config.toml → repo template"
 else

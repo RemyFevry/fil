@@ -258,7 +258,9 @@ The loop is canonical, not straitjacket. Acknowledged variations:
   subagents). The canonical loop runs *per Workspace*; the dev watches the
   herdr sidebar's per-Workspace rollup to triage which Change needs
   attention. Spawn with `pnpm feat <n>`, close with `pnpm ship`. Herdr is
-  non-mandatory — pure Worktrunk works the same way without it.
+  non-mandatory — pure Worktrunk gives you Change isolation and the
+  canonical per-Worktree loop, but loses the herdr sidebar, status
+  rollup, and the one-Workspace-per-Change UX.
 
 ## Cross-references
 

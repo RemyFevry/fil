@@ -490,9 +490,14 @@ imposing itself on devs who don't want it.
 
 See R20. Key choices:
 
-- Idempotent — safe to re-run; every step is no-op on repeat.
-- Herdr-conditional — the dev's host without herdr gets a no-op for the
-  herdr half; `wt switch` always runs.
+- Safe to re-run. The `herdr` binary, integrations, and config symlink
+  are idempotent; `herdr integration install` and `npx skills add` are
+  themselves idempotent at the herdr/Claude side but they re-run on
+  every invocation, so each script call exercises the same code paths
+  rather than skipping on repeat.
+- Herdr-conditional — `command -v herdr` is checked before each herdr
+  step, so the dev's host without herdr gets a no-op for the herdr
+  half; `wt switch` always runs.
 - Bundles `npx skills add ogulcancelik/herdr --skill herdr -g` so every
   agent that loads inside a herdr pane auto-learns the herdr CLI.
 

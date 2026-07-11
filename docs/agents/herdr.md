@@ -35,13 +35,25 @@ This is deliberately one-Workspace-per-Change, not one-Workspace-per-repo:
 
 ## Install
 
+### Prerequisites
+
+The installer assumes a **macOS host with Homebrew** on `PATH`, plus
+**Node.js 20+** so `npx` can install the herdr agent skill globally.
+Linux hosts need to install herdr from a release binary (see
+[herdr's install docs](https://herdr.dev/docs/install/)) and adjust
+`scripts/install-herdr.sh` accordingly. Windows is preview-only and not
+covered.
+
+### Recipe
+
 Run once per host:
 
 ```sh
 pnpm install-herdr
 ```
 
-This calls `scripts/install-herdr.sh`, which is idempotent and does all of:
+This calls `scripts/install-herdr.sh`, which is safe to re-run and
+does all of:
 
 1. `brew install herdr` (skipped if already present).
 2. `herdr integration install claude opencode pi` — lifecycle authority +
@@ -53,7 +65,9 @@ This calls `scripts/install-herdr.sh`, which is idempotent and does all of:
    [`docs/agents/herdr-config.toml`](./herdr-config.toml) in this repo
    (first run only; never overwrites).
 
-Re-running `pnpm install-herdr` is safe — every step is idempotent.
+Re-running `pnpm install-herdr` is safe — the binary / integration /
+config-symlink steps are idempotent; the `npx skills add` call
+re-installs the skill on every invocation.
 
 ## Spawn / close a Change
 

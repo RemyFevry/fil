@@ -8,7 +8,9 @@
 # This is the close-side counterpart to scripts/feat.sh.
 #
 # Herdr is non-mandatory. The Workspace close step runs only if herdr is on
-# PATH AND a matching Workspace (label == current branch) is found.
+# PATH AND a matching Workspace (label == captured branch) is found.
+# Herdr failures are logged and ignored — a successful `wt merge main` must
+# not be reported as failed because of an optional herdr step.
 set -euo pipefail
 
 # Always: merge the Worktrunk worktree through wt's [pre-merge] gates.
@@ -16,21 +18,28 @@ set -euo pipefail
 wt merge main
 
 # Conditional: close the herdr Workspace whose label matches the just-merged
-# branch. Fil owns the git/Worktrunk side; the herdr side is graceful.
+# branch. We capture the branch before the merge because post-merge cwd /
+# branch state can be unreliable once the worktree is removed.
 if command -v herdr >/dev/null 2>&1; then
   branch="$(git branch --show-current)"
+
   # Skip in the unlikely case we ran `wt merge` from main itself.
   if [ "$branch" != "main" ]; then
-    ws_id="$(herdr workspace list --json 2>/dev/null \
-      | python3 -c 'import sys,json,os
-data=json.load(sys.stdin)
-target=os.environ.get("HERDR_BRANCH","")
-for w in data.get("result",{}).get("workspaces",[]):
-    if w.get("label")==target:
-        print(w.get("workspace_id",""))
-        break' HERDR_BRANCH="$branch" 2>/dev/null || true)"
+    ws_id="$(HERDR_BRANCH="$branch" herdr workspace list --json 2>/dev/null \
+      | HERDR_BRANCH="$branch" python3 -c '
+import sys, json, os
+target = os.environ.get("HERDR_BRANCH", "")
+for w in json.load(sys.stdin).get("result", {}).get("workspaces", []):
+    if w.get("label") == target:
+        print(w.get("workspace_id", ""))
+        break
+' 2>/dev/null || true)"
+
     if [ -n "$ws_id" ]; then
-      herdr workspace close "$ws_id"
+      if ! herdr workspace close "$ws_id"; then
+        echo "warning: herdr workspace close failed for workspace $ws_id; wt merge main succeeded." >&2
+        echo "         Manually run: herdr workspace close $ws_id" >&2
+      fi
     fi
   fi
 fi

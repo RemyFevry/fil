@@ -63,6 +63,7 @@ gh auth switch --user remyf-agent
 # 3. Create a worktree + launch your runtime in it:
 wt switch -c feat/<short-name> -x opencode    # or -x claude / -x pi
 # Optional: also install herdr for multi-agent orchestration.
+# Requires macOS + Homebrew + Node 20+ (see docs/agents/herdr.md §Prerequisites).
 pnpm install-herdr                             # one-shot, idempotent, see docs/agents/herdr.md
 
 # 4. Run the local gates (the same gates CI will run):
@@ -207,8 +208,10 @@ If you have herdr installed, `pnpm ship` closes the Workspace whose
 **label** matches `git branch --show-current` of the worktree you just
 merged. Other Workspaces stay open. If your Workspace isn't being
 closed, the label probably drifted (renamed via `herdr workspace
-rename`). Re-anchor: `herdr workspace rename <id> <branch>` and re-run
-`pnpm ship`.
+rename`). Re-anchor with `herdr workspace rename <id> <branch>`, then
+close the matching Workspace directly with `herdr workspace close
+<id>` — do **not** re-run `pnpm ship`, since that would re-execute the
+Worktrunk merge (and its `[pre-merge]` gates) unnecessarily.
 
 ### F. Conventional Commits + the agent trailer
 
