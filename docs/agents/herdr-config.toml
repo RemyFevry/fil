@@ -1,0 +1,47 @@
+# ~/.config/herdr/config.toml — Fil-tuned defaults
+#
+# This file is symlinked from ~/.config/herdr/config.toml by
+# `pnpm install-herdr`. To customise locally, copy this file to
+# ~/.config/herdr/config.toml and edit; the installer never overwrites
+# an existing config.
+
+onboarding = false
+
+[update]
+channel        = "stable"   # macOS direct install; ignore if using brew/mise/nix
+version_check  = true
+manifest_check = true       # keep agent-detection manifests fresh
+
+[terminal]
+new_cwd = "follow"          # each pane inherits the source worktree cwd;
+                             # composes with Worktrunk (one pane = one wt worktree)
+
+[session]
+resume_agents_on_restore = true    # default; explicit for clarity
+
+[ui]
+sidebar_collapsed_mode = "compact"
+agent_panel_sort       = "priority" # blocked → done → working → idle → unknown
+mouse_capture          = true
+
+[ui.toast]
+delivery      = "herdr"     # in-app toast; survives over SSH where terminal-notifier doesn't
+delay_seconds = 2          # coalesce burst notifications
+
+[ui.sound]
+enabled = true
+
+[ui.sound.agents]
+claude   = "on"
+opencode = "on"
+pi       = "on"
+
+[worktrees]
+directory = "~/.herdr/worktrees"
+# NOTE: Fil does not use herdr's worktree subsystem. We use Worktrunk instead.
+# This setting only configures herdr's `prefix+shift+g` / `prefix+shift+o`
+# keybindings, which Fil devs should avoid in favour of `pnpm feat`.
+
+# pane_history stays OFF — pane output can include secrets.
+# nested launches stay OFF — `herdr inside herdr` is a footgun.
+# Both are default; listed here as deliberate non-settings for reviewers.
