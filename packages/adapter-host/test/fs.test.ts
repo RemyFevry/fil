@@ -49,6 +49,14 @@ describe("memFs", () => {
     expect(fs.exists("/a/b/file.txt")).toBe(true);
     expect(fs.read("/a/b/file.txt")).toBe("hello");
   });
+
+  it("mkdir registers every ancestor up to the root, like defaultFs (recursive)", () => {
+    const fs = memFs();
+    fs.mkdir("/a/b");
+    expect(fs.isDirectory("/a/b")).toBe(true);
+    expect(fs.isDirectory("/a")).toBe(true);
+    expect(fs.isDirectory("/")).toBe(true);
+  });
 });
 
 describe("safeRead + writeAt (over memFs)", () => {

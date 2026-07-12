@@ -63,8 +63,10 @@ export function defaultFs(): InstallerFs {
 
 /**
  * An in-memory `InstallerFs` for tests. `write` records files; `mkdir` records
- * directories; neither touches disk. Mirrors the real-FS contract closely
- * enough to drive installer logic deterministically without I/O.
+ * directories and every ancestor up to the root (matching `defaultFs`'s
+ * recursive `mkdir` and the InstallerFs contract); neither touches disk.
+ * Mirrors the real-FS contract closely enough to drive installer logic
+ * deterministically without I/O.
  */
 export function memFs(): InstallerFs {
   const files = new Map<string, string>();
@@ -77,7 +79,13 @@ export function memFs(): InstallerFs {
     },
     isDirectory: (p) => dirs.has(p),
     mkdir: (p) => {
-      dirs.add(p);
+      let current = p;
+      while (true) {
+        dirs.add(current);
+        const parent = dirname(current);
+        if (parent === current) break;
+        current = parent;
+      }
     },
   };
 }
