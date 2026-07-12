@@ -150,6 +150,29 @@ describe("importFlowFile (default)", () => {
       await rm(dir, { recursive: true, force: true }).catch(() => {});
     }
   });
+
+  it("returns undefined when the file has no default export", async () => {
+    const dir = await mkdtemp(join(process.cwd(), ".fil-flow-loader-test-"));
+    const file = join(dir, "flow.mjs");
+    try {
+      await writeFile(file, "export const notDefault = 1;", "utf8");
+      const definition = await importFlowFile(file);
+      expect(definition).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+});
+
+describe("importFlowCode (failure paths)", () => {
+  it("returns undefined when the module has no default export", async () => {
+    const definition = await importFlowCode("export const notDefault = 1;");
+    expect(definition).toBeUndefined();
+  });
+
+  it("rejects when the code is syntactically invalid", async () => {
+    await expect(importFlowCode("export default { broken")).rejects.toThrow();
+  });
 });
 
 describe("pickTempRoot", () => {

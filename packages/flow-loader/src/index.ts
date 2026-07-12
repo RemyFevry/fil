@@ -182,6 +182,16 @@ function rewriteEngineSpecifier(code: string): string {
 }
 
 /**
+ * Memoized temp root for `importFlowSource`'s internal use. `pickTempRoot`
+ * probes with a real `mkdtemp`+`rm` cycle on every call; the dance then opens a
+ * second `mkdtemp` for the working dir, doubling FS round-trips per import.
+ * Caching the resolved root here avoids the repeat probe, while leaving the
+ * EXPORTED `pickTempRoot` unmemoized so callers/tests still get fresh probes.
+ * Holds a Promise so concurrent first calls share a single probe.
+ */
+let cachedTempRoot: Promise<string> | undefined;
+
+/**
  * The dynamic-`import()` dance on already-resolved Flow source. Rewrite the
  * engine specifier, write to a temp file under a Windows-safe root, canonicalize
  * with `realpathSync`, import, clean up. Returns the module's default export
@@ -191,7 +201,7 @@ async function importFlowSource(
   code: string,
 ): Promise<FlowDefinition | undefined> {
   const rewritten = rewriteEngineSpecifier(code);
-  const tmpRoot = await pickTempRoot();
+  const tmpRoot = await (cachedTempRoot ??= pickTempRoot());
   const dir = await mkdtemp(join(tmpRoot, ".fil-flow-loader-"));
   const file = join(dir, "flow.mjs");
   try {
