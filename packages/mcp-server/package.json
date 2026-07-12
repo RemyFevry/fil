@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil-mcp-server",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The Fil MCP server: exposes Fil's control verbs (start/next/status/propose/approve) to MCP clients (e.g. Claude Code) as tools — a thin caller over the `fil` CLI.",
   "license": "MIT",
   "type": "module",
