@@ -10,7 +10,19 @@
 // empty string, and the gate script falls through to its worktree check.
 //
 // The canonical gate is `scripts/require-worktree.sh` — the *only* place
-// the worktree decision lives (see AGENTS.md).
+// the worktree decision lives (see AGENTS.md). It honors two env hatches:
+//   FIL_ALLOW_MAIN_WORKTREE=1 — human escape hatch; also what the canonical
+//                               `pnpm master` launcher sets before exec'ing
+//                               the runtime. Claude Code's master session is
+//                               launched via `pnpm master claude`, so the
+//                               hatch arrives via process.env (forwarded
+//                               below) with no manual export. See issue #101.
+//   FIL_MASTER_SESSION=1      — auto-detected master hatch (set by the
+//                               OpenCode plugin). Claude Code has no reliable
+//                               in-process signal for "the active agent is the
+//                               master" at PreToolUse time (the master is a
+//                               Task subagent here), so this hook relies on the
+//                               launcher / human escape hatch instead.
 //
 // Exit code mirrors the canonical gate:
 //   0 — allow

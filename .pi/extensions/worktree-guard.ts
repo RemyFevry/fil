@@ -11,6 +11,13 @@
 // also owns the FIL_ALLOW_MAIN_WORKTREE escape hatch and the "not a repo →
 // allow" fallback, so this file never reimplements the gate.
 //
+// Master hatch: the canonical `pnpm master pi` launcher sets
+// FIL_ALLOW_MAIN_WORKTREE=1 in the runtime's env before exec'ing Pi, so a
+// master Pi session works with zero manual export (see issue #101). Pi has no
+// per-prompt tool allow-list signal available at tool_call time, so this
+// extension relies on the launcher / human escape hatch (inherited via the
+// subprocess env below) rather than agent-aware detection.
+//
 // For `bash` tool calls we extract the command (best-effort: from
 // `event.input`/`event.args`/stringifying the event) and pass it to the
 // script as $1, so `wt switch …` and other bootstrap subcommands can be

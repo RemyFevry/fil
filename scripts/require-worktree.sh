@@ -20,13 +20,30 @@
 # Exit 0  → work may proceed.
 # Exit 2  → blocked (primary worktree). stderr is shown to the agent.
 #
-# Escape hatches:
-#   FIL_ALLOW_MAIN_WORKTREE=1  — trunk maintenance / bootstrapping
+# Escape hatches (all checked here so this script stays the single source of
+# truth; the three runtime integrations only feed these signals):
+#   FIL_ALLOW_MAIN_WORKTREE=1  — human escape hatch. Set by a person (trunk
+#                                maintenance) or by the canonical master
+#                                launcher `pnpm master` (scripts/master.sh),
+#                                which exports it before exec'ing the runtime.
+#   FIL_MASTER_SESSION=1       — auto-detected master hatch. Set ONLY in the
+#                                subprocess env a runtime integration uses to
+#                                invoke THIS script, when it has detected the
+#                                active agent is the master (see
+#                                .opencode/plugins/worktree-guard.ts). Never
+#                                present in the agent's own bash env, so it
+#                                can't leak into commands the master runs or
+#                                into subagent sessions (which are different
+#                                sessions/agents in their own worktrees).
 #   command in $1 starts with `wt switch` / `wt list` / `wt config` /
 #     `wt step` / `wt diff` / `wt log` / `wt path` / `wt which` — bootstrap
 set -u
 
 if [[ "${FIL_ALLOW_MAIN_WORKTREE:-0}" == "1" ]]; then
+  exit 0
+fi
+
+if [[ "${FIL_MASTER_SESSION:-0}" == "1" ]]; then
   exit 0
 fi
 
