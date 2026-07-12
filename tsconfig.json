@@ -10,6 +10,7 @@
     { "path": "packages/orchestrator" },
     { "path": "packages/inspect-view" },
     { "path": "packages/cli" },
+    { "path": "packages/adapter-host" },
     { "path": "packages/pi-adapter" },
     { "path": "packages/claude-adapter" },
     { "path": "packages/mcp-server" }

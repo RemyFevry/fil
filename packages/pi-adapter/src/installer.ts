@@ -1,9 +1,21 @@
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
+import {
+  defaultFs,
+  safeRead,
+  writeAt,
+  scopesOf,
+  type InstallScope,
+  type InstallerFs,
+} from "@color-sunset/fil-adapter-host";
 import { renderPiExtensionSource } from "./extension-source.js";
 
 export { renderPiExtensionSource };
+
+// The host-filesystem plumbing (InstallerFs, defaultFs, safeRead, writeAt,
+// scopesOf, InstallScope) lives in @color-sunset/fil-adapter-host and is
+// re-exported here to preserve this adapter's public surface.
+export { defaultFs, type InstallScope, type InstallerFs };
 
 /**
  * Install the Pi Adapter — write the generated extension into Pi's native
@@ -18,8 +30,6 @@ export { renderPiExtensionSource };
  * `scope: "user"` only when explicitly opted in (the global install affects
  * every Pi session on the machine, so it deserves consent).
  */
-
-export type InstallScope = "project" | "user" | "both";
 
 export interface InstallResult {
   /** True if at least one extension file was written. */
@@ -50,15 +60,6 @@ export interface InstallOptions {
   piDetected?: boolean;
   /** Override the rendered extension source (tests). */
   source?: string;
-}
-
-export interface InstallerFs {
-  exists(path: string): boolean;
-  read(path: string): string | undefined;
-  write(path: string, body: string): void;
-  isDirectory(path: string): boolean;
-  /** Create `path` and any missing parents (idempotent). */
-  mkdir(path: string): void;
 }
 
 const FIL_EXTENSION_FILENAME = "fil.ts";
@@ -132,12 +133,6 @@ export function installPiAdapter(opts: InstallOptions): InstallResult {
   };
 }
 
-function scopesOf(scope: InstallScope): Array<"project" | "user"> {
-  if (scope === "both") return ["project", "user"];
-  if (scope === "user") return ["user"];
-  return ["project"];
-}
-
 function resolveTargetPath(
   paths: Record<"project" | "user", string>,
   scope: "project" | "user",
@@ -150,36 +145,6 @@ function resolveTargetPath(
   // user scope: `userFilDir` is `~/.fil`; Pi loads from `~/.pi/agent/extensions` (sibling).
   const parent = dirname(userFilDir);
   return join(parent, USER_PI_EXT_DIR, FIL_EXTENSION_FILENAME);
-}
-
-function safeRead(fs: InstallerFs, path: string): string | undefined {
-  if (!fs.exists(path)) return undefined;
-  return fs.read(path);
-}
-
-function writeAt(fs: InstallerFs, path: string, body: string): void {
-  const dir = dirname(path);
-  fs.mkdir(dir);
-  fs.write(path, body);
-}
-
-export function defaultFs(): InstallerFs {
-  return {
-    exists: (p) => existsSync(p),
-    read: (p) => (existsSync(p) ? readFileSync(p, "utf8") : undefined),
-    write: (p, body) => {
-      mkdirSync(dirname(p), { recursive: true });
-      writeFileSync(p, body, "utf8");
-    },
-    isDirectory: (p) => {
-      try {
-        return statSync(p).isDirectory();
-      } catch {
-        return false;
-      }
-    },
-    mkdir: (p) => mkdirSync(p, { recursive: true }),
-  };
 }
 
 /** Convert an absolute or project-relative path into one under projectRoot. */

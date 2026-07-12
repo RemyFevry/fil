@@ -1,9 +1,21 @@
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
+import {
+  defaultFs,
+  safeRead,
+  writeAt,
+  scopesOf,
+  type InstallScope,
+  type InstallerFs,
+} from "@color-sunset/fil-adapter-host";
 import { renderPreToolUseHookSource } from "./hook-source.js";
 
 export { renderPreToolUseHookSource };
+
+// The host-filesystem plumbing (InstallerFs, defaultFs, safeRead, writeAt,
+// scopesOf, InstallScope) lives in @color-sunset/fil-adapter-host and is
+// re-exported here to preserve this adapter's public surface.
+export { defaultFs, type InstallScope, type InstallerFs };
 
 /**
  * Install the Claude Code Adapter through Claude Code's native channel: a
@@ -20,8 +32,6 @@ export { renderPreToolUseHookSource };
  *   ~/.claude/fil/*.js          (global hook script)
  *   .claude/fil/*.js            (project-local hook script)
  */
-
-export type InstallScope = "project" | "user" | "both";
 
 /** Per-scope locations of the two artefacts the adapter writes. */
 export interface ClaudeScopePaths {
@@ -55,15 +65,6 @@ export interface InstallOptions {
   claudeDetected?: boolean;
   /** Override the rendered hook source (tests). */
   source?: string;
-}
-
-export interface InstallerFs {
-  exists(path: string): boolean;
-  read(path: string): string | undefined;
-  write(path: string, body: string): void;
-  isDirectory(path: string): boolean;
-  /** Create `path` and any missing parents (idempotent). */
-  mkdir(path: string): void;
 }
 
 const HOOK_FILENAME = "pretooluse-hook.js";
@@ -150,12 +151,6 @@ export function installClaudeAdapter(opts: InstallOptions): InstallResult {
     reason = wrote ? undefined : "Claude Adapter already installed (idempotent).";
   }
   return { installed: wrote, paths, claudeDetected: true, reason };
-}
-
-function scopesOf(scope: InstallScope): Array<"project" | "user"> {
-  if (scope === "both") return ["project", "user"];
-  if (scope === "user") return ["user"];
-  return ["project"];
 }
 
 /**
@@ -304,37 +299,4 @@ function parseSettings(raw: string | undefined): SettingsDoc {
 
 function stringifySettings(doc: SettingsDoc): string {
   return `${JSON.stringify(doc, null, 2)}\n`;
-}
-
-// ---------------------------------------------------------------------------
-// fs helpers
-// ---------------------------------------------------------------------------
-
-function safeRead(fs: InstallerFs, path: string): string | undefined {
-  if (!fs.exists(path)) return undefined;
-  return fs.read(path);
-}
-
-function writeAt(fs: InstallerFs, path: string, body: string): void {
-  fs.mkdir(dirname(path));
-  fs.write(path, body);
-}
-
-export function defaultFs(): InstallerFs {
-  return {
-    exists: (p) => existsSync(p),
-    read: (p) => (existsSync(p) ? readFileSync(p, "utf8") : undefined),
-    write: (p, body) => {
-      mkdirSync(dirname(p), { recursive: true });
-      writeFileSync(p, body, "utf8");
-    },
-    isDirectory: (p) => {
-      try {
-        return statSync(p).isDirectory();
-      } catch {
-        return false;
-      }
-    },
-    mkdir: (p) => mkdirSync(p, { recursive: true }),
-  };
 }

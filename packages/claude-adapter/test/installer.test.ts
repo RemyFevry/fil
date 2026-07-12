@@ -2,11 +2,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { memFs } from "@color-sunset/fil-adapter-host";
 import {
   installClaudeAdapter,
   detectClaude,
   mergePreToolUseHandler,
-  type InstallerFs,
 } from "../src/installer.js";
 
 let workdir: string;
@@ -17,22 +17,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await rm(workdir, { recursive: true, force: true });
 });
-
-function memFs(): InstallerFs {
-  const files = new Map<string, string>();
-  const dirs = new Set<string>();
-  return {
-    exists: (p) => files.has(p) || dirs.has(p),
-    read: (p) => files.get(p),
-    write: (p, body) => {
-      files.set(p, body);
-    },
-    isDirectory: (p) => dirs.has(p),
-    mkdir: (p) => {
-      dirs.add(p);
-    },
-  };
-}
 
 describe("installClaudeAdapter", () => {
   it("writes the hook script and registers it in settings.json by default", () => {
