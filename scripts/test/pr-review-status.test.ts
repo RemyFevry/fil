@@ -1,10 +1,11 @@
 // scripts/test/pr-review-status.test.ts
 //
 // Unit coverage for the pure logic exported from scripts/pr-review-status.mjs:
-//   - parseReviewBody        (location #3 — folded nitpick + counters)
-//   - classifySummaryVerdict (location #2 — latest summary comment)
-//   - foldedOnlyCount        (folded-only = total nitpicks − promoted inline)
-//   - summarize              (the CLEAR/BLOCKED roll-up + anti-overclaim)
+//   - parseReviewBody          (location #3 — folded nitpick + counters)
+//   - classifySummaryVerdict   (location #2 — latest summary comment)
+//   - foldedOnlyCount          (folded-only = total nitpicks − promoted inline)
+//   - aggregateFoldedFindings  (Fix 1/4 — bot-filter + headSHA-scope + aggregate)
+//   - summarize                (the CLEAR/BLOCKED roll-up + anti-overclaim)
 //
 // Fixtures use the REAL shape of CodeRabbit output (snipped from observed
 // review/summary bodies, with repo-specific prose trimmed). The folded
@@ -20,6 +21,7 @@ import {
   parseReviewBody,
   classifySummaryVerdict,
   foldedOnlyCount,
+  aggregateFoldedFindings,
   summarize,
 } from "../pr-review-status.mjs";
 
@@ -229,6 +231,198 @@ describe("foldedOnlyCount", () => {
     expect(parsed.foldedNitpickHeader).toBe(3);
     expect(parsed.findings).toHaveLength(2);
     expect(foldedOnlyCount(parsed)).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregateFoldedFindings — Fix 1 + Fix 4 (headSHA-scoping + bot-filter)
+// ---------------------------------------------------------------------------
+//
+// Raw review objects in the shape `GET /repos/:owner/:repo/pulls/:pr/reviews`
+// returns: `{ id, user: { login }, commit_id, body, submitted_at }`. The
+// fix scopes folded-findings to the LATEST coderabbitai[bot] review on the
+// PR's CURRENT head SHA, so stale reviews from prior pushes don't block
+// the PR forever.
+
+const HEAD_SHA = "aaa111aaa111aaa111aaa111aaa111aaa111aaa111";
+const STALE_SHA = "bbb222bbb222bbb222bbb222bbb222bbb222bbb222";
+
+// Helper: build a raw review object with the fields aggregateFoldedFindings
+// actually inspects. The CODERABBIT_BOT_LOGIN in the implementation is
+// "coderabbitai[bot]"; fixtures use that exact string.
+function review(opts: {
+  id: number;
+  login?: string;
+  commitId: string;
+  body: string;
+  submittedAt?: string;
+}) {
+  return {
+    id: opts.id,
+    user: { login: opts.login ?? "coderabbitai[bot]" },
+    commit_id: opts.commitId,
+    submitted_at: opts.submittedAt ?? `2026-01-${opts.id}T00:00:00Z`,
+    body: opts.body,
+  };
+}
+
+// A second folded-nitpick body used to prove STALE reviews are excluded.
+// Two folded findings → foldedOnlyCount = 2.
+const FOLDED_NITPICK_REVIEW_BODY_2 = [
+  "<details>",
+  "<summary>🧹 Nitpick comments (2)</summary>",
+  "",
+  "<blockquote>",
+  "<h4><strong>nitpick</strong>: <strong><code>src/other.ts:5</code></strong></h4>",
+  "</blockquote>",
+  "",
+  "<blockquote>",
+  "<h4><strong>nitpick</strong>: <strong><code>src/other.ts:10</code></strong></h4>",
+  "</blockquote>",
+  "",
+  "</details>",
+  "",
+  "Actionable comments posted: 0",
+  "Nitpick comments posted: 2",
+].join("\n");
+
+describe("aggregateFoldedFindings", () => {
+  it("returns open:0 when no reviews match the head SHA (stale-only input)", () => {
+    // Every review is on STALE_SHA — none on HEAD_SHA. The PR's folded
+    // state is "nothing open on the current head", so open MUST be 0.
+    // This is the fix for CodeRabbit follow-up finding #1: aggregating
+    // every historical body kept stale nitpicks and blocked forever.
+    const reviews = [
+      review({ id: 1, commitId: STALE_SHA, body: FOLDED_NITPICK_REVIEW_BODY }),
+      review({ id: 2, commitId: STALE_SHA, body: FOLDED_NITPICK_REVIEW_BODY_2 }),
+    ];
+    expect(aggregateFoldedFindings(reviews, HEAD_SHA)).toEqual({
+      open: 0,
+      perReview: [],
+    });
+  });
+
+  it("scopes to the latest coderabbitai review on the current head", () => {
+    // Mix: a stale review on STALE_SHA with 2 findings, plus a HEAD review
+    // with 2 DIFFERENT findings. Only the HEAD review counts.
+    const reviews = [
+      review({ id: 1, commitId: STALE_SHA, body: FOLDED_NITPICK_REVIEW_BODY_2 }),
+      review({ id: 2, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY }),
+    ];
+    const result = aggregateFoldedFindings(reviews, HEAD_SHA);
+    expect(result.open).toBe(2);
+    expect(result.perReview).toHaveLength(1);
+    expect(result.perReview[0]?.reviewId).toBe(2);
+    expect(result.perReview[0]?.commitId).toBe(HEAD_SHA);
+    // The HEAD review's findings, not the stale one's:
+    expect(result.perReview[0]?.findings[0]?.file).toBe("src/cli/run.ts");
+  });
+
+  it("excludes non-coderabbitai reviews (bot-filter)", () => {
+    // A human review on the SAME head with a body that would parse as
+    // folded findings — but it's NOT from coderabbitai[bot], so it MUST
+    // be excluded. Without this filter, human/other-bot reviews would
+    // pollute the folded-findings count.
+    const reviews = [
+      review({
+        id: 1,
+        login: "human-reviewer",
+        commitId: HEAD_SHA,
+        body: FOLDED_NITPICK_REVIEW_BODY,
+      }),
+      review({ id: 2, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY_2 }),
+    ];
+    const result = aggregateFoldedFindings(reviews, HEAD_SHA);
+    expect(result.open).toBe(2);
+    expect(result.perReview).toHaveLength(1);
+    expect(result.perReview[0]?.user).toBe("coderabbitai[bot]");
+    expect(result.perReview[0]?.reviewId).toBe(2);
+  });
+
+  it("takes the LATEST coderabbitai review when multiple match the head", () => {
+    // Two coderabbitai reviews on the same HEAD SHA. REST returns them in
+    // chronological order (oldest first); the LAST match is the latest.
+    // We take only the latest — a re-post supersedes the prior analysis.
+    const reviews = [
+      review({ id: 1, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY }),
+      review({ id: 2, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY_2 }),
+    ];
+    const result = aggregateFoldedFindings(reviews, HEAD_SHA);
+    expect(result.perReview).toHaveLength(1);
+    expect(result.perReview[0]?.reviewId).toBe(2); // latest wins
+    expect(result.perReview[0]?.findings[0]?.file).toBe("src/other.ts");
+  });
+
+  it("returns open:0 when the matching review has no folded section", () => {
+    // The head review exists and is from coderabbitai, but its body has
+    // no folded nitpicks (every finding was promoted to an inline thread
+    // → covered by location #1). folded-only count is 0.
+    const reviews = [
+      review({ id: 1, commitId: HEAD_SHA, body: NO_FOLDED_REVIEW_BODY }),
+    ];
+    expect(aggregateFoldedFindings(reviews, HEAD_SHA)).toEqual({
+      open: 0,
+      perReview: [],
+    });
+  });
+
+  it("returns open:0 when the matching review body is empty", () => {
+    const reviews = [
+      review({ id: 1, commitId: HEAD_SHA, body: EMPTY_REVIEW_BODY }),
+    ];
+    expect(aggregateFoldedFindings(reviews, HEAD_SHA)).toEqual({
+      open: 0,
+      perReview: [],
+    });
+  });
+
+  it("is defensive: returns open:0 on non-array input or missing headSha", () => {
+    // The pure helper must NEVER throw on bad input — a thrown error here
+    // would abort the whole sweep. Same defensive contract as parseReviewBody.
+    expect(() => aggregateFoldedFindings(/** @type {any} */ (null), HEAD_SHA)).not.toThrow();
+    expect(() => aggregateFoldedFindings(/** @type {any} */ (undefined), HEAD_SHA)).not.toThrow();
+    expect(aggregateFoldedFindings(/** @type {any} */ (null), HEAD_SHA)).toEqual({
+      open: 0,
+      perReview: [],
+    });
+    expect(
+      aggregateFoldedFindings(
+        [review({ id: 1, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY })],
+        /** @type {any} */ (""),
+      ),
+    ).toEqual({ open: 0, perReview: [] });
+    expect(
+      aggregateFoldedFindings(
+        [review({ id: 1, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY })],
+        /** @type {any} */ (undefined),
+      ),
+    ).toEqual({ open: 0, perReview: [] });
+  });
+
+  it("each invocation is fresh (no shared state between calls)", () => {
+    // Pure contract: calling twice with the same input must produce the
+    // same result. A stale-closure bug would make the second call return
+    // a mutated/different value.
+    const reviews = [
+      review({ id: 1, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY }),
+    ];
+    const a = aggregateFoldedFindings(reviews, HEAD_SHA);
+    const b = aggregateFoldedFindings(reviews, HEAD_SHA);
+    expect(a).toEqual(b);
+    expect(a.open).toBe(2);
+  });
+
+  it("excludes reviews whose commit_id is null/undefined (defensive)", () => {
+    // A malformed review object (missing commit_id) must NOT match even
+    // if headSha somehow equals "null" or "undefined" as a string.
+    const reviews = [
+      { id: 1, user: { login: "coderabbitai[bot]" }, commit_id: undefined, body: FOLDED_NITPICK_REVIEW_BODY },
+      { id: 2, user: { login: "coderabbitai[bot]" }, commit_id: null, body: FOLDED_NITPICK_REVIEW_BODY },
+      review({ id: 3, commitId: HEAD_SHA, body: FOLDED_NITPICK_REVIEW_BODY_2 }),
+    ];
+    const result = aggregateFoldedFindings(/** @type {any} */ (reviews), HEAD_SHA);
+    expect(result.perReview).toHaveLength(1);
+    expect(result.perReview[0]?.reviewId).toBe(3);
   });
 });
 

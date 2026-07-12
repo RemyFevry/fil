@@ -32,6 +32,7 @@
 
 import { execFileSync } from "node:child_process";
 import process, { exit } from "node:process";
+import { Buffer } from "node:buffer";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -226,6 +227,76 @@ export function foldedOnlyCount(parsed) {
 }
 
 /**
+ * Aggregate folded findings from the raw `/pulls/N/reviews` response,
+ * scoped to the latest CodeRabbit review on the PR's CURRENT head SHA.
+ *
+ * Why head-scoping is mandatory: `/pulls/N/reviews` returns HISTORICAL
+ * review bodies. CodeRabbit posts a fresh review on every push, so a
+ * long-lived PR accumulates stale reviews from prior commits whose
+ * nitpicks may already be fixed. Aggregating every body would keep those
+ * stale nitpicks in `folded-findings` and BLOCK the PR forever — the
+ * partial-sweep failure mode this tool exists to catch. We restrict to
+ * reviews where BOTH:
+ *   - `user.login === "coderabbitai[bot]"` (bot filter — humans + other
+ *     bots post reviews too)
+ *   - `commit_id === headSha` (head-scope — only the current push's
+ *     reviews count)
+ *
+ * Among the matching reviews we take the LATEST (the REST endpoint
+ * returns reviews in chronological order, so the last match wins). This
+ * matches CodeRabbit's real-world invariant: one analysis review per
+ * commit; a second match on the same commit would be a `@coderabbitai
+ * review` re-post that supersedes the first.
+ *
+ * PURE: no network, no I/O, fresh state per call. Tested in
+ * scripts/test/pr-review-status.test.ts.
+ *
+ * @param {Array<{ id?: number, user?: { login?: string }, commit_id?: string, body?: string }>} reviews
+ *   Raw review objects from `GET /repos/:owner/:repo/pulls/:pr/reviews`.
+ * @param {string} headSha The PR's current head commit SHA (`pr.head.sha`).
+ * @returns {{ open: number, perReview: Array<{ reviewId: number|null, user: string, commitId: string, count: number, findings: Array<{severity:string,file:string,line:string}> }> }}
+ */
+export function aggregateFoldedFindings(reviews, headSha) {
+  if (!Array.isArray(reviews) || typeof headSha !== "string" || headSha.length === 0) {
+    return { open: 0, perReview: [] };
+  }
+
+  const matching = reviews.filter(
+    (r) =>
+      r?.user?.login === CODERABBIT_BOT_LOGIN &&
+      typeof r?.commit_id === "string" &&
+      r.commit_id === headSha &&
+      typeof r?.body === "string" &&
+      r.body.length > 0,
+  );
+
+  // REST returns reviews in chronological order (oldest first); the LAST
+  // match is the latest CodeRabbit review on the current head.
+  const latest = matching[matching.length - 1];
+  if (!latest) {
+    return { open: 0, perReview: [] };
+  }
+
+  const parsed = parseReviewBody(latest.body ?? "");
+  const count = foldedOnlyCount(parsed);
+  if (count === 0) {
+    return { open: 0, perReview: [] };
+  }
+  return {
+    open: count,
+    perReview: [
+      {
+        reviewId: latest.id ?? null,
+        user: latest.user?.login ?? "(unknown)",
+        commitId: latest.commit_id ?? headSha,
+        count,
+        findings: parsed.findings,
+      },
+    ],
+  };
+}
+
+/**
  * Roll up every source into the final verdict the master quotes.
  *
  * `CLEAR` requires: zero unresolved threads (any author), zero folded-only
@@ -315,13 +386,55 @@ function ghApi(path, extraArgs = []) {
 }
 
 /**
- * Run a GraphQL query against the GitHub API. `wait` is needed because
- * GraphQL consistency lags REST after a fresh push.
+ * Paginate a REST collection to completion via `?page=N`. Without this,
+ * any collection capped at 100 items silently drops the tail — the
+ * exact partial-sweep failure mode this tool exists to prevent (e.g. a
+ * PR with 100+ review threads would undercount unresolved threads).
+ *
+ * Uses page-number pagination (GitHub REST supports `?page=N` on every
+ * collection) rather than Link-header traversal, because it's simpler to
+ * reason about and test. Stops on the first short/empty page. Safety
+ * valve at 50 pages (5000 items) guards against a misbehaving endpoint.
+ *
+ * @param {string} path REST collection path (with or without query string).
+ * @returns {unknown[]} Combined array of every page's items.
+ */
+function ghApiPage(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  const base = path.includes("per_page=") ? path : `${path}${sep}per_page=100`;
+  const all = /** @type {unknown[]} */ ([]);
+  for (let page = 1; page <= 50; page++) {
+    /** @type {unknown} */
+    let batch;
+    try {
+      batch = ghApi(`${base}&page=${page}`);
+    } catch {
+      // A failed page lookup is anti-overclaim'd by the caller's tryQuery
+      // wrapper → `queried: false` → BLOCKED. We stop paginating here so
+      // the sweep can degrade honestly rather than silently partial-fetch.
+      break;
+    }
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < 100) break; // last page
+  }
+  return all;
+}
+
+/**
+ * Run a GraphQL query against the GitHub API. Null/undefined variables are
+ * OMITTED (not sent as `--field key=null`) so GraphQL nullable inputs
+ * default server-side — required for cursor pagination where `$after` is
+ * null on the first page and a cursor string thereafter.
  *
  * @param {string} query
  * @param {Record<string, unknown>} variables
  */
 function ghGraphql(query, variables) {
+  const fieldArgs = Object.entries(variables).flatMap(([k, v]) => {
+    if (v === null || v === undefined) return [];
+    return ["--field", `${k}=${String(v)}`];
+  });
   const stdout = execFileSync(
     "gh",
     [
@@ -331,10 +444,7 @@ function ghGraphql(query, variables) {
       "Accept: application/vnd.github+json",
       "--field",
       `query=${query}`,
-      ...Object.entries(variables).flatMap(([k, v]) => [
-        "--field",
-        `${k}=${String(v)}`,
-      ]),
+      ...fieldArgs,
     ],
     {
       encoding: "utf8",
@@ -373,6 +483,11 @@ function detectRepo() {
  * Uses GraphQL (not REST /pulls/comments) because REST has no resolved-flag
  * field — resolution is a review-thread property only.
  *
+ * PAGINATION: `reviewThreads(first: 100)` is capped at 100 per page. A PR
+ * with >100 threads would silently undercount without cursor traversal
+ * (`pageInfo.hasNextPage` / `endCursor`). We loop until exhausted, then
+ * decorate + filter the combined set.
+ *
  * @param {string} owner
  * @param {string} repo
  * @param {number} pr
@@ -383,24 +498,34 @@ function fetchUnresolvedThreads(owner, repo, pr) {
   // `/pulls/N/comments` returns every inline comment regardless of
   // resolution state, so we cannot detect "still open" from REST alone.
   const query = `
-    query ReviewStatus($owner: String!, $repo: String!, $pr: Int!) {
+    query ReviewStatus($owner: String!, $repo: String!, $pr: Int!, $after: String) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $pr) {
-          reviewThreads(first: 100) {
+          reviewThreads(first: 100, after: $after) {
             nodes {
               isResolved
               author { login }
               path
               comments(first: 1) { nodes { author { login } } }
             }
+            pageInfo { hasNextPage endCursor }
           }
         }
       }
     }`.replace(/\s+/g, " ");
-  const data = /** @type {any} */ (ghGraphql(query, { owner, repo, pr }));
-  const threads =
-    data?.data?.repository?.pullRequest?.reviewThreads?.nodes ?? [];
-  const decorated = threads.map((t) => ({
+
+  const allNodes = /** @type {any[]} */ ([]);
+  let cursor = null;
+  for (;;) {
+    const data = /** @type {any} */ (ghGraphql(query, { owner, repo, pr, after: cursor }));
+    const rt = data?.data?.repository?.pullRequest?.reviewThreads;
+    if (!rt) break;
+    allNodes.push(...(rt.nodes ?? []));
+    if (!rt.pageInfo?.hasNextPage || !rt.pageInfo?.endCursor) break;
+    cursor = rt.pageInfo.endCursor;
+  }
+
+  const decorated = allNodes.map((t) => ({
     isResolved: !!t.isResolved,
     author:
       t.comments?.nodes?.[0]?.author?.login ??
@@ -413,35 +538,35 @@ function fetchUnresolvedThreads(owner, repo, pr) {
 }
 
 /**
- * Fetch all PR review bodies and aggregate their folded-finding counts.
- * Location #3 — the one the master missed. Each review body may carry its
- * own `🧹 Nitpick comments (N)` section; sum the per-review folded-only
- * counts.
+ * Fetch all PR review bodies and aggregate the folded-finding count for
+ * the LATEST CodeRabbit review on the PR's CURRENT head SHA.
+ *
+ * Location #3 — the one the master missed. `/pulls/N/reviews` returns
+ * HISTORICAL reviews; without head-SHA scoping, stale nitpicks from prior
+ * pushes would block the PR forever. We fetch the PR's head SHA, paginate
+ * the reviews collection to completion (>100 possible on long-lived PRs),
+ * and delegate to `aggregateFoldedFindings` for the bot-filter +
+ * head-scope + parse.
  *
  * @param {string} owner
  * @param {string} repo
  * @param {number} pr
  */
 function fetchFoldedFindings(owner, repo, pr) {
-  const reviews = /** @type {any[]} */ (ghApi(
-    `/repos/${owner}/${repo}/pulls/${pr}/reviews?per_page=100`,
-  ));
-  let open = 0;
-  const perReview = [];
-  for (const r of reviews) {
-    if (typeof r.body !== "string" || r.body.length === 0) continue;
-    const parsed = parseReviewBody(r.body);
-    const count = foldedOnlyCount(parsed);
-    if (count > 0) {
-      open += count;
-      perReview.push({
-        reviewId: r.id,
-        user: r.user?.login ?? "(unknown)",
-        count,
-        findings: parsed.findings,
-      });
-    }
+  // Get the PR's current head SHA from the PR object (REST pulls endpoint).
+  // Without this we cannot head-scope — every historical review body would
+  // be aggregated and stale nitpicks from prior pushes would block forever.
+  const prData = /** @type {any} */ (ghApi(`/repos/${owner}/${repo}/pulls/${pr}`));
+  const headSha = prData?.head?.sha;
+  if (typeof headSha !== "string" || headSha.length === 0) {
+    // No head SHA → can't head-scope → refuse to report (anti-overclaim).
+    return { queried: false, open: 0, perReview: [] };
   }
+
+  const reviews = /** @type {any[]} */ (ghApiPage(
+    `/repos/${owner}/${repo}/pulls/${pr}/reviews`,
+  ));
+  const { open, perReview } = aggregateFoldedFindings(reviews, headSha);
   return { queried: true, open, perReview };
 }
 
@@ -455,8 +580,8 @@ function fetchFoldedFindings(owner, repo, pr) {
  * @param {number} pr
  */
 function fetchLatestSummary(owner, repo, pr) {
-  const comments = /** @type {any[]} */ (ghApi(
-    `/repos/${owner}/${repo}/issues/${pr}/comments?per_page=100`,
+  const comments = /** @type {any[]} */ (ghApiPage(
+    `/repos/${owner}/${repo}/issues/${pr}/comments`,
   ));
   const cr = comments
     .filter((c) => c.user?.login === CODERABBIT_BOT_LOGIN)
@@ -485,8 +610,8 @@ function fetchLatestSummary(owner, repo, pr) {
  * @param {number} pr
  */
 function fetchSonarQG(owner, repo, pr) {
-  const comments = /** @type {any[]} */ (ghApi(
-    `/repos/${owner}/${repo}/issues/${pr}/comments?per_page=100`,
+  const comments = /** @type {any[]} */ (ghApiPage(
+    `/repos/${owner}/${repo}/issues/${pr}/comments`,
   ));
   const sonar = comments
     .filter((c) => c.user?.login === SONAR_BOT_LOGIN)
@@ -513,14 +638,18 @@ function fetchSonarQG(owner, repo, pr) {
  * intentionally a blocker — merging on PENDING is the canonical
  * "merge-before-reply" failure mode called out in feature-loop.md.
  *
+ * `gh pr checks --required --json` exits NONZERO when any required check
+ * is non-SUCCESS — but it still writes the full JSON payload to stdout
+ * before exiting. We capture `err.stdout` from the thrown error and parse
+ * it; the previous re-run-without-`--required` fallback discarded that
+ * payload for the exact cases we need to report (PENDING/FAILURE).
+ *
  * @param {string} owner
  * @param {string} repo
  * @param {number} pr
  */
 function fetchCIStatus(owner, repo, pr) {
-  // `gh pr checks` is the stable user-facing surface. --json is available
-  // on recent gh versions; fall back to --repo for explicit owner/repo.
-  let stdout;
+  let stdout = "";
   try {
     stdout = execFileSync(
       "gh",
@@ -536,30 +665,34 @@ function fetchCIStatus(owner, repo, pr) {
       ],
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
-  } catch {
-    // gh pr checks exits non-zero if any required check is non-SUCCESS,
-    // which is exactly the case we care about — but it still prints the
-    // JSON to stdout before exiting. Re-run without --required to get the
-    // full list and count non-SUCCESS ourselves.
-    try {
-      stdout = execFileSync(
-        "gh",
-        [
-          "pr",
-          "checks",
-          String(pr),
-          "--repo",
-          `${owner}/${repo}`,
-          "--json",
-          "name,state",
-        ],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-      );
-    } catch {
-      return { queried: false, nonSuccess: 0, checks: [] };
-    }
+  } catch (err) {
+    // gh pr checks --required exits NONZERO when any required check is
+    // non-SUCCESS (PENDING / FAILURE / ERROR) — exactly the case we care
+    // about. The JSON payload is still on err.stdout; capture it instead
+    // of dropping it. execFileSync errors carry `stdout` (string|Buffer)
+    // when stdio pipes are configured.
+    stdout =
+      typeof err?.stdout === "string"
+        ? err.stdout
+        : Buffer.isBuffer(err?.stdout)
+          ? err.stdout.toString("utf8")
+          : "";
   }
-  const checks = JSON.parse(stdout) || [];
+
+  // No usable stdout → can't report (anti-overclaim: queried=false → BLOCKED).
+  if (!stdout || !stdout.trim()) {
+    return { queried: false, nonSuccess: 0, checks: [] };
+  }
+
+  /** @type {unknown} */
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    // Malformed JSON → don't guess. Degrade to queried=false.
+    return { queried: false, nonSuccess: 0, checks: [] };
+  }
+  const checks = Array.isArray(parsed) ? parsed : [];
   const nonSuccess = checks.filter(
     (/** @type {{ state: string }} */ c) =>
       String(c.state).toUpperCase() !== "SUCCESS",
