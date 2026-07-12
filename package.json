@@ -24,6 +24,8 @@
     "ci": "pnpm run lint && pnpm run lint:md && pnpm run build && pnpm run typecheck && pnpm run test",
     "feat": "bash scripts/feat.sh",
     "install-herdr": "bash scripts/install-herdr.sh",
+    "layer1": "bash scripts/spawn-layer1.sh",
+    "layer2": "bash scripts/spawn-layer2.sh",
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2",
     "pre-enter": "changeset pre enter",

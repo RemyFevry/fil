@@ -174,4 +174,6 @@ with full Fil PR machinery.
   `pnpm feat` / `pnpm ship` bookend each loop.
 - [`developer-experience.md`](./developer-experience.md) — R20–R23
   recommendations that produced this doc.
+- [`topology.md`](./topology.md) — the 2-layer master/subagent convention;
+  `pnpm layer1` / `pnpm layer2` fan out tabs/panes within a Workspace.
 - Herdr upstream: https://herdr.dev/docs/agents/
