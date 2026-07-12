@@ -31,6 +31,36 @@ import { join } from "node:path";
 // matching its name is the reliable signal that "this is a master session".
 const MASTER_AGENT = "master";
 
+/**
+ * Build the env for the guard subprocess, scoped to WHO is asking. Pure
+ * (no `import.meta` / no I/O) so the env-scrub decision can be unit-tested
+ * in isolation — see scripts/test/worktree-guard.test.ts.
+ *
+ * MASTER session: inherit process.env (so the human / launcher escape hatch
+ *   FIL_ALLOW_MAIN_WORKTREE still works) and inject FIL_MASTER_SESSION=1.
+ * NON-MASTER session: inherit process.env but SCRUB both hatch vars — so a
+ *   non-master session can NEVER satisfy either hatch, even if the launcher
+ *   left FIL_ALLOW_MAIN_WORKTREE=1 in process.env (e.g. the user switched
+ *   agents within one opencode process started via `pnpm master`).
+ *
+ * Never mutates the passed-in env (copies first), so process.env is safe.
+ */
+export function buildGuardEnv(
+  processEnv: Record<string, string | undefined>,
+  isMaster: boolean,
+): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = { ...processEnv };
+  if (isMaster) {
+    env.FIL_MASTER_SESSION = "1";
+    return env;
+  }
+  // Non-master: scrub both trunk-hatch vars so this session can't be granted
+  // the primary-hatch by inheritance.
+  delete env.FIL_ALLOW_MAIN_WORKTREE;
+  delete env.FIL_MASTER_SESSION;
+  return env;
+}
+
 export const WorktreeGuard = async ({ $ }) => {
   // Resolve the gate script relative to this plugin file so it works regardless
   // of the process cwd. Plugin lives at .opencode/plugins/worktree-guard.ts.
@@ -73,16 +103,14 @@ export const WorktreeGuard = async ({ $ }) => {
         tool === "bash" && output?.args && typeof output.args === "object" && "command" in output.args
           ? String(output.args.command ?? "")
           : "";
-      // Build the env for the guard subprocess. We always inherit process.env
-      // (so FIL_ALLOW_MAIN_WORKTREE keeps working), and additionally inject
-      // FIL_MASTER_SESSION=1 ONLY when this tool call belongs to a master
-      // session. Injecting into the guard call (not into output.args / the
-      // agent's bash env) keeps the hatch scoped to the guard decision — it
-      // never reaches the command the master actually runs, and never reaches
-      // a subagent session (different sessionID → not master).
-      const env = isMasterSession(input?.sessionID)
-        ? { ...process.env, FIL_MASTER_SESSION: "1" }
-        : { ...process.env };
+      // Build the env for the guard subprocess, session-scoped via the pure
+      // helper: master keeps/injects the hatches; non-master SCRUBS both so it
+      // can never satisfy either by inheritance. Injecting into the guard call
+      // (not into output.args / the agent's bash env) keeps the hatch scoped to
+      // the guard decision — it never reaches the command the master actually
+      // runs, and never reaches a subagent session (different sessionID →
+      // non-master → scrubbed).
+      const env = buildGuardEnv({ ...process.env }, isMasterSession(input?.sessionID));
       // Don't throw on non-zero — inspect the exit code so we only report the
       // known "primary worktree" block (exit 2) and surface anything else
       // (script missing, git error, …) instead of masking it or failing open.

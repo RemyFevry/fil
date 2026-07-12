@@ -30,6 +30,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+// Pure env-scrub helper extracted from the OpenCode plugin, so the decision
+// "non-master sessions can never satisfy either trunk hatch" can be unit-
+// tested in isolation. The plugin file isn't part of the build (it lives under
+// .opencode/, excluded from tsconfig + eslint), but importing the exported
+// pure function here is safe — it touches no `import.meta` / opencode runtime.
+import { buildGuardEnv } from "../../.opencode/plugins/worktree-guard";
 
 const REPO_ROOT = join(__dirname, "..", "..");
 const GATE = join(REPO_ROOT, "scripts", "require-worktree.sh");
@@ -51,7 +57,15 @@ function runGate(opts: {
   env?: NodeJS.ProcessEnv;
   command?: string;
 }): GateResult {
-  const env = { ...process.env, ...(opts.env ?? {}) };
+  // Hermetic: scrub any ambient trunk hatch from process.env BEFORE layering
+  // opts.env, so negative-path assertions aren't spuriously satisfied when the
+  // test suite itself runs inside a `pnpm master` session (process.env carrying
+  // FIL_ALLOW_MAIN_WORKTREE=1). Hatch tests pass the vars explicitly via
+  // opts.env, so they are unaffected.
+  const baseEnv = { ...process.env };
+  delete baseEnv.FIL_ALLOW_MAIN_WORKTREE;
+  delete baseEnv.FIL_MASTER_SESSION;
+  const env = { ...baseEnv, ...(opts.env ?? {}) };
   try {
     execFileSync("bash", [GATE, opts.command ?? ""], {
       cwd: opts.cwd,
@@ -231,5 +245,48 @@ describe("scripts/master.sh", () => {
     }).toString();
     expect(out).toMatch(/runtime:\s+claude/);
     expect(out).toContain("FIL_ALLOW_MAIN_WORKTREE: 1");
+  });
+});
+
+describe("plugin env-scrub (buildGuardEnv)", () => {
+  // Covers the CodeRabbit thread: a NON-master session must never satisfy
+  // either trunk hatch via process.env inheritance — even when the opencode
+  // process was launched via `pnpm master` (which leaves FIL_ALLOW_MAIN_WORKTREE
+  // in process.env) and the user later switched to a non-master agent. The
+  // decision lives in the pure helper the plugin calls; the script itself
+  // can't tell master from non-master, so this unit test is the right layer.
+
+  it("master session keeps ambient FIL_ALLOW_MAIN_WORKTREE and injects FIL_MASTER_SESSION", () => {
+    const env = buildGuardEnv(
+      { FIL_ALLOW_MAIN_WORKTREE: "1", PATH: "/bin" },
+      true,
+    );
+    expect(env.FIL_ALLOW_MAIN_WORKTREE).toBe("1");
+    expect(env.FIL_MASTER_SESSION).toBe("1");
+    expect(env.PATH).toBe("/bin");
+  });
+
+  it("non-master session scrubs BOTH hatch vars even when ambient env carries them", () => {
+    // The exact CodeRabbit scenario: launcher left FIL_ALLOW_MAIN_WORKTREE in
+    // process.env; a non-master agent in the same process must not inherit it.
+    const env = buildGuardEnv(
+      { FIL_ALLOW_MAIN_WORKTREE: "1", FIL_MASTER_SESSION: "1", PATH: "/bin" },
+      false,
+    );
+    expect(env.FIL_ALLOW_MAIN_WORKTREE).toBeUndefined();
+    expect(env.FIL_MASTER_SESSION).toBeUndefined();
+    expect(env.PATH).toBe("/bin");
+  });
+
+  it("non-master session is scrubbed when the ambient env has no hatch vars either", () => {
+    const env = buildGuardEnv({ PATH: "/bin" }, false);
+    expect(env.FIL_ALLOW_MAIN_WORKTREE).toBeUndefined();
+    expect(env.FIL_MASTER_SESSION).toBeUndefined();
+  });
+
+  it("does not mutate the passed-in env object (process.env stays safe)", () => {
+    const input = { FIL_ALLOW_MAIN_WORKTREE: "1", PATH: "/bin" };
+    buildGuardEnv(input, false);
+    expect(input.FIL_ALLOW_MAIN_WORKTREE).toBe("1");
   });
 });
