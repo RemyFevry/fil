@@ -34,7 +34,10 @@ if ! command -v npx >/dev/null 2>&1; then
   exit 1
 fi
 echo "→ installing the herdr agent skill globally"
-npx --yes skills add ogulcancelik/herdr --skill herdr -g
+# Both `npx --yes` (prevents npx's "OK to install?" prompt) and Skills CLI's
+# own `-y` (prevents the Skills CLI's "which agent / which skill to install"
+# prompts) are required for unattended installation.
+npx --yes skills add ogulcancelik/herdr --skill herdr -g -y
 
 # 4. First-run config: symlink the Fil-tuned template, never overwrite.
 mkdir -p ~/.config/herdr

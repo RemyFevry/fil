@@ -56,11 +56,15 @@ This calls `scripts/install-herdr.sh`, which is safe to re-run and
 does all of:
 
 1. `brew install herdr` (skipped if already present).
-2. `herdr integration install claude opencode pi` — lifecycle authority +
-   session identity for the three Fil-supported runtimes.
-3. `npx skills add ogulcancelik/herdr --skill herdr -g` — installs the
-   official herdr **agent skill** globally. Every agent that loads inside a
-   herdr pane gets it automatically (gated by `HERDR_ENV=1`).
+2. `herdr integration install <runtime>` — once per runtime, looping over
+   `claude`, `opencode`, `pi`. Each invocation grants the corresponding
+   runtime the lifecycle authority + session identity it needs.
+3. `npx --yes skills add ogulcancelik/herdr --skill herdr -g -y` —
+   installs the official herdr **agent skill** globally. Every agent that
+   loads inside a herdr pane gets it automatically (gated by
+   `HERDR_ENV=1`). The `-y` is the Skills CLI's non-interactive approval
+   flag so `pnpm install-herdr` doesn't prompt; `npx --yes` only affects
+   `npx` itself.
 4. Symlinks `~/.config/herdr/config.toml` to
    [`docs/agents/herdr-config.toml`](./herdr-config.toml) in this repo
    (first run only; never overwrites).
