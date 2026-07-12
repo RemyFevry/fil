@@ -4,7 +4,7 @@
 "@color-sunset/fil-evolution": patch
 ---
 
-Lift the dynamic-import Flow loader dance into `@fil/flow-loader`; migrate CLI + evolution (closes #89).
+Lift the dynamic-import Flow loader dance into `@color-sunset/fil-flow-loader`; migrate CLI + evolution (closes #89).
 
 - **`@color-sunset/fil-flow-loader`** now owns the default `importFlowFile(path)` and `importFlowCode(code)` — the consolidated dance: rewrite the bare `@color-sunset/fil-engine` specifier to the engine's absolute entry URL, write to a temp file under a Windows-safe root (`pickTempRoot`, also now exported from here), canonicalize with `fs.realpathSync`, `pathToFileURL` + `import()`, then clean up. The `FlowLoaderDeps.importFlowFile` seam finally has a production default; test fakes still work as before.
 - **`@color-sunset/fil-cli`** (`packages/cli/src/commands/common.ts`) — `realFlowLoaderDeps.importFlowFile` now passes the flow-loader default; the inline engine-specifier rewrite, temp-file write, and `pickTempRoot` are deleted.
