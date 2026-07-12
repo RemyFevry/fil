@@ -182,6 +182,32 @@ describe("scripts/require-worktree.sh", () => {
     expect(r.code).toBe(2);
   });
 
+  it("auto-master hatch works WITHOUT the human override (end-to-end via buildGuardEnv)", () => {
+    // Regression for the CodeRabbit nitpick: the master-path gate test must not
+    // depend on FIL_ALLOW_MAIN_WORKTREE. Exercise the real session-classification
+    // path — buildGuardEnv on a minimal base with NO human override — and confirm
+    // the gate ALLOWS the call in the primary purely on the auto-master signal.
+    const masterEnv = buildGuardEnv({ PATH: process.env.PATH ?? "/bin" }, true);
+    // Sanity: the master env carries the auto hatch and NOT the human override.
+    expect(masterEnv.FIL_MASTER_SESSION).toBe("1");
+    expect(masterEnv.FIL_ALLOW_MAIN_WORKTREE).toBeUndefined();
+
+    const allowed = runGate({ cwd: repos.primary, command: "gh issue list", env: masterEnv });
+    expect(allowed.code).toBe(0);
+  });
+
+  it("non-master env from the same minimal base is BLOCKED in the primary", () => {
+    // Symmetric negative: buildGuardEnv on a non-master session scrubs both
+    // hatch vars, so the gate blocks in the primary even though the base env
+    // is identical to the master case above.
+    const nonMasterEnv = buildGuardEnv({ PATH: process.env.PATH ?? "/bin" }, false);
+    expect(nonMasterEnv.FIL_MASTER_SESSION).toBeUndefined();
+    expect(nonMasterEnv.FIL_ALLOW_MAIN_WORKTREE).toBeUndefined();
+
+    const blocked = runGate({ cwd: repos.primary, command: "gh issue list", env: nonMasterEnv });
+    expect(blocked.code).toBe(2);
+  });
+
   it("whitelists bootstrap `wt` subcommands from the primary", () => {
     // The guard never invokes `wt` — it only pattern-matches $1 — so this
     // works whether or not `wt` is installed (CI runners may lack it).
