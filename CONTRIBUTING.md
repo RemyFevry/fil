@@ -82,6 +82,16 @@ wt merge main
 
 If you don't use Worktrunk, a plain git worktree is fine — just make sure you're not committing to `main`.
 
+## Optional: multi-agent orchestration with herdr
+
+Fil's agent surface is also designed to compose with [herdr](https://herdr.dev/docs/agents/),
+a non-mandatory terminal multiplexer that gives you a sidebar of every
+running agent's state across every project. Herdr is opt-in: install once
+per host with `pnpm install-herdr`, then `pnpm feat <n>` opens a Fil
+Change as both a Worktrunk worktree *and* a herdr Workspace, and
+`pnpm ship` closes both symmetrically. The canonical reference is
+[`docs/agents/herdr.md`](./docs/agents/herdr.md).
+
 ## Commits and PRs
 
 - **Conventional Commits** — `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. The PR title and any
@@ -92,9 +102,9 @@ If you don't use Worktrunk, a plain git worktree is fine — just make sure you'
 - **Add a changeset** for any user-facing change: `pnpm changeset`. Pick the affected packages, the bump type
   (`patch` / `minor` / `major`), and write a one-line summary. Commit the resulting `.changeset/*.md` file.
 - **Pre-merge gates** (CI): two workflows — `lint-build` (Ubuntu + Node 26: lint, lint:md, build,
-  typecheck) and `test` (Linux always; macOS on non-draft PRs; Node 26 throughout). Required
-  status checks are `lint-build / verify`, `test / test-linux`, `test / test-cross-os (macos-latest)`.
-  Windows is deferred to a follow-up issue — see `docs/adr/0005-…` for context.
+  typecheck) and `test` (Linux always; macOS + Windows on non-draft PRs; Node 26 throughout). Required
+  status checks are `lint-build / verify`, `test / test-linux`, `test / test-cross-os (macos-latest)`,
+  `test / test-cross-os (windows-latest)`.
 
 ## Quick checks
 

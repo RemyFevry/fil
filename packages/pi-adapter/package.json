@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil-pi-adapter",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The Pi Adapter: constrains the Pi Agent Runtime to the active Fil Phase (allowedTools / instructions / context / skills) and installs through Pi's native extension channel.",
   "license": "MIT",
   "type": "module",

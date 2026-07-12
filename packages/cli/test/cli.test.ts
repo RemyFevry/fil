@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultContext, type CliContext } from "../src/context.js";
+import { pickTempRoot } from "../src/commands/common.js";
 import { initCommand } from "../src/commands/init.js";
 import { startCommand } from "../src/commands/start.js";
 import { nextCommand } from "../src/commands/next.js";
@@ -786,5 +787,21 @@ describe("fil inspect --text — error branches", () => {
     const code = await inspectCommand(ctx, parseArgs(["--text"]));
     expect(code).toBe(1);
     expect(errs.join("\n")).toContain("synthetic load failure");
+  });
+});
+
+describe("pickTempRoot", () => {
+  it("returns the cwd candidate when it is writable", () => {
+    expect(pickTempRoot()).toBe(process.cwd());
+  });
+
+  it("falls back to the next candidate when the first is unwritable", () => {
+    expect(pickTempRoot(["/__nonexistent_root__", tmpdir()])).toBe(tmpdir());
+  });
+
+  it("throws when no candidate is writable", () => {
+    expect(() => pickTempRoot(["/__nonexistent_a__", "__/nonexistent_b__"])).toThrow(
+      /writable temp directory/,
+    );
   });
 });

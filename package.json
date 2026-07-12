@@ -1,6 +1,6 @@
 {
   "name": "@color-sunset/fil",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "An open-source harness for agentic software-development lifecycles.",
   "license": "MIT",
   "type": "module",
@@ -17,23 +17,27 @@
     "README.md"
   ],
   "scripts": {
+    "bootstrap": "bash scripts/bootstrap.sh",
     "build": "tsc -b",
     "build:clean": "tsc -b --clean && tsc -b",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit -p tsconfig.check.json",
+    "changeset": "changeset",
+    "ci": "pnpm run lint && pnpm run lint:md && pnpm run build && pnpm run typecheck && pnpm run test",
+    "feat": "bash scripts/feat.sh",
+    "install-herdr": "bash scripts/install-herdr.sh",
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2",
-    "prepare": "lefthook install",
-    "ci": "pnpm run lint && pnpm run lint:md && pnpm run build && pnpm run typecheck && pnpm run test",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish",
     "pre-enter": "changeset pre enter",
     "pre-exit": "changeset pre exit",
+    "prepare": "lefthook install",
+    "release": "pnpm build && changeset publish",
     "release:alpha": "pnpm pre-enter alpha && pnpm version-packages && pnpm build && changeset publish --tag alpha",
-    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --tag beta"
+    "release:beta": "pnpm pre-enter beta && pnpm version-packages && pnpm build && changeset publish --tag beta",
+    "ship": "bash scripts/ship.sh",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json",
+    "version-packages": "changeset version"
   },
   "repository": {
     "type": "git",
@@ -72,7 +76,7 @@
     "markdownlint-cli2": "^0.22.1",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.62.1",
-    "vitest": "^2.1.0"
+    "vitest": "^3.2.6"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

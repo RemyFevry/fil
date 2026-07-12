@@ -84,7 +84,6 @@ export async function applyProposal(
  */
 export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
   const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { pathToFileURL } = await import("node:url");
 
@@ -95,7 +94,22 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
       )
     : code;
 
-  const dir = await mkdtemp(join(tmpdir(), "fil-evo-"));
+  // On Windows, the GitHub-hosted runner's `os.tmpdir()` resolves to
+  // the 8.3 short-name form (`C:\Users\RUNNER~1\AppData\Local\Temp\…`).
+  // `pathToFileURL` URL-encodes the `~` as `%7E`, but Node's ESM
+  // loader's URL→path round-trip can't find the file we just wrote
+  // and reports "Failed to load url ... Does the file exist?" even
+  // though the file is on disk. We've found that `realpathSync` does
+  // not expand the short-name alias on this Node 26 / Windows build,
+  // so we sidestep the issue by writing the temp file under
+  // `process.cwd()` — which is always a long-name canonical path on
+  // Windows. Cleanup removes the file in `finally`, so no on-disk
+  // trace is left after the call. `pickTempRoot` prefers cwd but
+  // falls back to `os.tmpdir()` if cwd is unwritable (read-only
+  // checkouts, restrictive containers). No-op on POSIX — both
+  // candidates are typically equivalent there.
+  const tmpRoot = await pickTempRoot();
+  const dir = await mkdtemp(join(tmpRoot, ".fil-evo-"));
   const file = join(dir, "flow.mjs");
   try {
     await writeFile(file, resolvedCode, "utf8");
@@ -111,6 +125,39 @@ export async function loadFlowCode(code: string): Promise<FlowCodeResult> {
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+/**
+ * Pick a writable temp root for the dynamic-`import()` flow loader.
+ *
+ * Prefers `process.cwd()` so Windows runners avoid the 8.3 short-name
+ * alias on `os.tmpdir()` (see ADR-0005 §Windows URL normalization); falls
+ * back to `os.tmpdir()` when cwd is unwritable (read-only checkouts,
+ * restrictive containers). Both candidates are typically equivalent on
+ * POSIX. Each candidate is probed with a real `mkdtemp` + `rm` cycle so
+ * we never silently pick an unusable root.
+ *
+ * `candidates` is exported for testing; defaults to the production pair.
+ */
+export async function pickTempRoot(
+  candidates?: readonly string[],
+): Promise<string> {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const roots = candidates ?? [process.cwd(), tmpdir()];
+  for (const root of roots) {
+    try {
+      const probe = await mkdtemp(join(root, ".fil-evo-probe-"));
+      await rm(probe, { recursive: true, force: true }).catch(() => {});
+      return root;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  throw new Error(
+    "Could not create a writable temp directory under process.cwd() or os.tmpdir().",
+  );
 }
 
 

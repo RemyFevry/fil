@@ -1,0 +1,45 @@
+{
+  "name": "@color-sunset/fil-mcp-server",
+  "version": "0.0.0",
+  "description": "The Fil MCP server: exposes Fil's control verbs (start/next/status/propose/approve) to MCP clients (e.g. Claude Code) as tools — a thin caller over the `fil` CLI.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "fil-mcp": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RemyFevry/fil.git",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://github.com/RemyFevry/fil",
+  "bugs": {
+    "url": "https://github.com/RemyFevry/fil/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@color-sunset/fil-pi-adapter": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  }
+}

@@ -455,6 +455,114 @@ this repo. Future Fil skills (e.g. `fil-flow-author`,
 
 These were proposed in earlier revisions and are now in `main`.
 
+### R20. Adopt herdr for multi-agent orchestration  *(this PR)*
+
+**What:** Ship herdr as a **non-mandatory** dev tool — one herdr Workspace
+per Fil Change (= per Worktrunk worktree), tabs inside a Workspace are
+subagents spawned by the main agent, the sidebar's per-Workspace rollup
+tells the dev which Change needs attention.
+
+**Why:** Fil's worktree-guard already prevents trunk contention between
+parallel agents, but there is no surface that aggregates *which agent
+is in which state right now*. Herdr is the right outer layer: it gives
+agents real terminal panes with state detection (via the official
+`claude / opencode / pi` integrations) and a sidebar rollup, without
+imposing itself on devs who don't want it.
+
+**How:**
+- `scripts/install-herdr.sh` — idempotent host installer (brew + 3
+  integrations + the official herdr agent skill + symlink the Fil-tuned
+  config template to `~/.config/herdr/config.toml`).
+- `scripts/feat.sh` — `pnpm feat <n>` runs `wt switch -c feat/<n>` and,
+  if herdr is on PATH, additionally creates a herdr Workspace anchored
+  to that worktree.
+- `scripts/ship.sh` — `pnpm ship` runs `wt merge main` and, if herdr is
+  on PATH, closes the herdr Workspace whose label matches the merged
+  branch.
+- `docs/agents/herdr.md` — the canonical reference (install, recipes,
+  gotchas, scope-fence: no herdr plugin, no Fil CLI flag tied to herdr).
+- `docs/agents/herdr-config.toml` — Fil-tuned config template; the
+  installer symlinks this to `~/.config/herdr/config.toml` on first run.
+- Edits to AGENTS.md, CONTRIBUTING.md, onboarding.md, feature-loop.md,
+  package.json (three new pnpm keys).
+
+### R21. `scripts/install-herdr.sh` idempotent installer  *(this PR)*
+
+See R20. Key choices:
+
+- Safe to re-run. The `herdr` binary, integrations, and config symlink
+  are idempotent; `herdr integration install` and `npx skills add` are
+  themselves idempotent at the herdr/Claude side but they re-run on
+  every invocation, so each script call exercises the same code paths
+  rather than skipping on repeat.
+- Herdr-conditional — `command -v herdr` is checked before each herdr
+  step, so the dev's host without herdr gets a no-op for the herdr
+  half; `wt switch` always runs.
+- Bundles `npx skills add ogulcancelik/herdr --skill herdr -g` so every
+  agent that loads inside a herdr pane auto-learns the herdr CLI.
+
+### R22. `pnpm feat` / `pnpm ship` Fil-shipped wrappers  *(this PR)*
+
+See R20. Two symmetric wrappers for the spawn/close sides of the Fil
+Change loop. Both are herdr-conditional so herdr stays non-mandatory;
+the Worktrunk half is always the canonical action.
+
+### R23. Fil↔herdr Phase-on-pane bridge — deferred  *(follow-up)*
+
+**What (planned):** A `fil doctor --report-to-herdr` flag that, when a
+Fil Run is active in a herdr pane, pushes the active Phase onto the
+herdr sidebar via `herdr pane report-metadata`. Sidebar would read
+`feat/46 — working · Phase: IMPLEMENT`.
+
+**Why deferred:** would require a Fil CLI change, which violates the
+scope fence (R20 keeps Fil herdr-agnostic at the package level). Revisit
+when a second consumer needs the Phase-on-pane view, or when the herdr
+plugin story becomes clearer.
+
+### R24. OpenCode `external_directory` allowance for Worktrunk worktrees  *(this PR)*
+
+**What:** Ship a project-level `opencode.json` at the repo root with:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "external_directory": {
+      "~/fil.*/**": "allow"
+    }
+  }
+}
+```
+
+The `~/fil.*/**` pattern matches every Worktrunk-managed Fil worktree
+(default Worktrunk naming: `<repo-basename>.<branch-slug>`). Reads under
+the same path inherit the allowance automatically per OpenCode's
+defaults.
+
+**Why:** OpenCode's `external_directory` permission defaults to `ask`.
+Every `wt switch -c feat/x` puts the agent session in a new directory
+outside the project root (`/Users/larky/fil/`) from OpenCode's view, so
+the first edit in every new worktree prompts for approval. That
+prompt is pure friction — the worktree is, by definition, where Fil's
+worktree-guard wants the agent to be. The fix is one short config file
+checked into git so every Fil contributor inherits it.
+
+**How:**
+- Add `opencode.json` to the repo root with the allow rule above.
+- (Optional, dev-side) extend `~/.config/opencode/opencode.json` with a
+  broader `~/*.*/**` rule so the same fix applies to other repos on
+  the dev's machine.
+- Document the gotcha + the trade-off in `onboarding.md` so a fresh
+  contributor understands why the rule exists and how to scope it.
+
+**Trade-off:** the project-level rule is tight (`~/fil.*/**` only).
+Devs who use the same Worktrunk convention for other repos on their
+machine should add the same pattern in their user-level config, or
+follow the broader `~/*.*/**` example. The rule does *not* grant
+network, ssh, or filesystem access outside of matched paths; the rest
+of OpenCode's defaults (`doom_loop` asks, `.env*` denied, etc.) still
+apply.
+
 ### R19. Smarter CI: lefthook pre-commit/push + split workflows
 
 **Shipped via PR.** See [`docs/adr/0005-smarter-ci-precommit-lefthook.md`](../adr/0005-smarter-ci-precommit-lefthook.md)
@@ -468,16 +576,19 @@ for the full rationale and trade-offs.
   so hooks auto-install on `pnpm install`.
 - `.github/workflows/lint-build.yml` — Ubuntu + Node 26, runs
   lint + lint:md + typecheck + build once.
-- `.github/workflows/test.yml` — Linux always; macOS on non-draft PRs;
-  Node 26 throughout. Two jobs in steady state.
+- `.github/workflows/test.yml` — Linux always; macOS + Windows on non-draft PRs;
+  Node 26 throughout. Three jobs in steady state.
 - `.github/workflows/ci.yml` removed (replaced by the two new files).
 - Both workflows: `defaults: run: { shell: bash }`,
   `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
 
-**Windows is deferred** — see the follow-up issue. Re-adding
-`windows-latest` is a one-line matrix change once the underlying test
-fixes land; the `bash` shell default is kept in place so the re-add is
-no-op.
+**Windows**: enabled by `fs.realpathSync` before `pathToFileURL` in the
+two dynamic-`import()` sites (`packages/evolution/src/index.ts` and
+`packages/cli/src/commands/common.ts`) — see ADR-0005's "Windows URL
+normalization" subsection. Without that 2-line fix, the GitHub Actions
+Windows runner's 8.3 short-name home dir (`RUNNER~1`) breaks the URL→path
+round-trip and Node reports "Failed to load url … Does the file exist?" for
+a real, on-disk file.
 
 **Why this and not bigger?** Considered path filters (rejected — adds fragility
 without strong benefit for a small monorepo), Node 22/24/26 matrix on tests

@@ -62,6 +62,9 @@ gh auth switch --user remyf-agent
 
 # 3. Create a worktree + launch your runtime in it:
 wt switch -c feat/<short-name> -x opencode    # or -x claude / -x pi
+# Optional: also install herdr for multi-agent orchestration.
+# Requires macOS + Homebrew + Node 20+ (see docs/agents/herdr.md §Prerequisites).
+pnpm install-herdr                             # one-shot, idempotent, see docs/agents/herdr.md
 
 # 4. Run the local gates (the same gates CI will run):
 pnpm ci                                       # lint + lint:md + build + typecheck + test
@@ -88,6 +91,7 @@ These are the contract every contributor — human or agent — follows.
 | GitHub identity is `remyf-agent` | Repo-wide convention | `CLAUDE.md` |
 | Use the glossary's vocabulary | Phase ≠ state, Run ≠ session, etc. | `CONTEXT.md` + `docs/agents/domain.md` |
 | Read the relevant ADR before touching its surface | ADRs are binding | `docs/adr/000{1,2,3}-*.md` |
+| Multi-agent orchestration uses herdr + Worktrunk together | Herdr (terminal layer) composes with Worktrunk (filesystem layer) | `docs/agents/herdr.md` (herdr is **non-mandatory**) |
 
 ## 5. Local gates
 
@@ -108,8 +112,8 @@ final check before opening the PR.
 CI itself is split into two workflows (`docs/adr/0005-…`):
 
 - `.github/workflows/lint-build.yml` — Ubuntu + Node 26, runs lint + lint:md + typecheck + build once.
-- `.github/workflows/test.yml` — Linux always; macOS on non-draft PRs. Windows is deferred (see
-  the follow-up issue referenced from `docs/adr/0005-…`).
+- `.github/workflows/test.yml` — Linux always; macOS + Windows on non-draft PRs. (Both run as the
+  cross-OS matrix in `.github/workflows/test.yml`.)
 
 Always run `pnpm ci` locally before pushing so you don't discover build or lint:md failures in CI.
 
@@ -198,7 +202,18 @@ SonarCloud reads `coverage/lcov.info` from `pnpm test:coverage`. If
 Sonar complains "no coverage", you forgot this step locally — but
 CI runs it on push-to-main via the `sonarcloud` workflow.
 
-### E. Conventional Commits + the agent trailer
+### E. `pnpm ship` only closes the matching herdr Workspace
+
+If you have herdr installed, `pnpm ship` closes the Workspace whose
+**label** matches `git branch --show-current` of the worktree you just
+merged. Other Workspaces stay open. If your Workspace isn't being
+closed, the label probably drifted (renamed via `herdr workspace
+rename`). Re-anchor with `herdr workspace rename <id> <branch>`, then
+close the matching Workspace directly with `herdr workspace close
+<id>` — do **not** re-run `pnpm ship`, since that would re-execute the
+Worktrunk merge (and its `[pre-merge]` gates) unnecessarily.
+
+### F. Conventional Commits + the agent trailer
 
 PR titles and squash messages must be Conventional Commits (`feat:`,
 `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, …). LLM-generated
@@ -210,19 +225,64 @@ Generated-by: opencode (M3) (@remyf-agent)
 
 Keep that footer.
 
-### F. `wt` is the only supported parallel-workflow
+### G. `wt` is the only supported parallel-workflow
 
 A plain git worktree works, but Worktrunk is the contract: it sets up
 the linked deps, copies the gitignored caches, and runs `[pre-merge]`
 gates. Don't bypass it.
 
-### G. Don't edit `.fil/run.json` directly
+### H. Don't edit `.fil/run.json` directly
 
 The Run projection is owned by `pnpm fil` / the orchestrator. To start
 a Run, run `fil start "<change>"`. To advance, run `fil next`. The
 JSON is the *output* of state, not the *input*.
 
-### H. Phase vocabulary vs XState vocabulary
+### I. OpenCode asks to write in every new worktree
+
+**Symptom:** Every time you `wt switch -c feat/x` and launch opencode
+inside the new worktree, the first edit triggers an `external_directory`
+permission prompt — even though you just created the directory.
+
+**Why:** OpenCode's `external_directory` permission defaults to `ask`
+(see [opencode permissions](https://opencode.ai/docs/permissions/)).
+Each Worktrunk worktree is at `~/fil.<branch>/`, which is outside the
+project root `/Users/larky/fil/` from OpenCode's perspective, so writes
+trigger the prompt.
+
+**Fix:** the repo ships an `opencode.json` at the root with a scoped
+allow rule:
+
+```json
+{
+  "permission": {
+    "external_directory": {
+      "~/fil.*/**": "allow"
+    }
+  }
+}
+```
+
+That covers the Fil convention (`<repo>.<branch>/...`). For other repos
+on your machine, either add the same rule scoped to that repo's pattern
+(e.g. `~/other-repo.*/**`) or add a user-level allowance in
+`~/.config/opencode/opencode.json`:
+
+```json
+{
+  "permission": {
+    "external_directory": {
+      "~/*.*/**": "allow"
+    }
+  }
+}
+```
+
+The user-level rule is broader — it covers any Worktrunk-style
+`<repo>.<branch>` worktree on your machine. Pick whichever scope you
+prefer; both are safe given the rest of OpenCode's defaults (`doom_loop`
+still asks, `.env*` files still denied, etc.).
+
+### J. Phase vocabulary vs XState vocabulary
 
 A Fil **Phase** is an XState state node carrying per-Phase harness
 config (`allowedTools`, `instructions`, `skills`, `gate`). If you find

@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   installClaudeAdapter,
@@ -44,8 +44,17 @@ describe("installClaudeAdapter", () => {
     });
     expect(result.installed).toBe(true);
     expect(result.claudeDetected).toBe(true);
-    expect(result.paths.project.hook).toContain(".claude/fil/pretooluse-hook.js");
-    expect(result.paths.project.settings).toContain(".claude/settings.json");
+    // Path-segment check works on every OS; the literal `.claude/...`
+    // mangles on Windows where `join` produces backslashes.
+    expect(result.paths.project.hook.split(sep).slice(-3)).toEqual([
+      ".claude",
+      "fil",
+      "pretooluse-hook.js",
+    ]);
+    expect(result.paths.project.settings.split(sep).slice(-2)).toEqual([
+      ".claude",
+      "settings.json",
+    ]);
     expect(result.reason).toBeUndefined();
 
     const settings = fs.read(result.paths.project.settings) ?? "";
@@ -94,7 +103,12 @@ describe("installClaudeAdapter", () => {
 
   it("installs at user scope too when scope = 'both'", () => {
     const fs = memFs();
+    // Synthetic POSIX-style home; `path.join` of a single arg normalizes
+    // separators so the prefix is platform-correct (macOS/Linux: "/home/pilot";
+    // Windows: "\home\pilot"). Mirrors the installer's `join` calls so the
+    // assertions match on every OS.
     const userHome = "/home/pilot";
+    const normalizedHome = join(userHome);
     const result = installClaudeAdapter({
       projectRoot: workdir,
       fs,
@@ -103,11 +117,24 @@ describe("installClaudeAdapter", () => {
       scope: "both",
     });
     expect(result.installed).toBe(true);
-    expect(result.paths.user.hook).toBe(join(userHome, ".claude/fil/pretooluse-hook.js"));
-    expect(result.paths.user.settings).toBe(join(userHome, ".claude/settings.json"));
+    expect(result.paths.user.hook).toBe(
+      join(userHome, ".claude/fil/pretooluse-hook.js"),
+    );
+    expect(result.paths.user.settings).toBe(
+      join(userHome, ".claude/settings.json"),
+    );
     // User-scope references the absolute path (no placeholder).
     const settings = fs.read(result.paths.user.settings) ?? "";
-    expect(settings).toContain(userHome + "/.claude/fil/pretooluse-hook.js");
+    expect(settings).toContain(
+      // settings.json is a JSON string, so backslashes are JSON-escaped
+      // (Windows separator `\` is emitted as `\\` in the source string).
+      // Wrap the expected value in JSON.stringify and slice off the
+      // surrounding quotes so the substring matches the in-document
+      // escape form on every OS.
+      JSON.stringify(
+        [normalizedHome, ".claude", "fil", "pretooluse-hook.js"].join(sep),
+      ).slice(1, -1),
+    );
     expect(settings).not.toContain("${CLAUDE_PROJECT_DIR}");
   });
 });
@@ -206,20 +233,24 @@ describe("detectClaude", () => {
 
   it("returns true when ~/.claude exists", () => {
     const fs = memFs();
-    fs.mkdir("/home/pilot/.claude");
+    // Mirror the installer's `join(home, ".claude")` so the memFs key
+    // matches the production lookup on every OS.
+    fs.mkdir(join("/home/pilot", ".claude"));
     expect(detectClaude(fs, "/home/pilot")).toBe(true);
   });
 
   it("returns true when ~/.claude.json exists", () => {
     const fs = memFs();
-    fs.write("/home/pilot/.claude.json", "{}");
+    fs.write(join("/home/pilot", ".claude.json"), "{}");
     expect(detectClaude(fs, "/home/pilot")).toBe(true);
   });
 
   it("detects claude.exe on PATH (Windows-style filename, cross-platform probe)", () => {
     const fs = memFs();
-    fs.mkdir("/custom-bin");
-    fs.write("/custom-bin/claude.exe", "");
+    fs.mkdir("/custom-bin"); // isDirectory reads the literal dir — no join needed
+    // The production probe does `fs.exists(join(dir, "claude.exe"))`;
+    // join-emit-on-Windows means we have to key the memFs the same way.
+    fs.write(join("/custom-bin", "claude.exe"), "");
     const oldPath = process.env.PATH;
     process.env.PATH = "/custom-bin";
     try {
