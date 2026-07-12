@@ -15,13 +15,10 @@ coverage/
 # `process.cwd()` (see ADR-0005 §Windows URL normalization — required to
 # sidestep the Windows 8.3 short-name alias on `os.tmpdir()`), so the
 # cleanup-in-finally path can occasionally leave them behind on a hard kill.
-# Both `pkgs/evolution/src/index.ts` `loadFlowCode` and
-# `pkgs/cli/src/commands/common.ts` `importFlowFile` use these prefixes;
-# the tests `flow-loader/test/index.test.ts` and
-# `pi-adapter/test/tool-surface.test.ts` mirror the pattern.
-.fil-evo-*/
-.fil-flow-cache.*
-.fil-fl-test-*/
+# The consolidated dance in `packages/flow-loader/src/index.ts` uses the
+# `.fil-flow-loader-*` prefixes; `.fil-pi-tool-surface-*` is the test harness
+# in `packages/pi-adapter/test/tool-surface.test.ts`.
+.fil-flow-loader-*/
 .fil-pi-tool-surface-*/
 
 # Fil local work-in-progress (durable state — never committed)

@@ -132,6 +132,9 @@ importers:
       '@color-sunset/fil-engine':
         specifier: workspace:*
         version: link:../engine
+      '@color-sunset/fil-flow-loader':
+        specifier: workspace:*
+        version: link:../flow-loader
 
   packages/flow-loader:
     dependencies:

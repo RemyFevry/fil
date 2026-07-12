@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { tmpdir } from "node:os";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   createMachine,
   defaultFlowEngine,
-  engineEntryUrl,
   builtInFlow,
   serializeFlowCode,
 } from "@color-sunset/fil-engine";
-import { resolveFlow, type FlowLoaderDeps } from "../src/index.js";
+import {
+  resolveFlow,
+  importFlowCode,
+  importFlowFile,
+  pickTempRoot,
+  type FlowLoaderDeps,
+} from "../src/index.js";
 
 const defaultFlow = builtInFlow("default")!;
 const hotfixFlow = builtInFlow("hotfix")!;
@@ -114,31 +122,72 @@ describe("flow-loader", () => {
     if (result.ok) expect(result.instance.flowName).toBe("hotfix");
   });
 
-  it("serialized built-in flows round-trip through the real engine", async () => {
+  it("serialized built-in flows round-trip through the default importFlowCode", async () => {
     // The code form (import { createMachine } from "@color-sunset/fil-engine"; export default
     // createMachine({...})) produced by serializeFlowCode must import and load
-    // identically to the in-memory machine. Rewrite the @color-sunset/fil-engine specifier
-    // to the engine's absolute URL so the temp file can live anywhere.
-    const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
-    const { join } = await import("node:path");
-    const { pathToFileURL } = await import("node:url");
-    const code = serializeFlowCode(defaultFlow.rawConfig).replace(
-      /from\s+["']@color-sunset\/fil-engine["']/g,
-      `from "${engineEntryUrl}"`,
-    );
+    // identically to the in-memory machine. The default `importFlowCode` owns
+    // the engine-specifier rewrite + temp-file dance, so this proves the whole
+    // consolidated path end-to-end (the same path CLI + evolution now share).
+    const code = serializeFlowCode(defaultFlow.rawConfig);
     expect(code).toContain("export default");
     expect(code).toContain("createMachine");
-    const dir = await mkdtemp(join(process.cwd(), ".fil-fl-test-"));
+    const definition = await importFlowCode(code);
+    const reloaded = defaultFlowEngine.load("default", definition as never);
+    expect(reloaded.ok).toBe(true);
+  });
+});
+
+describe("importFlowFile (default)", () => {
+  it("reads a Flow file from disk and returns its default export", async () => {
+    const code = serializeFlowCode(defaultFlow.rawConfig);
+    const dir = await mkdtemp(join(process.cwd(), ".fil-flow-loader-test-"));
     const file = join(dir, "flow.mjs");
     try {
       await writeFile(file, code, "utf8");
-      const mod = (await import(pathToFileURL(file).href)) as {
-        default: unknown;
-      };
-      const reloaded = defaultFlowEngine.load("default", mod.default as never);
-      expect(reloaded.ok).toBe(true);
+      const definition = await importFlowFile(file);
+      expect(defaultFlowEngine.load("default", definition as never).ok).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => {});
     }
+  });
+
+  it("returns undefined when the file has no default export", async () => {
+    const dir = await mkdtemp(join(process.cwd(), ".fil-flow-loader-test-"));
+    const file = join(dir, "flow.mjs");
+    try {
+      await writeFile(file, "export const notDefault = 1;", "utf8");
+      const definition = await importFlowFile(file);
+      expect(definition).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+});
+
+describe("importFlowCode (failure paths)", () => {
+  it("returns undefined when the module has no default export", async () => {
+    const definition = await importFlowCode("export const notDefault = 1;");
+    expect(definition).toBeUndefined();
+  });
+
+  it("rejects when the code is syntactically invalid", async () => {
+    await expect(importFlowCode("export default { broken")).rejects.toThrow();
+  });
+});
+
+describe("pickTempRoot", () => {
+  it("returns the cwd candidate when it is writable", async () => {
+    expect(await pickTempRoot()).toBe(process.cwd());
+  });
+
+  it("falls back to the next candidate when the first is unwritable", async () => {
+    const root = await pickTempRoot(["/__nonexistent_root__", tmpdir()]);
+    expect(root).toBe(tmpdir());
+  });
+
+  it("throws when no candidate is writable", async () => {
+    await expect(
+      pickTempRoot(["/__nonexistent_a__", "__/nonexistent_b__"]),
+    ).rejects.toThrow(/writable temp directory/);
   });
 });
