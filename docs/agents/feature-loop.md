@@ -253,6 +253,14 @@ The loop is canonical, not straitjacket. Acknowledged variations:
 - **Multi-week design work:** split into multiple PRs against the
   same issue, keep Status = In Progress, and the final PR `Closes
   #N` on merge.
+- **Multi-Change parallel work:** run several Changes side-by-side using
+  [`herdr`](./herdr.md) (one Workspace per Change, tabs inside as
+  subagents). The canonical loop runs *per Workspace*; the dev watches the
+  herdr sidebar's per-Workspace rollup to triage which Change needs
+  attention. Spawn with `pnpm feat <n>`, close with `pnpm ship`. Herdr is
+  non-mandatory — pure Worktrunk gives you Change isolation and the
+  canonical per-Worktree loop, but loses the herdr sidebar, status
+  rollup, and the one-Workspace-per-Change UX.
 
 ## Cross-references
 
@@ -263,6 +271,8 @@ The loop is canonical, not straitjacket. Acknowledged variations:
 - [`domain.md`](./domain.md) — how to consume ADRs and the glossary
 - [`developer-experience.md`](./developer-experience.md) — the
   state-of-the-art review that produced this loop (R07 in particular)
+- [`herdr.md`](./herdr.md) — multi-agent orchestration; one Workspace per
+  Change, tabs as subagents, non-mandatory
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — local setup, worktree
   workflow, changesets, Conventional Commits
 

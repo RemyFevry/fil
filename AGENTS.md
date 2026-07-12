@@ -57,3 +57,24 @@ a PR and `wt remove` after it merges.
   `.claude/settings.json` → `.claude/hooks/worktree-guard.mjs`,
   `.opencode/plugins/worktree-guard.ts`, and
   `.pi/extensions/worktree-guard.ts`.
+
+## Multi-agent orchestration with herdr
+
+Fil has two layers for safe parallel agent work:
+
+- **Worktrunk** (this section) — filesystem isolation per Change. One
+  checkout per branch. `scripts/require-worktree.sh` enforces it.
+- **[Herdr](https://herdr.dev/docs/agents/)** — terminal-process
+  orchestration + state rollup. One Workspace per Change; tabs inside a
+  Workspace are subagents. The sidebar's per-Workspace rollup tells you
+  which Change needs attention.
+
+Both layers compose: each herdr pane's `cwd` is a `wt switch`-managed
+worktree. Herdr is **non-mandatory**: every Fil command works without it,
+and the canonical workflow degrades to Worktrunk-only when herdr is not
+on `PATH`.
+
+The Fil-specific reference lives at [`docs/agents/herdr.md`](./docs/agents/herdr.md).
+The spawn/close pair is `pnpm feat <n>` / `pnpm ship` — both herdr-conditional
+symmetric wrappers around `wt switch` and `wt merge main`. Setup is one
+command: `pnpm install-herdr`.
