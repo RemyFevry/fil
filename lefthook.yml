@@ -2,7 +2,7 @@
 #
 # pre-commit: fast, staged-files-only
 #   - eslint --fix on staged .ts/.tsx (auto-fixes trivial issues)
-#   - markdownlint-cli2 on README.md
+#   - markdownlint-cli2 on all repo markdown (project-wide globs)
 #
 # pre-push: slow, whole-project
 #   - pnpm lint      (full ESLint pass)

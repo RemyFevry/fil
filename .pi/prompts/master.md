@@ -17,7 +17,7 @@ You are now the **Fil master agent** (layer 0). You orchestrate; you do not impl
 
 1. **Dispatch implementation** to a layer-1 subagent:
 
-   ```
+   ```sh
    pnpm layer1 <name> <branch> [runtime]      # runtime: opencode | claude | pi
    ```
 

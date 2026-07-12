@@ -156,6 +156,7 @@ new toolchain dep.
 
 **What:** One-file onboarding for any new agent or human contributor.
 Branches into:
+
 - 60-second TL;DR with the 5 commands that matter
 - The vocabulary contract (Term → Meaning) excerpted from `CONTEXT.md`
 - The local gates + how to run them
@@ -212,6 +213,7 @@ and emits the table.
 #### R05. `scripts/bootstrap.sh` for first-touch setup
 
 **What:** A single idempotent script that:
+
 - Confirms Node 20+ and pnpm 10
 - Confirms `wt` (Worktrunk) is installed; if not, prints the
   `brew install worktrunk && wt config shell install` instructions
@@ -323,6 +325,7 @@ script-generated checklist.
 
 **What:** A `docs/ci/CI.md` (or fold into `CONTRIBUTING.md`) covering the
 common failure patterns and how to reproduce them locally:
+
 - SonarCloud cognitive complexity hotspot — usually a nested loop or
   a `switch (type)`; refactor
 - Lint `no-explicit-any` — add a Zod schema or a precise type
@@ -383,6 +386,7 @@ table), `issue-workflow.md` (board transitions), and `AGENTS.md`
 **What:** The hatch is intentional but currently invisible (the script
 checks `FIL_ALLOW_MAIN_WORKTREE=1`, but `AGENTS.md` only mentions it in
 passing). Add a `docs/agents/PERMISSIONS.md` listing the hatches:
+
 - `FIL_ALLOW_MAIN_WORKTREE=1` — **always** require an explicit human
   pre-approval (a one-line `AGENTS.md` policy: "agents must not set this
   on their own")
@@ -430,6 +434,7 @@ asynchronously" primitive.
 #### R17. Telemetry for agent ops
 
 **What:** An opt-in instrumentation that records, per Run:
+
 - Phase durations (Gate pass/fail times)
 - Which Adapter each Phase ran in
 - Number of tool calls per Phase
@@ -470,6 +475,7 @@ agents real terminal panes with state detection (via the official
 imposing itself on devs who don't want it.
 
 **How:**
+
 - `scripts/install-herdr.sh` — idempotent host installer (brew + 3
   integrations + the official herdr agent skill + symlink the Fil-tuned
   config template to `~/.config/herdr/config.toml`).
@@ -548,6 +554,7 @@ worktree-guard wants the agent to be. The fix is one short config file
 checked into git so every Fil contributor inherits it.
 
 **How:**
+
 - Add `opencode.json` to the repo root with the allow rule above.
 - (Optional, dev-side) extend `~/.config/opencode/opencode.json` with a
   broader `~/*.*/**` rule so the same fix applies to other repos on
@@ -569,6 +576,7 @@ apply.
 for the full rationale and trade-offs.
 
 **What landed:**
+
 - `lefthook.yml` — pre-commit (`eslint --fix` on staged `*.{ts,tsx}` +
   `pnpm lint:md`) and pre-push (`pnpm lint` + `pnpm typecheck`,
   whole-project, parallel).

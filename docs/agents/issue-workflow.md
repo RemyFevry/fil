@@ -13,7 +13,7 @@ An issue waits in the triage queue with a triage label (e.g. `ready-for-agent`).
 
 ## The lifecycle
 
-```
+```text
 Todo ──start──▶ In Progress ──PR opened/ready──▶ In Review ──merge──▶ Done
   ▲                  │                                       │
   │                  └──▶ Blocked ──unblock──▶ In Progress   │
@@ -29,26 +29,32 @@ Todo ──start──▶ In Progress ──PR opened/ready──▶ In Review �
 ## Checklists (do these at every transition)
 
 ### When you start an issue
+
 1. Assign it to yourself: `gh issue edit <n> --add-assignee @me`
 2. Set `Status = In Progress` (command below).
 3. Post a **start comment**: the plan in 1–3 lines, and paste the issue's acceptance-criteria as a checklist so you can tick them as you go.
 
 ### As you make progress
+
 - Tick acceptance-criteria boxes as each is met (`- [x]`).
 - Post a short progress comment at meaningful milestones (a sub-task done, a decision made). Don't spam — one comment per real milestone.
 
 ### When you're blocked
+
 - Set `Status = Blocked`.
 - Comment **what** you need and **who/what** it's waiting on (an answer, a review, another issue to land). Link the blocker if there is one.
 
 ### When you unblock
+
 - Set `Status = In Progress` and continue.
 
 ### When you open / update a pull request
+
 - Put `Closes #<n>` (or `Fixes`/`Resolves`) in the PR body for every issue the PR completes. The status-sync Action moves those issues to **In Review**, and to **Done** on merge (which also closes them).
 - Keep `Status` honest: draft WIP PR = `In Progress`; PR ready for review = `In Review`.
 
 ### When the work is done
+
 - The PR merges → the issue auto-closes → the Action sets `Status = Done`.
 - If there's no PR (e.g. a docs-only change), close the issue manually and set `Status = Done`.
 

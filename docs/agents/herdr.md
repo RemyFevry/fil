@@ -1,6 +1,6 @@
 # Herdr — multi-agent orchestration for Fil
 
-> Herdr (https://herdr.dev/docs/agents/) is a non-mandatory dev tool that lets
+> Herdr (<https://herdr.dev/docs/agents/>) is a non-mandatory dev tool that lets
 > you run multiple coding agents in parallel without losing state. Each agent
 > stays in a real terminal pane; the sidebar rolls up `idle / working /
 > blocked / done` so you can see at a glance which project needs you.
@@ -176,4 +176,4 @@ with full Fil PR machinery.
   recommendations that produced this doc.
 - [`topology.md`](./topology.md) — the 2-layer master/subagent convention;
   `pnpm layer1` / `pnpm layer2` fan out tabs/panes within a Workspace.
-- Herdr upstream: https://herdr.dev/docs/agents/
+- Herdr upstream: <https://herdr.dev/docs/agents/>
