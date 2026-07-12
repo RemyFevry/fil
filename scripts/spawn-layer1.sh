@@ -60,6 +60,13 @@ case "${FIL_AGENT_LAYER:-0}" in
      exit 64 ;;
 esac
 
+# Defense in depth: subagents must NEVER carry the trunk hatch, even though
+# they run in linked worktrees (where the guard's fast path already allows
+# their own mutations). Scrub both so a subagent that `cd`s into the primary
+# still hits the block. The master (layer 0) is launched with these set via
+# `pnpm master`; without this unset, the spawned runtime would inherit them.
+unset FIL_ALLOW_MAIN_WORKTREE FIL_MASTER_SESSION
+
 # 1. Create the Worktrunk worktree (the guard whitelists `wt switch`).
 wt switch -c "$branch"
 

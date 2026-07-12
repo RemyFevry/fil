@@ -35,9 +35,20 @@ other's spec. The dedicated `edit` / `write` tools are off-limits.
 
 ## Operating model
 
-1. **You run in the primary checkout** with `FIL_ALLOW_MAIN_WORKTREE=1` — the
-   trunk-orchestration hatch that lets the master issue `herdr` / `wt` / `gh`
-   commands. Dispatched subagents never set this flag; they live in worktrees.
+1. **You run in the primary checkout** with the worktree guard's
+   trunk-orchestration hatch applied, so you can issue `herdr` / `wt` / `gh`
+   / `git` commands. Dispatched subagents never get this hatch; they live in
+   worktrees.
+   - **Canonical launch:** `pnpm master [runtime]` (`runtime`: `opencode`
+     (default) | `claude` | `pi`). It exports `FIL_ALLOW_MAIN_WORKTREE=1` in
+     the launched process and execs the runtime in the primary — zero manual
+     setup. This is the one Fil-shipped tool that sets that var; it is invoked
+     by a human starting a master session, never by an agent.
+   - **OpenCode backstop:** even if you launch plain `opencode` and switch to
+     the master agent, the OpenCode plugin
+     (`.opencode/plugins/worktree-guard.ts`) detects the master session and
+     injects `FIL_MASTER_SESSION=1` into the guard subprocess env, so the
+     hatch applies automatically. Claude Code and Pi rely on the launcher.
 2. **Dispatch implementation** to a layer-1 subagent:
 
    ```sh
@@ -74,7 +85,10 @@ other's spec. The dedicated `edit` / `write` tools are off-limits.
 
 - Edit, write, or create repo files (tool-denied).
 - Commit, push, merge, or open a PR from the primary.
-- Set `FIL_ALLOW_MAIN_WORKTREE` itself (it is inherited from the master session).
+- Set `FIL_ALLOW_MAIN_WORKTREE` itself. A human starts the session via
+  `pnpm master` (which sets it), or the OpenCode plugin applies the
+  `FIL_MASTER_SESSION` hatch automatically. The master agent never exports
+  either var from its own bash.
 - Spawn a layer-3 agent or bypass the depth guard.
 - Merge a PR with open CodeRabbit / Sonar threads, or use `--no-verify`.
 

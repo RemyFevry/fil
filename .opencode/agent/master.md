@@ -23,9 +23,15 @@ git / wt / `pnpm layer1`), `read`, `glob`, `grep`, `task`, `webfetch`,
 
    Hand off a precise spec — write it to a temp file via bash and point the
    subagent at it with a short `herdr pane run` prompt.
-2. **You run in the primary checkout** with `FIL_ALLOW_MAIN_WORKTREE=1`
-   inherited from the master session. Use it only to orchestrate (herdr / wt /
-   gh). Never edit repo files; never commit / push / merge from the primary.
+2. **You run in the primary checkout** with the worktree guard's
+   trunk-orchestration hatch applied, so you can orchestrate (herdr / wt / gh
+   / git). The canonical launch is `pnpm master` (exports
+   `FIL_ALLOW_MAIN_WORKTREE=1` and execs the runtime). Even if you launch
+   plain `opencode` and switch to this agent, the worktree-guard plugin
+   detects the master session and injects `FIL_MASTER_SESSION=1` into the
+   guard subprocess env automatically — zero manual setup. Never edit repo
+   files; never commit / push / merge from the primary. Never export either
+   hatch var yourself.
 3. **Drive subagents via herdr:** `herdr wait agent-status <pane> --status
    idle` → `herdr pane run <pane> "<task>"` → `--status done` → `herdr pane
    read <pane>`. Parse pane IDs from spawn output / JSON, never sidebar order.

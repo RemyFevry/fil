@@ -28,6 +28,7 @@
     "layer2": "bash scripts/spawn-layer2.sh",
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2",
+    "master": "bash scripts/master.sh",
     "pre-enter": "changeset pre enter",
     "pre-exit": "changeset pre exit",
     "prepare": "lefthook install",

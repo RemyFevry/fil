@@ -51,6 +51,10 @@ When done: `wt merge main` (squash + rebase + run the `pre-merge` gates) or open
 a PR and `wt remove` after it merges.
 
 - One-time per machine: `brew install worktrunk && wt config shell install`.
+- The **master orchestrator** (layer 0) runs in the primary — launch it with
+  `pnpm master [opencode|claude|pi]`, which sets `FIL_ALLOW_MAIN_WORKTREE=1`
+  for that process so the guard lets its orchestration bash through. Agents
+  must not set that var themselves. See [`docs/agents/master.md`](./docs/agents/master.md).
 - Trunk maintenance (not bootstrap): `FIL_ALLOW_MAIN_WORKTREE=1` — agents
   must not set this on their own.
 - Enforcement source of truth: `scripts/require-worktree.sh`, wired into

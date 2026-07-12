@@ -60,6 +60,13 @@ case "${FIL_AGENT_LAYER:-0}" in
      exit 64 ;;
 esac
 
+# Defense in depth: subagents must NEVER carry the trunk hatch, even though
+# they run in linked worktrees (where the guard's fast path already allows
+# their own mutations). Scrub both so a layer-2 subagent that `cd`s into the
+# primary still hits the block. Layer-1 parents run inside a spawn-layer1.sh
+# that already unset these, but a manual / stale env could reintroduce them.
+unset FIL_ALLOW_MAIN_WORKTREE FIL_MASTER_SESSION
+
 # Pick split direction from the focused pane's geometry (best-effort → right):
 # a wide pane splits right, a tall/narrow pane splits down.
 direction="right"
