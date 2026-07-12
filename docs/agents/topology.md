@@ -142,5 +142,7 @@ could later be merged via `wt merge main`.
 - [`herdr.md`](./herdr.md) — the herdr layer this builds on (non-mandatory).
 - [`feature-loop.md`](./feature-loop.md) — the canonical per-Change loop;
   each `layer1` tab runs it independently.
+- [`master.md`](./master.md) — the master-agent contract (layer 0) that drives
+  this topology; `pnpm layer1` / `layer2` are its dispatch primitives.
 - [`onboarding.md`](./onboarding.md) §G — Worktrunk is the only supported
   parallel-workflow; this topology is herdr + Worktrunk composed.
