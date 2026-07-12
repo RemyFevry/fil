@@ -73,8 +73,13 @@ importers:
         specifier: ^3.2.6
         version: 3.2.6(@types/debug@4.1.13)(@types/node@22.20.0)(jiti@2.7.0)(yaml@2.9.0)
 
+  packages/adapter-host: {}
+
   packages/claude-adapter:
     dependencies:
+      '@color-sunset/fil-adapter-host':
+        specifier: workspace:*
+        version: link:../adapter-host
       '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract
@@ -183,6 +188,9 @@ importers:
 
   packages/pi-adapter:
     dependencies:
+      '@color-sunset/fil-adapter-host':
+        specifier: workspace:*
+        version: link:../adapter-host
       '@color-sunset/fil-contract':
         specifier: workspace:*
         version: link:../contract

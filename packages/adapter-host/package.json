@@ -1,7 +1,7 @@
 {
-  "name": "@color-sunset/fil-pi-adapter",
-  "version": "0.3.1",
-  "description": "The Pi Adapter: constrains the Pi Agent Runtime to the active Fil Phase (allowedTools / instructions / context / skills) and installs through Pi's native extension channel.",
+  "name": "@color-sunset/fil-adapter-host",
+  "version": "0.0.0",
+  "description": "Shared host-filesystem plumbing for Fil Adapters — the InstallerFs surface, a real-FS default, safe read / mkdir+write helpers, install-scope expansion, and an in-memory test FS. Each Adapter owns only its target-specific knowledge (subdirectory, PATH probe, rendered artefact body).",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -25,7 +25,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RemyFevry/fil.git",
-    "directory": "packages/pi-adapter"
+    "directory": "packages/adapter-host"
   },
   "homepage": "https://github.com/RemyFevry/fil",
   "bugs": {
@@ -33,17 +33,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "dependencies": {
-    "@color-sunset/fil-adapter-host": "workspace:*",
-    "@color-sunset/fil-contract": "workspace:*"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.78.0 <0.100.0"
-  },
-  "peerDependenciesMeta": {
-    "@earendil-works/pi-coding-agent": {
-      "optional": true
-    }
   }
 }

@@ -2,33 +2,16 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { memFs, defaultFs, type InstallerFs } from "@color-sunset/fil-adapter-host";
 import {
   installPiAdapter,
   detectPi,
-  defaultFs,
   renderPiExtensionSource,
-  type InstallerFs,
 } from "../src/installer.js";
 
 let workdir: string;
 
 const realFs = (): InstallerFs => defaultFs();
-
-function memFs(): InstallerFs {
-  const map = new Map<string, string>();
-  const dirs = new Set<string>();
-  return {
-    exists: (p) => map.has(p) || dirs.has(p),
-    read: (p) => map.get(p),
-    write: (p, body) => {
-      map.set(p, body);
-    },
-    isDirectory: (p) => dirs.has(p),
-    mkdir: (p) => {
-      dirs.add(p);
-    },
-  };
-}
 
 beforeAll(async () => {
   workdir = await mkdtemp(join(tmpdir(), "fil-pi-adapter-"));
