@@ -90,6 +90,7 @@ follow it verbatim.
   Starting: <one-sentence plan>.
   Acceptance criteria tracked in the issue description; will tick as I go.
   ```
+
 - Move board Status → **In Progress** (`47fc9ee4`).
 
 ### 2. PR (draft)
@@ -116,6 +117,7 @@ follow it verbatim.
 
   Closes #N
   ```
+
 - Push commits as small, named, logical units. Conventional Commits
   enforced by `.config/wt.toml`. **One logical change per PR** — if a
   PR fixes a bug and reformats a file, split it.
@@ -166,7 +168,7 @@ For every CodeRabbit thread and Sonar finding:
    not fixing it *and* open a follow-up issue to track it. Don't
    silently close the thread.
 4. If the reviewer is wrong (false positive): **reply with the reason**
-   + diff evidence; don't fix.
+   - diff evidence; don't fix.
 
 After pushing your fix, both reviewers re-run. Loop until both are
 clean.

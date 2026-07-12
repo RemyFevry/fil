@@ -1,6 +1,14 @@
 {
-  "globs": ["README.md"],
-  "ignores": ["**/node_modules/**", "**/dist/**", "coverage/**", ".fil/**"],
+  "globs": ["**/*.md"],
+  "ignores": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "coverage/**",
+    ".fil/**",
+    "**/CHANGELOG.md",
+    ".changeset/**/*.md",
+    "CODE_OF_CONDUCT.md"
+  ],
   "config": {
     "default": true,
     "MD013": false,

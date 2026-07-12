@@ -15,7 +15,7 @@ creation and modification are delegated.
 1. **Dispatch implementation, never do it yourself.** Spawn a layer-1 subagent
    for any task that creates or modifies files:
 
-   ```
+   ```sh
    pnpm layer1 <name> <branch> [runtime]      # runtime: opencode | claude | pi
    ```
 
