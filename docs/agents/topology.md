@@ -27,10 +27,15 @@ Workspace  (one herdr Workspace — the whole session)
      └─ pane B.1  (layer-2 subagent)   ← shares worktree b
 ```
 
-## The two invariants
+## The two invariants (under this topology)
 
-1. **Tab boundary = worktree boundary.** A new tab is always a new
-   Worktrunk worktree. So a layer-1 spawn = `herdr tab create` + `wt switch -c`.
+This is one, stricter way to use herdr tabs/panes than the generic recipes in
+[`herdr.md`](./herdr.md) (where `herdr tab create` / `herdr agent start` may
+target any cwd). Under this topology:
+
+1. **A `pnpm layer1` spawn is tab + worktree.** A layer-1 spawn always opens
+   a new herdr tab on a new Worktrunk worktree
+   (`herdr tab create` + `wt switch -c`).
 2. **Pane split = shared worktree.** A pane split inside a tab inherits that
    tab's cwd. So a layer-2 spawn = `herdr pane split` — never a new worktree.
 
@@ -102,8 +107,10 @@ herdr pane read <pane_id> --source recent-unwrapped --lines 200   # read the tra
 herdr pane run <pane_id> "<follow-up>"                            # iterate
 ```
 
-Parse `<pane_id>` from the JSON the spawn command echoes. Never construct IDs
-from sidebar order — read them from responses.
+The spawn helper prints a human-readable summary that includes the `pane` id
+(e.g. `pane : w6:p6`); use that id in the commands above. For raw `herdr`
+commands, IDs always come from their JSON responses — never construct them
+from sidebar order.
 
 ## Relationship to `pnpm feat` / `pnpm ship`
 

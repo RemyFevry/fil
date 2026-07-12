@@ -52,12 +52,12 @@ if [ -z "${HERDR_WORKSPACE_ID:-}" ]; then
   exit 1
 fi
 
-# Soft layer check (see docs/agents/topology.md): only layer 0 spawns tabs.
+# Layer guard (see docs/agents/topology.md): only layer 0 spawns tabs.
 case "${FIL_AGENT_LAYER:-0}" in
   0) ;;
-  *) echo "spawn-layer1: warning — FIL_AGENT_LAYER=${FIL_AGENT_LAYER}." >&2
-     echo "  Per docs/agents/topology.md, layer-1 agents spawn layer-2 panes" >&2
-     echo "  (pnpm layer2), not more tabs. Continuing anyway." >&2 ;;
+  *) echo "spawn-layer1: FIL_AGENT_LAYER=${FIL_AGENT_LAYER} may not spawn layer-1 tabs." >&2
+     echo "  Use 'pnpm layer2' from layer 1; layer 2 cannot spawn further." >&2
+     exit 64 ;;
 esac
 
 # 1. Create the Worktrunk worktree (the guard whitelists `wt switch`).

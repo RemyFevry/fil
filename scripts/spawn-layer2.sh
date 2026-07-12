@@ -78,14 +78,20 @@ except Exception:
 ')"
 fi
 
-# Layer-2 shares the parent layer-1's worktree — inherit cwd, pass
-# branch/worktree env through so the new pane is tagged even if inheritance
-# varies across runtimes.
+# Layer-2 shares the parent layer-1's worktree. Anchor on FIL_AGENT_WORKTREE
+# (set by spawn-layer1.sh), not the mutable $PWD — a layer-1 that has `cd`'d
+# elsewhere must still anchor its child pane to the tagged worktree.
+if [ -z "${FIL_AGENT_WORKTREE:-}" ] || [ ! -d "${FIL_AGENT_WORKTREE:-}" ]; then
+  echo "spawn-layer2: FIL_AGENT_WORKTREE is missing or invalid." >&2
+  echo "  Layer-2 panes must be spawned by a layer-1 agent (pnpm layer1)." >&2
+  exit 1
+fi
+
 split_json="$(herdr pane split --current --direction "$direction" --no-focus \
-  --cwd "$PWD" \
+  --cwd "$FIL_AGENT_WORKTREE" \
   --env "FIL_AGENT_LAYER=2" \
   --env "FIL_AGENT_BRANCH=${FIL_AGENT_BRANCH:-}" \
-  --env "FIL_AGENT_WORKTREE=${FIL_AGENT_WORKTREE:-$PWD}")"
+  --env "FIL_AGENT_WORKTREE=$FIL_AGENT_WORKTREE")"
 pane_id="$(printf '%s' "$split_json" |
   python3 -c 'import sys,json; print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')"
 if [ -z "$pane_id" ]; then
