@@ -142,7 +142,7 @@ After every `git push`, two automated reviewers run:
 
 | Reviewer | Where it posts | What it flags |
 |---|---|---|
-| **CodeRabbit** | GitHub PR conversation (walkthrough + per-line threads) | Walkthrough summary, pre-merge checks, inline nitpicks, suggested fixes |
+| **CodeRabbit** | **three** locations in the GitHub PR — (1) inline review threads (per-line), (2) an issue-style summary comment that it *edits in place* as analysis progresses (use `updated_at`, not `created_at`), and (3) folded sections inside PR review bodies (`<details><summary>🧹 Nitpick comments (N)</summary>`, `Actionable comments posted: N`) | Walkthrough summary, pre-merge checks, inline nitpicks, suggested fixes, folded-only nitpicks that never became threads |
 | **SonarCloud** | GitHub PR conversation | Quality Gate status, cognitive complexity, security hotspots, coverage on new code |
 
 **Do not merge until both have replied and you have addressed the
@@ -153,6 +153,16 @@ fire only after both automated reviewers are clean.
 The two reviewers run on their own cadence (1–3 minutes after each
 push). Polling for them and merging before they reply is the
 single most common "agent slapped a PR through" failure mode.
+
+> **CodeRabbit is incremental — it does NOT re-review commits it has
+> already reviewed.** Re-acknowledgment of a fix comes from a fresh
+> push producing a clean review, not from a `@coderabbitai review`
+> recall. The canonical way to verify all three locations are clean
+> after a fix push is `pnpm review-status <pr>`
+> (see [`docs/agents/master.md`](./master.md) "Verification hygiene").
+> Ad-hoc checks that only look at inline threads + the summary comment
+> MISS the folded review-body findings — that is exactly the location
+> the master agent overlooked on its first orchestration run.
 
 ### 5. ADDRESS feedback
 
