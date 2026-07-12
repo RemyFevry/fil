@@ -578,7 +578,7 @@ describe("describeValue", () => {
     );
   });
 
-  it("falls back to String() for non-serialisable values (circular)", () => {
+  it("falls back to Object.prototype.toString for non-serialisable values (circular)", () => {
     const cyclic: { self?: unknown } = {};
     cyclic.self = cyclic;
     // JSON.stringify throws on cycles; describeValue must not.
@@ -663,6 +663,23 @@ describe("fil inspect — launchInspector wiring", () => {
     const code = await inspectCommand(ctx, parseArgs([]));
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("Could not launch the inspector");
+  });
+
+  it("stops the handle and exits 1 if the input reader cannot open", async () => {
+    let handleStopped = 0;
+    const fakeHandle: InspectHandle = {
+      actor: { getSnapshot: () => ({ value: "done", status: "done" }), send: () => {}, stop: () => {} } as never,
+      stop: () => { handleStopped += 1; },
+    };
+    const { ctx, errors } = ctxFor({
+      inspectFlow: async () => fakeHandle,
+      openInspectReader: async () => { throw new Error("stdin gone"); },
+    });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(1);
+    expect(handleStopped).toBe(1);
+    expect(errors.join("\n")).toContain("Could not open input");
   });
 
   it("drives the actor through the loop on each line and logs the current Phase", async () => {

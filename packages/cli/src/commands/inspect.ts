@@ -127,7 +127,14 @@ async function launchInspector(ctx: CliContext): Promise<number> {
   ctx.out.log(`Starting at: ${target.startPhases.join(", ") || "—"}`);
   ctx.out.log("Inspector open in your browser. Press Enter to advance (NEXT). Ctrl-C to exit.");
 
-  const reader = await ctx.openInspectReader();
+  let reader;
+  try {
+    reader = await ctx.openInspectReader();
+  } catch (err) {
+    handle.stop();
+    ctx.out.error(`Could not open input: ${message(err)}`);
+    return 1;
+  }
   const cleanup = (): void => {
     reader.close();
     handle.stop();

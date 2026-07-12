@@ -28,7 +28,7 @@ node human-test/inspect-demo.mjs hotfix     # incident Flow
 Starts an XState actor for the Flow wired to the inspector, then advances one
 Phase each time you press **Enter**. The lifecycle is printed up front:
 
-```
+```text
 Lifecycle: requirements → design → code → review → done
 Starting Phase: requirements
   ▶ current: design
