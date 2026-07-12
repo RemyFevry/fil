@@ -23,13 +23,15 @@ The master agent has its file-editing tools removed:
 | Tool | Master | Why |
 |---|---|---|
 | `edit` / `write` | **denied** | the master does not create or modify files |
-| `bash` | allowed | orchestration: `herdr`, `gh`, `git`, `wt`, `pnpm layer1` / `layer2` |
+| `bash` | allowed | orchestration: `herdr`, `gh`, `git`, `wt`, `pnpm layer1` |
 | `read` / `glob` / `grep` | allowed | inspect state, read transcripts / PRs / issues |
 | `task` / `webfetch` / `question` / `todowrite` | allowed | delegate, research, plan |
 
 If a task needs a file written (e.g. a handoff spec for a subagent), write it
-under the OS temp dir via bash (`cat > "$TMPDIR/spec.md" <<EOF … EOF`), never
-in the repo. The dedicated `edit` / `write` tools are off-limits.
+under the OS temp dir via bash with a **unique path per handoff**
+(`spec="$(mktemp)".md`; `cat > "$spec" <<EOF … EOF`), and pass `$spec` to the
+subagent — never reuse a fixed name, or parallel dispatches overwrite each
+other's spec. The dedicated `edit` / `write` tools are off-limits.
 
 ## Operating model
 
@@ -84,11 +86,14 @@ The contract is identical; each runtime realizes it with its own mechanism:
 |---|---|---|---|
 | OpenCode | `.opencode/agent/master.md` | primary-mode agent (switch to it) | per-agent `permission: { edit: deny, write: deny }` |
 | Claude Code | `.claude/agents/master.md` | subagent (delegate via Task) | `tools:` allow-list omits Write / Edit / MultiEdit |
-| Pi | `.pi/prompts/master.md` | `/master` prompt | prose (Pi has no per-prompt tool allow-list; the repo-wide worktree guard still blocks edits in the primary) |
+| Pi | `.pi/prompts/master.md` | `/master` prompt | prose (Pi has no per-prompt tool allow-list; the prompt forbids edits, and the repo-wide guard is a backstop for non-master sessions) |
 
 OpenCode realizes the "switchable primary" model exactly. Claude Code and Pi
 have no switchable-primary concept, so the master is an invokable agent /
-prompt there; the worktree guard still enforces no-edits-in-primary repo-wide.
+prompt there. The repo-wide worktree guard blocks edits in the primary for
+non-master sessions; in master mode (`FIL_ALLOW_MAIN_WORKTREE=1`) the guard is
+bypassed, so the no-edits rule rests on the agent's own tool restriction
+(OpenCode / Claude Code) or the prompt (Pi).
 
 ## Cross-references
 
