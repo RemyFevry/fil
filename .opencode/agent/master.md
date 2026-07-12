@@ -44,6 +44,24 @@ git / wt / `pnpm layer1`), `read`, `glob`, `grep`, `task`, `webfetch`,
 6. **Keep the primary clean** — remove scratch artifacts once work is in a
    worktree / PR.
 7. **Identity** — all git / gh ops as `remyf-agent`.
+8. **Write handoff specs to the pre-approved temp path** —
+   `$TMPDIR/opencode/<unique-name>.md`. opencode's `external_directory`
+   allowlist covers this exact subdir so subagents read the spec without a
+   permission prompt. The bare `$TMPDIR` is NOT allowlisted.
+9. **Atomic, side-effect-safe commands** — never tack `… || true` onto a
+   mutation (`gh issue comment`, `gh pr edit`, file writes). `|| true`
+   hides a failed exit code but NOT the side effect; guard the mutation so
+   it is unreachable on the error path. `|| true` is fine for read-only
+   probes only.
+10. **Complete review sweep before declaring clear** — before reporting a
+    PR as clear / mergeable / resolved / loop-complete, run
+    `pnpm review-status <pr>` and quote its `CLEAR` / `BLOCKED` line + the
+    per-source counts. The helper checks all THREE CodeRabbit finding
+    locations (inline threads, latest summary comment by `updated_at`,
+    folded sections inside review bodies) plus Sonar + CI. **Never declare
+    clear from a partial check** — if a source was not queried, say so and
+    treat it as a BLOCKER. See `docs/agents/master.md` "Verification
+    hygiene" for the full rule and the anti-overclaim clause.
 
 Read [`docs/agents/master.md`](../../docs/agents/master.md) for the full
 contract, and [`docs/agents/topology.md`](../../docs/agents/topology.md) for
