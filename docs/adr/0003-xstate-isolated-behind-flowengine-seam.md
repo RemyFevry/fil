@@ -23,4 +23,4 @@ fil-core talks to a **`FlowEngine` seam** (`load` / `run` / `send` / `getStatus`
 
 ## Consequence
 
-Rule: **no XState imports outside the `XStateFlowEngine` module (and the inspect view).** Everything else talks to `FlowEngine`.
+Rule: **no XState imports outside the engine adapter modules** (`XStateFlowEngine`, the `createMachine` wrapper, and `inspect.ts` — the inspector needs `createActor`). The isolation test (`packages/engine/test/isolation.test.ts`) enforces this allowlist. Everything else talks to `FlowEngine`.

@@ -1,7 +1,13 @@
 import { homedir } from "node:os";
+import readline from "node:readline/promises";
 import { join } from "node:path";
-import { defaultFlowEngine } from "@color-sunset/fil-engine";
-import type { FlowEngine } from "@color-sunset/fil-engine";
+import { defaultFlowEngine, inspectFlow } from "@color-sunset/fil-engine";
+import type {
+  FlowEngine,
+  InspectFlowDeps,
+  InspectFlowOptions,
+  InspectHandle,
+} from "@color-sunset/fil-engine";
 import {
   detectPi,
   defaultFs as defaultPiFs,
@@ -37,6 +43,23 @@ export interface CliContext {
   /** Human-confirmation prompter (defaults to interactive stdin). */
   prompter?: (message: string) => Promise<boolean>;
   /**
+   * Open a line reader for `fil inspect`'s manual-advance loop. Always bound
+   * by `defaultContext` to the real stdin reader; tests inject a fake to
+   * avoid reading stdin. The reader exposes a `close()` so the launchInspector
+   * cleanup path can release any pending `readLine()` await on Ctrl-C.
+   */
+  openInspectReader: () => Promise<InspectReader>;
+
+  /**
+   * Launch the Stately inspector for a Flow (ADR-0002 visualizer). Optional so
+   * tests can stub it; `defaultContext` binds the real engine export, which
+   * opens the inspector UI in the browser.
+   */
+  inspectFlow?: (
+    options: InspectFlowOptions,
+    deps?: InspectFlowDeps,
+  ) => Promise<InspectHandle>;
+  /**
    * Installs the Pi adapter for the project. Optional so tests can stub it;
    * `defaultContext` binds a real one that respects the working directory
    * and detects Pi via the host filesystem.
@@ -69,8 +92,16 @@ export function defaultContext(
     userFlowsDir: join(overrides.userFilDir ?? join(homedir(), ".fil"), "flows"),
     userFilDir: overrides.userFilDir ?? join(homedir(), ".fil"),
     out: { log: console.log, error: console.error },
+    openInspectReader: createStdinInspectReader,
   };
   const merged: CliContext = { ...base, ...overrides };
+  if (!("openInspectReader" in overrides)) {
+    merged.openInspectReader = createStdinInspectReader;
+  }
+
+  if (!("inspectFlow" in overrides)) {
+    merged.inspectFlow = inspectFlow;
+  }
   // Only auto-bind the real installer if the caller didn't supply one
   // (an explicit `installPiAdapter: undefined` opts out — the test for
   // the "no callback" branch relies on this).
@@ -95,4 +126,39 @@ export function defaultContext(
       });
   }
   return merged;
+}
+
+/** A line reader for `fil inspect`'s manual-advance loop. */
+export interface InspectReader {
+  /** Read the next line; returns `null` on EOF. */
+  readLine(): Promise<string | null>;
+  /**
+   * Release the underlying stream/interface so any pending `readLine()` await
+   * resolves. Called from the SIGINT and `finally` paths so the command
+   * terminates immediately on Ctrl-C instead of hanging on stdin.
+   */
+  close(): void;
+}
+
+/** The production stdin reader for `fil inspect`'s manual-advance loop. */
+export async function createStdinInspectReader(): Promise<InspectReader> {
+  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  const iterator = rl[Symbol.asyncIterator]();
+  let closed = false;
+  const readLine = async (): Promise<string | null> => {
+    if (closed) return null;
+    const { value, done } = await iterator.next();
+    if (done) {
+      rl.close();
+      closed = true;
+      return null;
+    }
+    return value ?? "";
+  };
+  const close = (): void => {
+    if (closed) return;
+    closed = true;
+    rl.close();
+  };
+  return { readLine, close };
 }

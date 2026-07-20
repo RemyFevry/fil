@@ -207,7 +207,7 @@ this list.
 | `cancel` | End the active Run as cancelled. | `fil cancel` |
 | `propose <flow> <file>` | Write a proposed Flow edit to `.fil/proposals/` as a unified diff (never auto-applied). | `fil propose default ./flows/default.proposed.js` |
 | `approve <id> [--flow <name>]` | Load- and reachability-validate a proposal, then apply it to the Flow. | `fil approve 01J... --flow default` |
-| `inspect` | View the Flow with the active Phase highlighted (opens `@statelyai/inspect` in the terminal). | `fil inspect` |
+| `inspect [--text]` | View the Flow. Default: launch the Stately inspector (`@statelyai/inspect`) in the browser and advance it manually (Enter = next Phase). `--text`: offline diagram with the active Phase highlighted. | `fil inspect` |
 
 A successful Run is one where every Gate passed and the terminal Phase
 (`type: "final"`) was reached. Receipts are stored per Run and form the

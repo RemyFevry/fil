@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultContext, type CliContext } from "../src/context.js";
 import { pickTempRoot } from "../src/commands/common.js";
 import { initCommand } from "../src/commands/init.js";
@@ -11,9 +11,15 @@ import { statusCommand } from "../src/commands/status.js";
 import { backCommand, cancelCommand } from "../src/commands/back-cancel.js";
 import { proposeCommand } from "../src/commands/propose.js";
 import { approveCommand } from "../src/commands/approve.js";
-import { inspectCommand } from "../src/commands/inspect.js";
+import { inspectCommand, runInspectLoop, describeValue } from "../src/commands/inspect.js";
 import { parseArgs } from "../src/args.js";
-import { serializeFlowCode, createMachine, type FlowDefinition } from "@color-sunset/fil-engine";
+import {
+  serializeFlowCode,
+  createMachine,
+  defaultFlowEngine,
+  type FlowDefinition,
+  type InspectHandle,
+} from "@color-sunset/fil-engine";
 
 let workdir: string;
 
@@ -163,21 +169,21 @@ describe("fil CLI — end to end", () => {
     expect(await nextCommand(ctx)).toBe(1);
   });
 
-  it("inspect renders the active Run's Flow with the active Phase highlighted", async () => {
+  it("inspect --text renders the active Run's Flow with the active Phase highlighted", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
     ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
     await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
-    inspectCommand(ctx);
+    await inspectCommand(ctx, parseArgs(["--text"]));
     const out = lines.join("\n");
     expect(out).toContain("demo");
     expect(out).toContain("active Phase: a");
   });
 
-  it("inspect renders the default Flow when there is no Run", () => {
+  it("inspect --text renders the default Flow when there is no Run", async () => {
     const { ctx, lines } = ctxFor();
     initCommand(ctx);
-    inspectCommand(ctx);
+    await inspectCommand(ctx, parseArgs(["--text"]));
     expect(lines.join("\n")).toContain("default");
   });
 
@@ -505,6 +511,282 @@ describe("fil init — adapter installs (Claude + Pi, stubbed)", () => {
     });
     expect(initCommand(ctx, parseArgs(["--scope", "nope"]))).toBe(2);
     expect(calls).toEqual([]);
+  });
+});
+describe("runInspectLoop", () => {
+  it("exits immediately if the Flow is already done (never opens the reader)", async () => {
+    const opened: boolean[] = [];
+    const onDone = vi.fn();
+    await runInspectLoop({
+      isDone: () => true,
+      send: () => {},
+      openReader: async () => {
+        opened.push(true);
+        return async () => null;
+      },
+      onDone,
+    });
+    expect(opened).toHaveLength(0);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances once per line and stops at the terminal Phase", async () => {
+    const script = ["a", "a", ""]; // Enter, Enter, then EOF
+    let value = "a";
+    const sends = vi.fn(() => {
+      value = value === "a" ? "b" : "done";
+    });
+    const onAdvance = vi.fn();
+    const onDone = vi.fn();
+    await runInspectLoop({
+      isDone: () => value === "done",
+      send: sends,
+      openReader: async () => async () => script.shift() ?? null,
+      onAdvance,
+      onDone,
+    });
+    // Two advances: a -> b, then b -> done.
+    expect(sends).toHaveBeenCalledTimes(2);
+    expect(onAdvance).toHaveBeenCalledTimes(2);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops on EOF before reaching done", async () => {
+    const sends = vi.fn();
+    await runInspectLoop({
+      isDone: () => false,
+      send: sends,
+      openReader: async () => async () => null,
+      onDone: vi.fn(),
+    });
+    expect(sends).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe("describeValue", () => {
+  it("renders a leaf Phase name as-is", () => {
+    expect(describeValue("code")).toBe("code");
+  });
+
+  it("renders null/undefined as a placeholder", () => {
+    expect(describeValue(null)).toBe("—");
+    expect(describeValue(undefined)).toBe("—");
+  });
+
+  it("renders a parallel Phase value (object) as JSON", () => {
+    expect(describeValue({ branchA: "x", branchB: "y" })).toBe(
+      JSON.stringify({ branchA: "x", branchB: "y" }),
+    );
+  });
+
+  it("falls back to Object.prototype.toString for non-serialisable values (circular)", () => {
+    const cyclic: { self?: unknown } = {};
+    cyclic.self = cyclic;
+    // JSON.stringify throws on cycles; describeValue must not.
+    expect(typeof describeValue(cyclic)).toBe("string");
+  });
+});
+
+describe("fil inspect — error branches", () => {
+  it("returns 1 and logs an error when the target Flow cannot be resolved", async () => {
+    const isolated = await mkdtemp(join(tmpdir(), "color-sunset-fil-iso-"));
+    const errs: string[] = [];
+    try {
+      const ctx = defaultContext(isolated, {
+        out: { log: () => {}, error: (l) => errs.push(l) },
+        inspectFlow: async () => {
+          throw new Error("should not be called");
+        },
+      });
+      const code = await inspectCommand(ctx, parseArgs([]));
+      expect(code).toBe(1);
+      expect(errs.join("\n")).toMatch(/not found|default/);
+    } finally {
+      await rm(isolated, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 1 and logs an error when ctx.inspectFlow is not bound", async () => {
+    const { ctx, errors } = ctxFor({ inspectFlow: undefined });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("Inspector is not available");
+  });
+});
+
+describe("fil inspect — launchInspector wiring", () => {
+  it("launches the Stately inspector for the default Flow (no active Run)", async () => {
+    const calls: { machine: unknown; snapshot: unknown }[] = [];
+    const fakeHandle: InspectHandle = {
+      actor: { getSnapshot: () => ({ value: "done", status: "done" }), send: () => {}, stop: () => {} } as never,
+      stop: () => {},
+    };
+    const { ctx, lines } = ctxFor({
+      inspectFlow: async (options) => { calls.push({ machine: options.machine, snapshot: options.snapshot }); return fakeHandle; },
+    });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.machine).toBeTruthy();
+    expect(calls[0]?.snapshot).toBeUndefined();
+    const out = lines.join("\n");
+    expect(out).toContain("Inspecting the");
+    expect(out).toContain("Starting at: requirements");
+    expect(out).toContain("terminal Phase");
+  });
+
+  it("resumes the active Run at its current Phase", async () => {
+    const calls: { snapshot: unknown }[] = [];
+    const fakeHandle: InspectHandle = {
+      actor: { getSnapshot: () => ({ value: "done", status: "done" }), send: () => {}, stop: () => {} } as never,
+      stop: () => {},
+    };
+    const { ctx, lines } = ctxFor({
+      inspectFlow: async (options) => { calls.push({ snapshot: options.snapshot }); return fakeHandle; },
+    });
+    initCommand(ctx);
+    ctx.store.writeFlowText("demo", serializeFlowCode(demoFlow() as Parameters<typeof serializeFlowCode>[0]));
+    await startCommand(ctx, parseArgs(["login", "--flow", "demo"]));
+    await nextCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(0);
+    expect(calls[0]?.snapshot).toBeDefined();
+    expect(lines.join("\n")).toContain("Starting at: b");
+  });
+
+  it("reports an error and exits 1 if the inspector cannot launch", async () => {
+    const { ctx, errors } = ctxFor({
+      inspectFlow: async () => { throw new Error("boom"); },
+    });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("Could not launch the inspector");
+  });
+
+  it("stops the handle and exits 1 if the input reader cannot open", async () => {
+    let handleStopped = 0;
+    const fakeHandle: InspectHandle = {
+      actor: { getSnapshot: () => ({ value: "done", status: "done" }), send: () => {}, stop: () => {} } as never,
+      stop: () => { handleStopped += 1; },
+    };
+    const { ctx, errors } = ctxFor({
+      inspectFlow: async () => fakeHandle,
+      openInspectReader: async () => { throw new Error("stdin gone"); },
+    });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(1);
+    expect(handleStopped).toBe(1);
+    expect(errors.join("\n")).toContain("Could not open input");
+  });
+
+  it("drives the actor through the loop on each line and logs the current Phase", async () => {
+    let value = "requirements";
+    let status = "active";
+    const fakeHandle: InspectHandle = {
+      actor: {
+        send: () => {
+          if (value === "requirements") value = "design";
+          else if (value === "design") value = "code";
+          else if (value === "code") { value = "done"; status = "done"; }
+        },
+        getSnapshot: () => ({ value, status }),
+        stop: () => {},
+      } as never,
+      stop: () => {},
+    };
+    const scriptedLines = ["", "", ""];
+    let closeCalls = 0;
+    const { ctx, lines } = ctxFor({
+      inspectFlow: async () => fakeHandle,
+      openInspectReader: async () => ({
+        readLine: async () => scriptedLines.shift() ?? null,
+        close: () => { closeCalls += 1; },
+      }),
+    });
+    initCommand(ctx);
+    const code = await inspectCommand(ctx, parseArgs([]));
+    expect(code).toBe(0);
+    const log = lines.join("\n");
+    expect(log).toContain("Inspecting the");
+    expect(log).toContain("current: design");
+    expect(log).toContain("current: code");
+    expect(log).toContain("terminal Phase");
+    expect(closeCalls).toBe(1);
+  });
+
+  it("unblocks the stdin reader and stops the inspector on Ctrl-C (SIGINT)", async () => {
+    let value = "requirements";
+    const fakeHandle: InspectHandle = {
+      actor: {
+        send: () => { value = "design"; },
+        getSnapshot: () => ({ value, status: "active" }),
+        stop: () => {},
+      } as never,
+      stop: () => {},
+    };
+    let pendingReadLine: (() => void) | null = null;
+    let closeCalls = 0;
+    let closed = false;
+    const readPromise = new Promise<string | null>((resolve) => {
+      pendingReadLine = () => resolve(null);
+    });
+    const { ctx } = ctxFor({
+      inspectFlow: async () => fakeHandle,
+      openInspectReader: async () => ({
+        readLine: () => readPromise,
+        close: () => {
+          if (closed) return;
+          closed = true;
+          closeCalls += 1;
+          pendingReadLine?.();
+        },
+      }),
+    });
+    initCommand(ctx);
+    const inspectPromise = inspectCommand(ctx, parseArgs([]));
+    // Let the loop reach readLine(), then simulate Ctrl-C by firing SIGINT.
+    await new Promise((r) => setTimeout(r, 10));
+    process.emit("SIGINT");
+    const code = await inspectPromise;
+    expect(code).toBe(0);
+    expect(closeCalls).toBe(1);
+  });
+});
+
+describe("fil inspect --text — error branches", () => {
+  it("returns 1 when the default Flow cannot be resolved (no .fil/)", async () => {
+    const isolated = await mkdtemp(join(tmpdir(), "color-sunset-fil-iso-"));
+    const errs: string[] = [];
+    try {
+      const ctx = defaultContext(isolated, {
+        out: { log: () => {}, error: (l) => errs.push(l) },
+      });
+      const code = await inspectCommand(ctx, parseArgs(["--text"]));
+      expect(code).toBe(1);
+      expect(errs.join("\n")).toMatch(/not found|default/);
+    } finally {
+      await rm(isolated, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 1 when the engine fails to load the resolved Flow", async () => {
+    const errs: string[] = [];
+    const realEngine = defaultFlowEngine;
+    const brokenEngine = {
+      ...realEngine,
+      load: () => ({ ok: false, error: "synthetic load failure" } as const),
+    };
+    const ctx = defaultContext(workdir, {
+      out: { log: () => {}, error: (l) => errs.push(l) },
+      engine: brokenEngine as unknown as typeof realEngine,
+    });
+    const code = await inspectCommand(ctx, parseArgs(["--text"]));
+    expect(code).toBe(1);
+    expect(errs.join("\n")).toContain("synthetic load failure");
   });
 });
 

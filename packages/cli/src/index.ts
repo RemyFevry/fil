@@ -24,7 +24,9 @@ Usage:
   fil cancel                            Cancel the active Run
   fil propose <flow> <file>             Propose a Flow edit (not applied)
   fil approve <id> [--flow <name>]      Validate and apply a proposal
-  fil inspect                           View the Flow (active Phase highlighted)
+  fil inspect [--text]                View the Flow. Default: launch the Stately
+                                       inspector in the browser (Enter advances the
+                                       Flow, Ctrl-C exits). --text: offline diagram.
 `;
 
 type CommandFn = (ctx: ReturnType<typeof defaultContext>, args: ParsedArgsLike) => unknown;
@@ -43,7 +45,7 @@ const commands: Record<string, CommandFn> = {
   cancel: (ctx) => cancelCommand(ctx),
   propose: (ctx, args) => proposeCommand(ctx, args),
   approve: (ctx, args) => approveCommand(ctx, args),
-  inspect: (ctx) => inspectCommand(ctx),
+  inspect: (ctx, args) => inspectCommand(ctx, args),
 };
 
 export async function run(argv: string[], cwd = process.cwd()): Promise<number> {

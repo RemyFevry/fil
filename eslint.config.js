@@ -13,6 +13,8 @@ export default tseslint.config(
       ".config/**",
       ".claude/**",
       "coverage/**",
+      // Manual visual-test harness (not shipped code):
+      "human-test/**",
     ],
   },
   js.configs.recommended,
